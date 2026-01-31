@@ -1,0 +1,114 @@
+<div id="org-context-menu" class="org-context-menu">
+    <div class="org-context-menu-item" data-action="view">
+        <i class="bi bi-eye"></i> View Details
+    </div>
+    <div class="org-context-menu-item" data-action="edit">
+        <i class="bi bi-pencil"></i> Edit
+    </div>
+    <div class="org-context-menu-item" data-action="add-child">
+        <i class="bi bi-plus-lg"></i> Add Child
+    </div>
+    <div class="org-context-menu-item" data-action="delete">
+        <i class="bi bi-trash"></i> Delete
+    </div>
+</div>
+
+<script>
+// Context menu for organization diagram nodes
+let contextMenuTargetNode = null;
+
+function showContextMenu(event, node) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    contextMenuTargetNode = node;
+
+    const menu = document.getElementById('org-context-menu');
+    const addChildItem = menu.querySelector('[data-action="add-child"]');
+
+    // Hide "Add Child" for positions (leaf nodes)
+    if (node.type === 'position') {
+        addChildItem.style.display = 'none';
+    } else {
+        addChildItem.style.display = 'flex';
+    }
+
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+
+    debugLog('CONTEXT_MENU', 'Show context menu for:', node.type, node.id);
+}
+
+function hideContextMenu() {
+    const menu = document.getElementById('org-context-menu');
+    if (menu) {
+        menu.style.display = 'none';
+    }
+    contextMenuTargetNode = null;
+}
+
+// Handle context menu item clicks
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.org-context-menu')) {
+        hideContextMenu();
+    }
+});
+
+document.querySelectorAll('.org-context-menu-item').forEach(item => {
+    item.addEventListener('click', function() {
+        const action = this.dataset.action;
+        const node = contextMenuTargetNode;
+
+        if (!node) {
+            debugLog('CONTEXT_MENU', 'No target node for action:', action);
+            return;
+        }
+
+        debugLog('CONTEXT_MENU', 'Action clicked:', action, 'for:', node.type, node.id);
+
+        switch (action) {
+            case 'view':
+                // Show node details - could open a modal with full details
+                showToast(`${node.code || node.name} (${node.type})`, 'info');
+                break;
+
+            case 'edit':
+                // Open existing edit modal
+                showModal(node.type, node.id);
+                break;
+
+            case 'add-child':
+                // Show add modal with pre-filled parent
+                const childType = getChildType(node.type);
+                showModal(childType, null, node.id);
+                break;
+
+            case 'delete':
+                // Use existing delete function
+                deleteItem(node.type, node.id);
+                break;
+        }
+
+        hideContextMenu();
+    });
+});
+
+// Helper function to get child type based on parent type
+function getChildType(parentType) {
+    const childTypeMap = {
+        'directorate': 'work-unit',
+        'work-unit': 'affair',
+        'affair': 'position'
+    };
+    return childTypeMap[parentType] || null;
+}
+
+// Log that the script loaded
+console.log('[ORG_DIAGRAM_CONTEXT_MENU] Context menu component loaded');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('org-diagram-context-menu.html');
+}
+</script>

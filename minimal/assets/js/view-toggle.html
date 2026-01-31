@@ -1,0 +1,215 @@
+<script>
+// ============================================================================
+// ORGANIZATION VIEW TOGGLE - Table View / Diagram View
+// ============================================================================
+
+debugLog('VIEW_TOGGLE', '╔════════════════════════════════════════════════════╗');
+debugLog('VIEW_TOGGLE', '║  VIEW TOGGLE SCRIPT LOADING                       ║');
+debugLog('VIEW_TOGGLE', '╚════════════════════════════════════════════════════╝');
+
+// Current view state
+let currentView = 'table'; // 'table' or 'diagram'
+debugLog('VIEW_TOGGLE', '✓ currentView initialized to: ' + currentView);
+
+// View state management with localStorage
+const ViewState = {
+    STORAGE_KEY: 'org-view-preference',
+
+    // Save view preference
+    save(view) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, view);
+            debugLog('VIEW', 'Saved view preference: ' + view);
+        } catch (e) {
+            debugLog('VIEW', 'Could not save view preference:', e);
+        }
+    },
+
+    // Load view preference
+    load() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (saved === 'table' || saved === 'diagram') {
+                debugLog('VIEW', 'Loaded saved view preference: ' + saved);
+                return saved;
+            }
+        } catch (e) {
+            debugLog('VIEW', 'Could not load view preference:', e);
+        }
+        return 'table'; // Default view
+    },
+
+    // Clear saved preference
+    clear() {
+        try {
+            localStorage.removeItem(this.STORAGE_KEY);
+            debugLog('VIEW', 'Cleared view preference');
+        } catch (e) {
+            debugLog('VIEW', 'Could not clear view preference:', e);
+        }
+    }
+};
+
+/**
+ * Switch between table and diagram view
+ */
+function switchView(view) {
+    debugLog('VIEW_TOGGLE', '═══════════════════════════════════════════════════');
+    debugLog('VIEW_TOGGLE', 'switchView CALLED with view: ' + view);
+    debugLog('VIEW_TOGGLE', '═══════════════════════════════════════════════════');
+
+    const tableView = document.getElementById('table-view');
+    const diagramView = document.getElementById('diagram-view');
+    const tableBtn = document.getElementById('table-view-btn');
+    const diagramBtn = document.getElementById('diagram-view-btn');
+    const controls = document.getElementById('org-diagram-controls');
+
+    // Defensive check: Ensure we're on the organization page
+    if (!tableView || !diagramView || !tableBtn || !diagramBtn) {
+        debugLog('VIEW_TOGGLE', 'FAIL: Required elements not found - not on organization page');
+        return;
+    }
+
+    if (view === 'table') {
+        // Show table view
+        if (tableView) tableView.classList.add('active');
+        if (diagramView) diagramView.style.display = 'none';
+
+        // Update button states
+        if (tableBtn) tableBtn.classList.add('active');
+        if (diagramBtn) diagramBtn.classList.remove('active');
+
+        // Hide diagram controls
+        if (controls) controls.classList.remove('show');
+
+        // Destroy diagram to free resources
+        if (typeof OrgDiagram !== 'undefined' && OrgDiagram.svg) {
+            OrgDiagram.destroy();
+        }
+
+        currentView = 'table';
+        debugLog('VIEW', 'Switched to table view');
+
+    } else if (view === 'diagram') {
+        // Show diagram view
+        if (diagramView) {
+            diagramView.style.display = 'block';
+            debugLog('VIEW_TOGGLE', 'diagramView display set to block');
+        }
+        if (tableView) tableView.classList.remove('active');
+
+        // Update button states
+        if (diagramBtn) diagramBtn.classList.add('active');
+        if (tableBtn) tableBtn.classList.remove('active');
+
+        // Show diagram controls
+        if (controls) controls.classList.add('show');
+
+        // Initialize diagram after layout is complete
+        // Use requestAnimationFrame to ensure display:block has been applied
+        requestAnimationFrame(() => {
+            // Second frame to ensure layout calculation is complete
+            requestAnimationFrame(() => {
+                if (typeof OrgDiagram !== 'undefined') {
+                    debugLog('VIEW_TOGGLE', 'Calling OrgDiagram.init() after layout is complete');
+                    OrgDiagram.init();
+                } else {
+                    debugLog('VIEW_TOGGLE', 'OrgDiagram not defined yet, waiting...');
+                    // Wait a bit longer for OrgDiagram to load
+                    setTimeout(() => {
+                        if (typeof OrgDiagram !== 'undefined') {
+                            debugLog('VIEW_TOGGLE', 'OrgDiagram now available, calling init()');
+                            OrgDiagram.init();
+                        } else {
+                            debugLog('VIEW_TOGGLE', 'FAIL OrgDiagram still not defined after timeout');
+                            showToast('Diagram component is loading. Please try again.', 'warning');
+                        }
+                    }, 500); // Wait 500ms for script to load
+                }
+            });
+        });
+
+        currentView = 'diagram';
+        debugLog('VIEW', 'Switched to diagram view');
+    }
+
+    // Save preference
+    ViewState.save(view);
+
+    debugLog('VIEW', '=== switchView COMPLETE ===');
+}
+
+/**
+ * Refresh current view (call after CRUD operations)
+ */
+function refreshCurrentView() {
+    if (currentView === 'diagram' && typeof OrgDiagram !== 'undefined') {
+        debugLog('VIEW', 'Refreshing diagram view after CRUD');
+        OrgDiagram.reload();
+    } else {
+        debugLog('VIEW', 'Table view will auto-refresh via DataTables');
+    }
+}
+
+/**
+ * Auto-load saved view on page initialization
+ */
+function initializeView() {
+    debugLog('VIEW', '=== initializeView START ===');
+
+    // Check if we're on the organization page before auto-switching
+    const tableView = document.getElementById('table-view');
+    const diagramView = document.getElementById('diagram-view');
+
+    if (!tableView || !diagramView) {
+        debugLog('VIEW', 'Not on organization page - skipping auto-initialization');
+        return;
+    }
+
+    const savedView = ViewState.load();
+    debugLog('VIEW', 'Saved view preference: ' + savedView);
+
+    if (savedView === 'diagram') {
+        // Start with diagram view
+        switchView('diagram');
+    }
+    // Default is table view (already shown in HTML)
+
+    debugLog('VIEW', '=== initializeView COMPLETE ===');
+}
+
+// Auto-initialize on page load
+window.addEventListener('DOMContentLoaded', function() {
+    debugLog('VIEW', 'View toggle script loaded, waiting for DOMContentLoaded');
+    initializeView();
+});
+
+// Log that the script loaded
+console.log('[VIEW_TOGGLE] Script loaded successfully');
+
+// Confirm switchView is globally available
+debugLog('VIEW_TOGGLE', '═══════════════════════════════════════════════════');
+debugLog('VIEW_TOGGLE', 'SCRIPT LOADING COMPLETE');
+debugLog('VIEW_TOGGLE', 'Verifying global functions:');
+debugLog('VIEW_TOGGLE', '  - typeof switchView: ' + typeof switchView);
+debugLog('VIEW_TOGGLE', '  - typeof refreshCurrentView: ' + typeof refreshCurrentView);
+debugLog('VIEW_TOGGLE', '  - typeof initializeView: ' + typeof initializeView);
+debugLog('VIEW_TOGGLE', '═══════════════════════════════════════════════════');
+
+// Enable view toggle buttons now that script is loaded
+const tableBtn = document.getElementById('table-view-btn');
+const diagramBtn = document.getElementById('diagram-view-btn');
+if (tableBtn) {
+    tableBtn.removeAttribute('disabled');
+    debugLog('VIEW_TOGGLE', 'Table view button enabled');
+}
+if (diagramBtn) {
+    diagramBtn.removeAttribute('disabled');
+    debugLog('VIEW_TOGGLE', 'Diagram view button enabled');
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('view-toggle.html');
+}
+</script>

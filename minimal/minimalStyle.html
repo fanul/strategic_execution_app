@@ -126,4 +126,145 @@
         .debug-log-entry.APP { border-left-color: #4CAF50; }
         .debug-log-entry.ERROR { border-left-color: #f44336; background: rgba(244,63,54,0.1); }
         .debug-log-entry.SUCCESS { border-left-color: #4CAF50; }
+
+        /* Organization Diagram Styles */
+        /* View Toggle Buttons */
+        .view-toggle .btn {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .view-toggle .btn.active {
+            background-color: #0d6efd;
+            color: white;
+            cursor: default;
+        }
+        .view-toggle .btn:not(.active):hover {
+            background-color: #e9ecef;
+            cursor: pointer;
+        }
+
+        /* Diagram Container */
+        #org-diagram-container {
+            position: relative;
+        }
+
+        /* Diagram Nodes */
+        .org-node {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .org-node:hover {
+            filter: brightness(0.9);
+        }
+        .org-node rect {
+            stroke-width: 2px;
+        }
+        .org-node text {
+            font-family: inherit;
+            pointer-events: none;
+        }
+
+        /* Diagram Links */
+        .org-link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+
+        /* Zoom Controls */
+        .org-diagram-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 1000;
+        }
+        .org-diagram-controls.show {
+            display: flex;
+        }
+
+        .org-diagram-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .org-diagram-btn:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Tooltip */
+        .org-tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 2000;
+        }
+
+        /* Context Menu */
+        .org-context-menu {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 3000;
+            min-width: 150px;
+            display: none;
+        }
+        .org-context-menu.show {
+            display: block;
+        }
+        .org-context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .org-context-menu-item:hover {
+            background-color: #f8f9fa;
+        }
+        .org-context-menu-item i {
+            margin-right: 8px;
+        }
+        .org-context-menu-item:first-child {
+            border-radius: 4px 4px 0 0;
+        }
+        .org-context-menu-item:last-child {
+            border-radius: 0 0 4px 4px;
+        }
+
+        /* Drag and Drop */
+        .org-node.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .org-node.drag-target {
+            stroke: #0d6efd !important;
+            stroke-width: 3px !important;
+            stroke-dasharray: 5,5;
+        }
+        .org-drop-indicator {
+            fill: #0d6efd;
+            opacity: 0.3;
+        }
+        .org-drop-line {
+            stroke: #0d6efd;
+            stroke-width: 2px;
+            stroke-dasharray: 4,4;
+        }
 </style>

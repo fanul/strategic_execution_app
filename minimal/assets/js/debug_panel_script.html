@@ -70,6 +70,18 @@
             if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         },
 
+        minimize() {
+            const panel = document.getElementById('debugPanel');
+            const logs = document.getElementById('debugLogs');
+            const btn = document.getElementById('debugMinimizeBtn');
+            if (panel && logs && btn) {
+                const isMinimized = logs.style.display === 'none';
+                logs.style.display = isMinimized ? 'block' : 'none';
+                btn.textContent = isMinimized ? '−' : '+';
+                console.log('[DEBUG] Panel ' + (isMinimized ? 'restored' : 'minimized'));
+            }
+        },
+
         show() {
             const panel = document.getElementById('debugPanel');
             if (panel) {

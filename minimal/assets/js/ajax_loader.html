@@ -15,7 +15,7 @@ function navigateToPage(pageName) {
 
     // Fetch page content
     apiCall('page/get', { page: pageName })
-        .then(response => {
+        .then(async response => {
             if (response.success) {
                 // Update main content
                 document.getElementById('main-content').innerHTML = response.data.content;
@@ -24,8 +24,8 @@ function navigateToPage(pageName) {
                 const modalContainer = document.getElementById('page-modals');
                 if (modalContainer) modalContainer.innerHTML = response.data.modals;
 
-                // Execute page scripts
-                executeScripts(response.data.scripts);
+                // Execute page scripts sequentially (await for full loading)
+                await executeScripts(response.data.scripts);
 
                 // Update URL
                 const url = new URL(window.location.href);
@@ -70,20 +70,57 @@ function hideViewLoading() {
     // Content already replaced, nothing to hide
 }
 
-// Execute scripts dynamically
-function executeScripts(scriptHTML) {
+// Execute scripts dynamically with proper sequencing
+async function executeScripts(scriptHTML) {
+    debugLog('AJAX', '=== executeScripts START ===');
+    debugLog('AJAX', 'Script HTML length:', scriptHTML ? scriptHTML.length : 0);
+
+    if (!scriptHTML || scriptHTML.trim() === '') {
+        debugLog('AJAX', 'No scripts to execute');
+        return;
+    }
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = scriptHTML;
 
     const scripts = tempDiv.querySelectorAll('script');
-    scripts.forEach(oldScript => {
-        const newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach(attr => {
-            newScript.setAttribute(attr.name, attr.value);
+    debugLog('AJAX', 'Found ' + scripts.length + ' script tags to execute sequentially');
+
+    // Execute scripts sequentially with proper onload waiting
+    for (let index = 0; index < scripts.length; index++) {
+        const oldScript = scripts[index];
+        debugLog('AJAX', 'Loading script ' + (index + 1) + ' of ' + scripts.length);
+
+        // Create a promise that resolves when script is loaded
+        await new Promise((resolve, reject) => {
+            const newScript = document.createElement('script');
+            Array.from(oldScript.attributes).forEach(attr => {
+                newScript.setAttribute(attr.name, attr.value);
+            });
+            newScript.textContent = oldScript.textContent;
+
+            // Log script content preview
+            const scriptPreview = oldScript.textContent.substring(0, 100).replace(/\n/g, ' ');
+            debugLog('AJAX', 'Script ' + (index + 1) + ' preview: ' + scriptPreview + '...');
+
+            // Set up onload to ensure script is fully parsed before continuing
+            newScript.onload = () => {
+                debugLog('AJAX', 'Script ' + (index + 1) + ' loaded and parsed');
+                resolve();
+            };
+
+            newScript.onerror = (error) => {
+                debugLog('AJAX', 'FAIL Script ' + (index + 1) + ' failed to load:', error);
+                reject(error);
+            };
+
+            document.body.appendChild(newScript);
         });
-        newScript.textContent = oldScript.textContent;
-        document.body.appendChild(newScript);
-    });
+    }
+
+    debugLog('AJAX', '=== executeScripts COMPLETE ===');
+    debugLog('AJAX', 'Checking if switchView exists:', typeof switchView);
+    debugLog('AJAX', 'Checking if OrgDiagram exists:', typeof OrgDiagram);
 }
 
 // Initialize page-specific functionality

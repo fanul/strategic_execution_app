@@ -389,13 +389,17 @@ const OrganizationModel = {
       if (!workUnit) return [];
 
       const workUnits = getTableData(DB_CONFIG.SHEET_NAMES.WORK_UNITS);
+
+      // Return all other active work units (across all directorates)
       return workUnits
-        .filter(wu => wu.directorate_id === workUnit.directorate_id && wu.work_unit_id !== workUnitId && wu.is_active)
+        .filter(wu => wu.work_unit_id !== workUnitId && wu.is_active)
         .map(wu => ({
           id: wu.work_unit_id,
+          type: 'work-unit',
           code: wu.work_unit_code,
           name: wu.work_unit_name,
-          display: `${wu.work_unit_code} - ${wu.work_unit_name}`
+          directorate_code: wu.directorate_id ? workUnit.directorate_code : '',
+          display: `${wu.work_unit_code} - ${wu.work_unit_name}${wu.directorate_id !== workUnit.directorate_id ? ' (Different Directorate)' : ''}`
         }));
     },
 
@@ -427,7 +431,7 @@ const OrganizationModel = {
       return deleteRecord(DB_CONFIG.SHEET_NAMES.WORK_UNITS, "work_unit_id", workUnitId);
     },
 
-    reassignAndDelete(workUnitId, newWorkUnitId, deleterId) {
+    reassignAndDelete(workUnitId, newParentId, deleterId) {
       // Get all affairs under this work unit
       const affairs = getTableData(DB_CONFIG.SHEET_NAMES.AFFAIRS);
       const childAffairs = affairs.filter(a => a.work_unit_id === workUnitId);
@@ -435,11 +439,11 @@ const OrganizationModel = {
       // Reassign affairs to new work unit
       childAffairs.forEach(a => {
         updateRecord(DB_CONFIG.SHEET_NAMES.AFFAIRS, "affair_id", a.affair_id, {
-          work_unit_id: newWorkUnitId,
+          work_unit_id: newParentId,
           updated_at: formatDateTime(new Date()),
           updated_by: deleterId
         });
-        logAudit('UPDATE', 'Affairs', a.affair_id, deleterId, 'Affair reassigned');
+        logAudit('UPDATE', 'Affairs', a.affair_id, deleterId, 'Affair reassigned to new work unit');
       });
 
       // Reassign positions directly under work unit
@@ -447,11 +451,11 @@ const OrganizationModel = {
       const workUnitPositions = positions.filter(p => p.work_unit_id === workUnitId);
       workUnitPositions.forEach(p => {
         updateRecord(DB_CONFIG.SHEET_NAMES.POSITIONS, "position_id", p.position_id, {
-          work_unit_id: newWorkUnitId,
+          work_unit_id: newParentId,
           updated_at: formatDateTime(new Date()),
           updated_by: deleterId
         });
-        logAudit('UPDATE', 'Positions', p.position_id, deleterId, 'Position reassigned');
+        logAudit('UPDATE', 'Positions', p.position_id, deleterId, 'Position reassigned to new work unit');
       });
 
       // Delete the work unit

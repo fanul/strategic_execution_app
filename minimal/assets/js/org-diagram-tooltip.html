@@ -1,0 +1,51 @@
+<div id="org-tooltip" class="org-tooltip" style="display:none;">
+    <div id="tooltip-content"></div>
+</div>
+
+<script>
+// Tooltip functions for organization diagram
+const OrgTooltip = {
+    element: null,
+    content: null,
+
+    init() {
+        this.element = document.getElementById('org-tooltip');
+        this.content = document.getElementById('tooltip-content');
+        debugLog('TOOLTIP', 'Tooltip initialized');
+    },
+
+    show(event, node) {
+        if (!this.element) this.init();
+
+        const typeLabel = node.type.replace('-', ' ').replace(/\b\w/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
+
+        this.content.innerHTML = `
+            <strong>${node.code || ''}</strong><br>
+            ${node.name || ''}<br>
+            <small class="text-muted">${typeLabel}</small>
+        `;
+
+        this.element.style.display = 'block';
+        this.element.style.left = (event.pageX + 15) + 'px';
+        this.element.style.top = (event.pageY + 15) + 'px';
+    },
+
+    hide() {
+        if (this.element) {
+            this.element.style.display = 'none';
+        }
+    }
+};
+
+// Auto-initialize
+if (typeof window !== 'undefined') {
+    OrgTooltip.init();
+}
+
+console.log('[ORG_DIAGRAM_TOOLTIP] Tooltip component loaded');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('org-diagram-tooltip.html');
+}
+</script>

@@ -1,6 +1,92 @@
 <div id="organization-view" class="view-section active">
-    <h2 class="mb-4">Organization Structure</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Organization Structure</h2>
+        <div class="view-toggle btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary active" id="table-view-btn" disabled onclick="switchView('table')">
+                <i class="bi bi-table me-1"></i>Table View
+            </button>
+            <button type="button" class="btn btn-outline-primary" id="diagram-view-btn" disabled onclick="switchView('diagram')">
+                <i class="bi bi-diagram-3 me-1"></i>Diagram View
+            </button>
+        </div>
+    </div>
 
+    <!-- Diagram View Container -->
+    <div id="diagram-view" class="view-section" style="display:none;">
+        <!-- Filter Controls -->
+        <div class="card shadow mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Filter by Type</label>
+                        <select class="form-select" id="org-filter-type" onchange="OrgDiagram.filterByType(this.value)">
+                            <option value="">All Types</option>
+                            <option value="directorate">Directorates</option>
+                            <option value="work-unit">Work Units</option>
+                            <option value="affair">Affairs</option>
+                            <option value="position">Positions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="org-filter-status" onchange="OrgDiagram.filterByStatus(this.value)">
+                            <option value="">All</option>
+                            <option value="active">Active Only</option>
+                            <option value="inactive">Inactive Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Search</label>
+                        <input type="text" class="form-control" id="org-search" placeholder="Search by name or code..." oninput="OrgDiagram.search(this.value)">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Actions</label>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="OrgDiagram.reload()" title="Reload">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="OrgDiagram.exportPNG()" title="Export PNG">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagram Container -->
+        <div class="card shadow">
+            <div class="card-body p-0">
+                <div id="org-diagram-container" style="width:100%; height:700px; position:relative; background-color:#f8f9fa; border-radius:4px;">
+                    <!-- D3.js diagram will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title mb-3">Legend</h6>
+                <div class="row g-3">
+                    <div class="col-auto">
+                        <span class="badge bg-primary me-1">■</span> Directorate
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-success me-1">■</span> Work Unit
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-info me-1">■</span> Affair
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-secondary me-1">■</span> Position
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table View Container (existing content) -->
+    <div id="table-view" class="view-section active">
     <!-- Organization Tabs -->
     <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -309,5 +395,6 @@
                 </table>
             </div>
         </div>
+    </div>
     </div>
 </div>

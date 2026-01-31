@@ -1,0 +1,835 @@
+<script>
+// ============================================================================
+// ORGANIZATION DIAGRAM - D3.js Hierarchical Tree Visualization
+// ============================================================================
+
+debugLog('ORG_DIAGRAM', '╔════════════════════════════════════════════════════╗');
+debugLog('ORG_DIAGRAM', '║  ORG DIAGRAM SCRIPT LOADING                      ║');
+debugLog('ORG_DIAGRAM', '╚════════════════════════════════════════════════════╝');
+debugLog('ORG_DIAGRAM', 'D3.js available: ' + (typeof d3 !== 'undefined'));
+
+const OrgDiagram = (function() {
+    'use strict';
+
+    debugLog('ORG_DIAGRAM', 'OrgDiagram module initialization START');
+
+    // Private members
+    let svg = null;
+    let g = null;
+    let zoom = null;
+    let root = null;
+    let treemap = null;
+    let containerId = 'org-diagram-container';
+    let currentData = null;
+    let collapsedIds = new Set();
+    let zoomState = { k: 1, x: 0, y: 0 };
+
+    // Entity type configuration
+    const entityConfig = {
+        'directorate': {
+            color: '#0d6efd',
+            icon: 'bi-building',
+            hasIcon: '■'
+        },
+        'work-unit': {
+            color: '#198754',
+            icon: 'diagram-3',
+            hasIcon: '■'
+        },
+        'affair': {
+            color: '#0dcaf0',
+            icon: 'diagram-3',
+            hasIcon: '■'
+        },
+        'position': {
+            color: '#6c757d',
+            icon: 'bi-person',
+            hasIcon: '●'
+        }
+    };
+
+    // ============================================================================
+    // PUBLIC METHODS
+    // ============================================================================
+
+    return {
+        // Initialize diagram
+        async init() {
+            debugLog('DIAGRAM', '=== OrgDiagram.init START ===');
+
+            const container = document.getElementById(containerId);
+            if (!container) {
+                debugLog('DIAGRAM', 'FAIL Container not found: ' + containerId);
+                return;
+            }
+
+            debugLog('DIAGRAM', 'Container found, checking visibility and dimensions...');
+            debugLog('DIAGRAM', 'Container display:', container.style.display);
+            debugLog('DIAGRAM', 'Container visibility:', window.getComputedStyle(container).visibility);
+            debugLog('DIAGRAM', 'Container dimensions:', {
+                offsetWidth: container.offsetWidth,
+                offsetHeight: container.offsetHeight,
+                clientWidth: container.clientWidth,
+                clientHeight: container.clientHeight,
+                scrollWidth: container.scrollWidth,
+                scrollHeight: container.scrollHeight
+            });
+
+            // Check if container is visible
+            if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+                debugLog('DIAGRAM', 'FAIL Container has zero dimensions! Cannot initialize diagram.');
+                debugLog('DIAGRAM', 'This usually means the container is not visible yet.');
+                return;
+            }
+
+            // Clear container - remove all content
+            container.innerHTML = '';
+
+            // Create SVG element with explicit namespace using DOM API
+            const width = container.offsetWidth || 1200;
+            const height = container.offsetHeight || 700;
+
+            debugLog('DIAGRAM', 'Creating SVG with dimensions:', { width, height });
+
+            // Create SVG using standard HTML and let D3 handle the rest
+            svg = d3.select('#' + containerId)
+                .append('svg:svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('xmlns', 'http://www.w3.org/2000/svg');
+
+            debugLog('DIAGRAM', 'SVG element created, node count:', container.children.length);
+
+            // Create main group for zoom/pan
+            g = svg.append('svg:g')
+                .attr('class', 'org-diagram-content');
+
+            debugLog('DIAGRAM', 'Main group (g) created successfully');
+
+            // Setup zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                    zoomState = { k: event.transform.k, x: event.transform.x, y: event.transform.y };
+                });
+
+            svg.call(zoom);
+
+            debugLog('DIAGRAM', 'Zoom behavior initialized');
+
+            // Load data
+            await this.loadData();
+
+            debugLog('DIAGRAM', '=== OrgDiagram.init COMPLETE ===');
+        },
+
+        // Load organization data
+        async loadData() {
+            debugLog('DIAGRAM', 'Loading organization data...');
+
+            try {
+                // Fetch all entity data in parallel
+                const [directorates, workUnits, affairs, positions] = await Promise.all([
+                    apiCall('directorates/list'),
+                    apiCall('work-units/list'),
+                    apiCall('affairs/list'),
+                    apiCall('positions/list')
+                ]);
+
+                // Build hierarchical structure
+                currentData = this.buildHierarchy(
+                    directorates.data || [],
+                    workUnits.data || [],
+                    affairs.data || [],
+                    positions.data || []
+                );
+
+                debugLog('DIAGRAM', 'Data loaded successfully');
+
+                // Render diagram
+                try {
+                    this.render();
+                } catch (renderError) {
+                    debugLog('DIAGRAM', 'FAIL Error during render:', renderError.message);
+                    debugLog('DIAGRAM', 'Error stack:', renderError.stack);
+                    throw renderError;
+                }
+
+            } catch (error) {
+                debugLog('DIAGRAM', 'FAIL Error loading data:', error.message);
+                debugLog('DIAGRAM', 'Error stack:', error.stack);
+                showToast('Error loading organization data: ' + error.message, 'error');
+            }
+        },
+
+        // Build hierarchical tree structure
+        buildHierarchy(directorates, workUnits, affairs, positions) {
+            debugLog('DIAGRAM', '=== buildHierarchy START ===');
+            debugLog('DIAGRAM', 'Input data:', {
+                directorates: directorates.length,
+                workUnits: workUnits.length,
+                affairs: affairs.length,
+                positions: positions.length
+            });
+
+            // Create map for quick lookup
+            const dirMap = new Map(directorates.map(d => [d.directorate_id, d]));
+            const wuMap = new Map(workUnits.map(w => [w.work_unit_id, w]));
+            const affairMap = new Map(affairs.map(a => [a.affair_id, a]));
+
+            // Build hierarchy: Directorate -> Work Unit -> Affair -> Position
+            const root = {
+                id: 'root',
+                name: 'Organization',
+                type: 'root',
+                code: 'ORG',
+                children: []
+            };
+
+            directorates.forEach(dir => {
+                debugLog('DIAGRAM', 'Processing directorate:', dir.directorate_name);
+
+                const dirNode = {
+                    id: dir.directorate_id,
+                    name: dir.directorate_name,
+                    code: dir.directorate_code,
+                    type: 'directorate',
+                    is_active: dir.is_active,
+                    data: dir,
+                    children: []
+                };
+
+                // Add work units
+                const dirWorkUnits = workUnits.filter(wu => wu.directorate_id === dir.directorate_id);
+                debugLog('DIAGRAM', '  Found', dirWorkUnits.length, 'work units');
+
+                dirWorkUnits.forEach(wu => {
+                    debugLog('DIAGRAM', '  Processing work unit:', wu.work_unit_name);
+
+                    const wuNode = {
+                        id: wu.work_unit_id,
+                        name: wu.work_unit_name,
+                        code: wu.work_unit_code,
+                        type: 'work-unit',
+                        is_active: wu.is_active,
+                        data: wu,
+                        children: []
+                    };
+
+                    // Add affairs
+                    const wuAffairs = affairs.filter(a => a.work_unit_id === wu.work_unit_id);
+                    debugLog('DIAGRAM', '    Found', wuAffairs.length, 'affairs');
+
+                    wuAffairs.forEach(affair => {
+                        debugLog('DIAGRAM', '    Processing affair:', affair.affair_name);
+
+                        const affNode = {
+                            id: affair.affair_id,
+                            name: affair.affair_name,
+                            code: affair.affair_code,
+                            type: 'affair',
+                            is_active: affair.is_active,
+                            data: affair,
+                            children: []
+                        };
+
+                        // Add positions
+                        const affairPositions = positions.filter(p => p.affair_id === affair.affair_id);
+                        debugLog('DIAGRAM', '      Found', affairPositions.length, 'positions');
+
+                        affairPositions.forEach(pos => {
+                            const posNode = {
+                                id: pos.position_id,
+                                name: pos.position_name,
+                                code: pos.position_code,
+                                type: 'position',
+                                is_active: pos.is_active,
+                                data: pos,
+                                children: []
+                            };
+                            affNode.children.push(posNode);
+                        });
+
+                        wuNode.children.push(affNode);
+                    });
+
+                    dirNode.children.push(wuNode);
+                });
+
+                root.children.push(dirNode);
+            });
+
+            // Count total nodes
+            let totalNodes = 1; // root
+            totalNodes += root.children.length; // directorates
+            root.children.forEach(dir => {
+                totalNodes += dir.children.length; // work units
+                dir.children.forEach(wu => {
+                    totalNodes += wu.children.length; // affairs
+                    wu.children.forEach(aff => {
+                        totalNodes += aff.children.length; // positions
+                    });
+                });
+            });
+
+            debugLog('DIAGRAM', 'Total nodes in hierarchy:', totalNodes);
+            debugLog('DIAGRAM', '=== buildHierarchy COMPLETE ===');
+
+            return root;
+        },
+
+        // Render the diagram
+        render() {
+            debugLog('DIAGRAM', '=== render START ===');
+
+            if (!svg || !g || !currentData) {
+                debugLog('DIAGRAM', 'FAIL Cannot render - missing:', {
+                    hasSvg: !!svg,
+                    hasG: !!g,
+                    hasData: !!currentData
+                });
+                return;
+            }
+
+            debugLog('DIAGRAM', 'Current data structure:', JSON.stringify(currentData, null, 2));
+
+            // Clear previous content
+            g.selectAll('*').remove();
+            debugLog('DIAGRAM', 'Cleared previous content');
+
+            // Create tree layout
+            treemap = d3.tree().nodeSize([40, 80]);
+
+            // Convert data to hierarchy - FIX: Just return children array directly
+            debugLog('DIAGRAM', 'Creating D3 hierarchy from data...');
+            const rootHierarchy = d3.hierarchy(currentData, d => {
+                debugLog('DIAGRAM', '  Processing node:', d.id, 'has', d.children ? d.children.length : 0, 'children');
+                return d.children || null;
+            });
+
+            debugLog('DIAGRAM', 'Hierarchy created, applying tree layout...');
+
+            // Apply tree layout
+            treemap(rootHierarchy);
+
+            // Store root for later use
+            root = rootHierarchy;
+
+            debugLog('DIAGRAM', 'Tree layout applied');
+            debugLog('DIAGRAM', 'Root node:', { id: root.data.id, x: root.x, y: root.y, depth: root.depth });
+
+            // Count all descendants
+            const descendants = root.descendants();
+            debugLog('DIAGRAM', 'Total descendants:', descendants.length);
+
+            // Update positions - set y based on depth
+            descendants.forEach((d, i) => {
+                d.y = d.depth * 180; // Increased spacing
+                debugLog('DIAGRAM', '  Node ' + i + ': id=' + d.data.id + ' x=' + d.x + ' y=' + d.y + ' depth=' + d.depth);
+            });
+
+            // Create links
+            const links = root.links();
+            debugLog('DIAGRAM', 'Creating', links.length, 'links using pure DOM API');
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const linkGenerator = d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x);
+
+            links.forEach((link, i) => {
+                const path = document.createElementNS(svgNS, 'path');
+                path.setAttribute('class', 'org-link');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', '#ccc');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('d', linkGenerator(link));
+                g.node().appendChild(path);
+            });
+
+            debugLog('DIAGRAM', 'All links created');
+
+            // Create nodes (exclude root node which is just a container)
+            const nonRootNodes = descendants.filter(d => d.depth > 0);
+            debugLog('DIAGRAM', 'Creating', nonRootNodes.length, 'nodes using pure DOM API');
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const gNode = g.node();
+
+            nonRootNodes.forEach((d, i) => {
+                const tx = Math.round(d.y);
+                const ty = Math.round(d.x);
+                const config = entityConfig[d.data.type] || entityConfig.position;
+                const fillColor = d.data.is_active !== false ? config.color : '#999';
+                const fillOpacity = d.data.is_active !== false ? 1 : 0.4;
+
+                debugLog('DIAGRAM', 'Creating node ' + i + ':', {
+                    id: d.data.id,
+                    name: d.data.name,
+                    transform: 'translate(' + tx + ',' + ty + ')',
+                    color: fillColor
+                });
+
+                // Create node group
+                const nodeGroup = document.createElementNS(svgNS, 'g');
+                nodeGroup.setAttribute('class', 'org-node');
+                nodeGroup.setAttribute('transform', 'translate(' + tx + ',' + ty + ')');
+
+                // Add click handler
+                nodeGroup.addEventListener('click', (e) => this.handleNodeClick(e, d));
+                nodeGroup.addEventListener('contextmenu', (e) => this.handleNodeRightClick(e, d));
+
+                // Create rectangle
+                const rect = document.createElementNS(svgNS, 'rect');
+                rect.setAttribute('width', '160');
+                rect.setAttribute('height', '60');
+                rect.setAttribute('x', '-80');
+                rect.setAttribute('y', '-30');
+                rect.setAttribute('rx', '4');
+                rect.style.fill = fillColor;
+                rect.style.fillOpacity = fillOpacity;
+                rect.style.stroke = config.color;
+                rect.style.strokeWidth = '2px';
+                nodeGroup.appendChild(rect);
+
+                // Create name text
+                const nameText = document.createElementNS(svgNS, 'text');
+                nameText.setAttribute('x', '0');
+                nameText.setAttribute('y', '-5');
+                nameText.setAttribute('text-anchor', 'middle');
+                nameText.style.fontSize = '12px';
+                nameText.style.fontWeight = 'bold';
+                nameText.style.fill = '#fff';
+                nameText.textContent = d.data.name.length > 20 ? d.data.name.substring(0, 17) + '...' : d.data.name;
+                nodeGroup.appendChild(nameText);
+
+                // Create code text
+                const codeText = document.createElementNS(svgNS, 'text');
+                codeText.setAttribute('x', '0');
+                codeText.setAttribute('y', '15');
+                codeText.setAttribute('text-anchor', 'middle');
+                codeText.style.fontSize = '10px';
+                codeText.style.fill = '#fff';
+                codeText.textContent = d.data.code || '';
+                nodeGroup.appendChild(codeText);
+
+                // Append node group to g
+                gNode.appendChild(nodeGroup);
+            });
+
+            debugLog('DIAGRAM', 'All nodes created using DOM API');
+
+                debugLog('DIAGRAM', 'Diagram rendered successfully with', descendants.length, 'nodes');
+            } catch (nodeError) {
+                debugLog('DIAGRAM', 'FAIL Error creating nodes:', nodeError.message);
+                debugLog('DIAGRAM', 'Node error stack:', nodeError.stack);
+                throw nodeError;
+            }
+
+            debugLog('DIAGRAM', '=== render COMPLETE ===');
+
+            // Center the diagram
+            this.centerDiagram();
+        },
+
+        // Center diagram in viewport
+        centerDiagram() {
+            if (!svg || !zoom || !root) return;
+
+            // Use requestAnimationFrame to wait for browser paint cycle
+            requestAnimationFrame(() => {
+                // Use a second frame to ensure layout is complete
+                requestAnimationFrame(() => {
+                    const container = document.getElementById(containerId);
+                    const width = (container && container.offsetWidth) || 1200;
+                    const height = (container && container.offsetHeight) || 700;
+
+                    debugLog('DIAGRAM', 'Container size:', { width, height });
+
+                    // Simple centering: move first level nodes (y=180) to center of viewport
+                    // Center of viewport is at y=180, so we need minimal translation
+                    // Just add some padding from left edge
+                    const translateX = 50; // Small padding from left
+                    const translateY = (height / 2) - 170; // Center the first level vertically
+                    const scale = 1; // No scaling for now
+
+                    debugLog('DIAGRAM', 'Applying initial transform:', { translateX, translateY, scale });
+
+                    svg.call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(scale));
+
+                    // Use a third frame to check state AFTER transform is applied
+                    requestAnimationFrame(() => {
+                        // Diagnostic: Check SVG element state AFTER transform
+                        const svgElement = svg.node();
+                        const gElement = g.node();
+
+                        if (svgElement && gElement) {
+                            const svgRect = svgElement.getBoundingClientRect();
+                            const gRect = gElement.getBoundingClientRect();
+                            const svgStyles = window.getComputedStyle(svgElement);
+                            const gStyles = window.getComputedStyle(gElement);
+
+                            debugLog('DIAGRAM', 'SVG diagnostics (AFTER transform):', {
+                                svgRect: {
+                                    x: svgRect.x,
+                                    y: svgRect.y,
+                                    width: svgRect.width,
+                                    height: svgRect.height,
+                                    top: svgRect.top,
+                                    left: svgRect.left
+                                },
+                                svgDisplay: svgStyles.display,
+                                svgVisibility: svgStyles.visibility,
+                                svgOpacity: svgStyles.opacity,
+                                svgNamespace: svgElement.namespaceURI,
+                                gRect: {
+                                    x: gRect.x,
+                                    y: gRect.y,
+                                    width: gRect.width,
+                                    height: gRect.height
+                                },
+                                gTransform: gStyles.transform,
+                                gChildrenCount: gElement.children.length
+                            });
+
+                            // Check if nodes are visible
+                            const nodes = gElement.querySelectorAll('.org-node');
+                            debugLog('DIAGRAM', 'Node elements found:', nodes.length);
+                            if (nodes.length > 0) {
+                                const firstNode = nodes[0];
+                                const nodeRect = firstNode.getBoundingClientRect();
+                                debugLog('DIAGRAM', 'First node rect (AFTER transform):', {
+                                    x: nodeRect.x,
+                                    y: nodeRect.y,
+                                    width: nodeRect.width,
+                                    height: nodeRect.height,
+                                    isVisible: nodeRect.width > 0 && nodeRect.height > 0
+                                });
+
+                                // Check the rect element inside the node
+                                const firstRect = firstNode.querySelector('rect');
+                                if (firstRect) {
+                                    const rectBox = firstRect.getBBox();
+                                    const rectStyles = window.getComputedStyle(firstRect);
+                                    debugLog('DIAGRAM', 'First rect element BBox:', {
+                                        x: rectBox.x,
+                                        y: rectBox.y,
+                                        width: rectBox.width,
+                                        height: rectBox.height
+                                    });
+                                    debugLog('DIAGRAM', 'First rect attributes:', {
+                                        width: firstRect.getAttribute('width'),
+                                        height: firstRect.getAttribute('height'),
+                                        x: firstRect.getAttribute('x'),
+                                        y: firstRect.getAttribute('y'),
+                                        fill: firstRect.getAttribute('fill')
+                                    });
+                                    debugLog('DIAGRAM', 'First rect computed styles:', {
+                                        display: rectStyles.display,
+                                        visibility: rectStyles.visibility,
+                                        opacity: rectStyles.opacity,
+                                        fill: rectStyles.fill,
+                                        strokeWidth: rectStyles.strokeWidth
+                                    });
+                                    debugLog('DIAGRAM', 'First rect namespace:', {
+                                        namespaceURI: firstRect.namespaceURI,
+                                        localName: firstRect.localName,
+                                        tagName: firstRect.tagName
+                                    });
+                                }
+
+                                // Check text elements
+                                const textElements = firstNode.querySelectorAll('text');
+                                debugLog('DIAGRAM', 'Text elements in first node:', textElements.length);
+                                textElements.forEach((textEl, i) => {
+                                    const textBox = textEl.getBBox();
+                                    debugLog('DIAGRAM', '  Text ' + i + ':', {
+                                        content: textEl.textContent,
+                                        namespace: textEl.namespaceURI,
+                                        bBox: { x: textBox.x, y: textBox.y, width: textBox.width, height: textBox.height }
+                                    });
+                                });
+
+                                // Check if first node is in viewport
+                                const containerRect = container.getBoundingClientRect();
+                                debugLog('DIAGRAM', 'Is first node in viewport?', {
+                                    nodeTop: nodeRect.top,
+                                    nodeBottom: nodeRect.bottom,
+                                    nodeLeft: nodeRect.left,
+                                    nodeRight: nodeRect.right,
+                                    containerTop: containerRect.top,
+                                    containerBottom: containerRect.bottom,
+                                    containerLeft: containerRect.left,
+                                    containerRight: containerRect.right,
+                                    inVerticalRange: nodeRect.top >= containerRect.top && nodeRect.bottom <= containerRect.bottom,
+                                    inHorizontalRange: nodeRect.left >= containerRect.left && nodeRect.right <= containerRect.right
+                                });
+                            }
+                        }
+                    });
+
+                    debugLog('DIAGRAM', 'Diagram positioned for viewing');
+                });
+            });
+        },
+
+        // Toggle node collapse/expand
+        toggleNode(nodeId) {
+            if (collapsedIds.has(nodeId)) {
+                collapsedIds.delete(nodeId);
+                debugLog('DIAGRAM', 'Expanded node:', nodeId);
+            } else {
+                collapsedIds.add(nodeId);
+                debugLog('DIAGRAM', 'Collapsed node:', nodeId);
+            }
+            this.render();
+        },
+
+        // Handle node click - open edit modal
+        handleNodeClick(event, d) {
+            event.stopPropagation();
+            debugLog('DIAGRAM', 'Node clicked:', d.data.type, d.data.id);
+
+            // Open edit modal using existing function
+            showModal(d.data.type, d.data.id);
+        },
+
+        // Handle right-click - show context menu
+        handleNodeRightClick(event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            debugLog('DIAGRAM', 'Node right-clicked:', d.data.type, d.data.id);
+
+            // Show context menu
+            if (typeof showContextMenu === 'function') {
+                showContextMenu(event, {
+                    id: d.data.id,
+                    type: d.data.type,
+                    code: d.data.code,
+                    name: d.data.name
+                });
+            }
+        },
+
+        // Zoom in
+        zoomIn() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy(1.3));
+            }
+        },
+
+        // Zoom out
+        zoomOut() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy(0.7));
+            }
+        },
+
+        // Reset zoom
+        resetZoom() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.transform, d3.zoomIdentity);
+            }
+        },
+
+        // Expand all nodes
+        expandAll() {
+            collapsedIds.clear();
+            this.render();
+            debugLog('DIAGRAM', 'Expanded all nodes');
+        },
+
+        // Collapse all nodes
+        collapseAll() {
+            // Collapse all directorates
+            this.getAllNodesAtDepth(1).forEach(d => {
+                if (d.children && d.children.length > 0) {
+                    collapsedIds.add(d.data.id);
+                }
+            });
+            this.render();
+            debugLog('DIAGRAM', 'Collapsed all directorates');
+        },
+
+        // Get all nodes at specific depth
+        getAllNodesAtDepth(depth) {
+            const nodes = [];
+            root.descendants().forEach(d => {
+                if (d.depth === depth) {
+                    nodes.push(d);
+                }
+            });
+            return nodes;
+        },
+
+        // Filter by entity type
+        filterByType(type) {
+            debugLog('DIAGRAM', 'Filtering by type:', type);
+
+            // For now, simple implementation: reload all data and filter nodes
+            // In production, this should use d3.filter() on the existing data
+            this.loadData(); // This will need to be enhanced to support filtering
+        },
+
+        // Filter by status
+        filterByStatus(status) {
+            debugLog('DIAGRAM', 'Filtering by status:', status);
+            // Will implement based on filter requirements
+        },
+
+        // Search nodes
+        search(query) {
+            debugLog('DIAGRAM', 'Searching for:', query);
+
+            if (!query || query.length < 2) {
+                // Clear search highlights
+                g.selectAll('.org-node rect')
+                    .attr('stroke-width', 2)
+                    .attr('stroke', d => {
+                        const config = entityConfig[d.data.type] || entityConfig.position;
+                        return config.color;
+                    });
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+
+            // Highlight matching nodes
+            g.selectAll('.org-node rect')
+                .attr('stroke-width', d => {
+                    const match = (d.data.name || '').toLowerCase().includes(lowerQuery) ||
+                                  (d.data.code || '').toLowerCase().includes(lowerQuery);
+                    return match ? 4 : 2;
+                })
+                .attr('stroke', d => {
+                    const match = (d.data.name || '').toLowerCase().includes(lowerQuery) ||
+                                  (d.data.code || '').toLowerCase().includes(lowerQuery);
+                    return match ? '#ffc107' : null;
+                });
+        },
+
+        // Reload diagram
+        async reload() {
+            debugLog('DIAGRAM', '=== reload START ===');
+
+            // Save current zoom and collapsed state
+            const wasCollapsed = new Set(collapsedIds);
+
+            // Reload data
+            await this.loadData();
+
+            // Restore collapsed state
+            collapsedIds = wasCollapsed;
+
+            debugLog('DIAGRAM', '=== reload COMPLETE ===');
+        },
+
+        // Export diagram as PNG
+        exportPNG() {
+            debugLog('DIAGRAM', 'Exporting diagram as PNG...');
+
+            const svgElement = document.getElementById(containerId);
+            if (!svgElement) {
+                showToast('Diagram not found', 'error');
+                return;
+            }
+
+            // Get SVG data
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const svgSize = svgElement.getBoundingClientRect();
+
+            canvas.width = svgSize.width;
+            canvas.height = svgSize.height;
+
+            // Create image from SVG
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = function() {
+                // Draw image to canvas
+                ctx.drawImage(img, 0, 0);
+
+                // Export as PNG
+                const pngUrl = canvas.toDataURL('image/png');
+
+                // Download
+                const a = document.createElement('a');
+                a.href = pngUrl;
+                a.download = 'organization-diagram-' + new Date().getTime() + '.png';
+                a.click();
+
+                // Cleanup
+                URL.revokeObjectURL(url);
+                debugLog('DIAGRAM', 'Diagram exported as PNG');
+            };
+
+            img.src = url;
+        },
+
+        // Destroy diagram (free resources)
+        destroy() {
+            if (svg) {
+                svg.remove();
+                svg = null;
+            }
+            if (g) {
+                g = null;
+            }
+            zoom = null;
+            root = null;
+            treemap = null;
+            collapsedIds.clear();
+            debugLog('DIAGRAM', 'Diagram destroyed');
+        }
+    };
+
+    debugLog('ORG_DIAGRAM', 'OrgDiagram module initialized successfully');
+})();
+
+// Confirm OrgDiagram is globally available
+debugLog('ORG_DIAGRAM', '═══════════════════════════════════════════════════');
+debugLog('ORG_DIAGRAM', 'SCRIPT LOADING COMPLETE');
+debugLog('ORG_DIAGRAM', '  - typeof OrgDiagram: ' + typeof OrgDiagram);
+debugLog('ORG_DIAGRAM', '  - typeof OrgDiagram.init: ' + (typeof OrgDiagram !== 'undefined' ? typeof OrgDiagram.init : 'N/A'));
+debugLog('ORG_DIAGRAM', '═══════════════════════════════════════════════════');
+
+// Auto-initialize if saved view is diagram and diagram view exists
+// This handles the case where the script loads after view-toggle.html has already tried to switch views
+setTimeout(() => {
+    const savedView = localStorage.getItem('org-view-preference');
+    const diagramView = document.getElementById('diagram-view');
+    const diagramContainer = document.getElementById('org-diagram-container');
+
+    debugLog('ORG_DIAGRAM', 'Auto-initialization check:', {
+        savedView: savedView,
+        diagramViewExists: !!diagramView,
+        diagramViewDisplay: diagramView ? diagramView.style.display : 'N/A',
+        diagramContainerExists: !!diagramContainer
+    });
+
+    // Only auto-initialize if:
+    // 1. Saved view is 'diagram'
+    // 2. Diagram view container exists
+    // 3. Diagram view is currently visible (display: block)
+    // 4. Diagram container is empty (not yet initialized)
+    if (savedView === 'diagram' && diagramView && diagramContainer) {
+        if (diagramView.style.display === 'block' && diagramContainer.children.length === 0) {
+            debugLog('ORG_DIAGRAM', 'Auto-initializing diagram (saved view is diagram and container is visible and empty)');
+            OrgDiagram.init();
+        } else {
+            debugLog('ORG_DIAGRAM', 'Skipping auto-initialization:', {
+                reason: diagramView.style.display !== 'block' ? 'view not visible' :
+                        diagramContainer.children.length > 0 ? 'already initialized' :
+                        'unknown'
+            });
+        }
+    }
+}, 100); // Small delay to ensure DOM is ready
+</script>

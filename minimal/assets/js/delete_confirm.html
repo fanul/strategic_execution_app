@@ -48,30 +48,34 @@ const deleteEndpointMap = {
     }
 };
 
-// Helper functions for loading (fallback if showViewLoading not available)
-function showDeleteLoading() {
-    if (typeof showViewLoading === 'function') {
-        showViewLoading();
-    } else {
-        // Fallback: show loading on main content
-        const mainContent = document.getElementById('main-content');
-        if (mainContent && !mainContent.querySelector('.delete-loading-overlay')) {
-            const overlay = document.createElement('div');
-            overlay.className = 'delete-loading-overlay';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:9999;';
-            overlay.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
-            document.body.appendChild(overlay);
-        }
+// Helper functions for loading - always use overlay approach
+function showDeleteLoading(caller = 'unknown') {
+    debugLog('DELETE', 'showDeleteLoading called by: ' + caller);
+
+    // Always use overlay approach (never replace main content for delete operations)
+    const existingOverlay = document.querySelector('.delete-loading-overlay');
+    if (existingOverlay) {
+        debugLog('DELETE', 'Loading overlay already exists, reusing it');
+        return;
     }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'delete-loading-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div>';
+    document.body.appendChild(overlay);
+    debugLog('DELETE', 'Loading overlay created');
 }
 
-function hideDeleteLoading() {
-    if (typeof hideViewLoading === 'function') {
-        hideViewLoading();
+function hideDeleteLoading(caller = 'unknown') {
+    debugLog('DELETE', 'hideDeleteLoading called by: ' + caller);
+
+    const overlay = document.querySelector('.delete-loading-overlay');
+    if (overlay) {
+        overlay.remove();
+        debugLog('DELETE', 'Loading overlay removed');
     } else {
-        // Fallback: remove loading overlay
-        const overlay = document.querySelector('.delete-loading-overlay');
-        if (overlay) overlay.remove();
+        debugLog('DELETE', 'No loading overlay found to remove');
     }
 }
 
@@ -103,7 +107,7 @@ async function deleteItem(type, id) {
 
     // For entities with potential children, check first
     const endpoints = deleteEndpointMap[type];
-    showDeleteLoading();
+    showDeleteLoading('deleteItem');
 
     try {
         // Check for children
@@ -112,7 +116,7 @@ async function deleteItem(type, id) {
         debugLog('DELETE', 'Children check result:', childrenResult);
 
         if (!childrenResult.success) {
-            hideDeleteLoading();
+            hideDeleteLoading('deleteItem-childrenCheckFailed');
             showToast('Failed to check children: ' + childrenResult.message, 'error');
             return;
         }
@@ -138,7 +142,7 @@ async function deleteItem(type, id) {
             alternatives: null
         };
 
-        hideDeleteLoading();
+        hideDeleteLoading('deleteItem-gotItemDetails');
 
         // If no children, show simple confirmation
         if (!children.hasChildren) {
@@ -149,7 +153,7 @@ async function deleteItem(type, id) {
         }
 
     } catch (error) {
-        hideDeleteLoading();
+        hideDeleteLoading('deleteItem-error');
         debugLog('DELETE', 'FAIL Error: ' + error.message);
         showToast('Error checking children: ' + error.message, 'error');
     }
@@ -206,33 +210,97 @@ async function showDeleteWithChildren(type, itemName, children, id) {
 
     // Get alternatives for reassign option
     const endpoints = deleteEndpointMap[type];
-    showDeleteLoading();
+    showDeleteLoading('showDeleteWithChildren');
 
     try {
         const alternativesResult = await apiCall(endpoints.getAlternatives, { [endpoints.idField]: id });
         debugLog('DELETE', 'Alternatives result:', alternativesResult);
+        debugLog('DELETE', 'Alternatives data type:', typeof alternativesResult.data);
+        debugLog('DELETE', 'Alternatives data length:', Array.isArray(alternativesResult.data) ? alternativesResult.data.length : 'not an array');
 
-        if (alternativesResult.success && alternativesResult.data.length > 0) {
-            deleteContext.alternatives = alternativesResult.data;
+        if (alternativesResult.success) {
+            // Handle different data structures
+            let alternativesData = alternativesResult.data;
 
-            // Populate reassign dropdown
-            const reassignSelect = document.getElementById('reassignTarget');
-            reassignSelect.innerHTML = '<option value="">-- Select new parent --</option>';
-            alternativesResult.data.forEach(alt => {
-                reassignSelect.innerHTML += '<option value="' + alt.id + '">' + alt.display + '</option>';
-            });
+            // If data is not an array, check if it has a nested property
+            if (!Array.isArray(alternativesData)) {
+                debugLog('DELETE', 'Data is not an array, checking for nested properties');
+                if (alternativesData.alternatives && Array.isArray(alternativesData.alternatives)) {
+                    alternativesData = alternativesData.alternatives;
+                    debugLog('DELETE', 'Found nested alternatives array');
+                } else if (alternativesData.work_units && Array.isArray(alternativesData.work_units)) {
+                    alternativesData = alternativesData.work_units;
+                    debugLog('DELETE', 'Found work_units array');
+                } else if (alternativesData.directorates && Array.isArray(alternativesData.directorates)) {
+                    alternativesData = alternativesData.directorates;
+                    debugLog('DELETE', 'Found directorates array');
+                } else {
+                    debugLog('DELETE', 'No array found in response, converting to array');
+                    alternativesData = alternativesData.data ? [alternativesData.data] : [];
+                }
+            }
 
-            // Enable reassign option
-            document.getElementById('deleteOptionReassign').disabled = false;
+            debugLog('DELETE', 'Processed alternatives data:', alternativesData);
+            debugLog('DELETE', 'Alternatives count:', alternativesData.length);
+
+            if (alternativesData.length > 0) {
+                deleteContext.alternatives = alternativesData;
+
+                // Populate reassign dropdown with flexible field mapping
+                const reassignSelect = document.getElementById('reassignTarget');
+
+                // Destroy existing Select2 if present
+                if (typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
+                    $(reassignSelect).select2('destroy');
+                }
+
+                reassignSelect.innerHTML = '<option value="">-- Select new parent --</option>';
+
+                alternativesData.forEach(alt => {
+                    // Try different field names for id
+                    const id = alt.id || alt.work_unit_id || alt.directorate_id || alt.affair_id || alt.position_id;
+                    // Try different field names for display name
+                    const display = alt.display || alt.name || alt.work_unit_name || alt.directorate_name || alt.affair_name || alt.position_name || alt.title || id;
+
+                    debugLog('DELETE', 'Processing alternative: id=' + id + ', display=' + display);
+
+                    if (id) {
+                        reassignSelect.innerHTML += '<option value="' + id + '">' + display + '</option>';
+                    }
+                });
+
+                // Initialize Select2 on the dropdown for searchable functionality
+                if (typeof $ !== 'undefined') {
+                    $(reassignSelect).select2({
+                        dropdownParent: $('#deleteConfirmModal'),
+                        placeholder: '-- Select new parent --',
+                        allowClear: true,
+                        width: '100%'
+                    });
+                    debugLog('DELETE', 'Select2 initialized on reassignTarget');
+                }
+
+                // Enable reassign option
+                document.getElementById('deleteOptionReassign').disabled = false;
+                debugLog('DELETE', 'Reassign option enabled with ' + alternativesData.length + ' alternatives');
+            } else {
+                // No alternatives available, disable reassign option
+                deleteContext.alternatives = [];
+                document.getElementById('reassignTarget').innerHTML = '<option value="">-- No alternatives available --</option>';
+                document.getElementById('deleteOptionReassign').disabled = true;
+                document.getElementById('deleteOptionCascade').checked = true;
+                debugLog('DELETE', 'No alternatives found, reassign disabled');
+            }
         } else {
-            // No alternatives available, disable reassign option
+            // API call failed
             deleteContext.alternatives = [];
-            document.getElementById('reassignTarget').innerHTML = '<option value="">-- No alternatives available --</option>';
+            document.getElementById('reassignTarget').innerHTML = '<option value="">-- Error loading alternatives --</option>';
             document.getElementById('deleteOptionReassign').disabled = true;
             document.getElementById('deleteOptionCascade').checked = true;
+            debugLog('DELETE', 'Alternatives API call failed: ' + alternativesResult.message);
         }
 
-        hideDeleteLoading();
+        hideDeleteLoading('showDeleteWithChildren-gotAlternatives');
 
         // Set cascade delete as default
         deleteContext.mode = 'cascade';
@@ -242,7 +310,7 @@ async function showDeleteWithChildren(type, itemName, children, id) {
         modal.show();
 
     } catch (error) {
-        hideDeleteLoading();
+        hideDeleteLoading('showDeleteWithChildren-error');
         debugLog('DELETE', 'FAIL Error getting alternatives: ' + error.message);
         showToast('Error getting alternatives: ' + error.message, 'error');
     }
@@ -258,6 +326,17 @@ document.addEventListener('change', function(e) {
         } else {
             reassignSection.style.display = 'none';
             deleteContext.mode = 'cascade';
+        }
+    }
+});
+
+// Clean up Select2 when delete modal is closed
+document.addEventListener('hidden.bs.modal', function(e) {
+    if (e.target.id === 'deleteConfirmModal') {
+        const reassignSelect = document.getElementById('reassignTarget');
+        if (typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
+            $(reassignSelect).select2('destroy');
+            debugLog('DELETE', 'Select2 destroyed on modal close');
         }
     }
 });
@@ -285,7 +364,7 @@ async function executeDelete() {
     const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();
 
-    showDeleteLoading();
+    showDeleteLoading('executeDelete');
 
     try {
         let result;
@@ -314,8 +393,27 @@ async function executeDelete() {
             const typeName = type.charAt(0).toUpperCase() + type.slice(1);
             showToast(typeName + ' deleted successfully', 'success');
 
-            await OrganizationManager.refreshEntityTable(type);
-            debugLog('DELETE', 'OK Delete completed');
+            // Refresh all affected tables based on entity hierarchy
+            // Mapping of entity types to tables that need to be refreshed
+            const affectedTables = {
+                'directorate': ['directorate', 'work-unit', 'affair', 'position'],
+                'work-unit': ['work-unit', 'affair', 'position'],
+                'affair': ['affair', 'position'],
+                'position': ['position']
+            };
+
+            const tablesToRefresh = affectedTables[type] || [type];
+            debugLog('DELETE', 'Refreshing affected tables:', tablesToRefresh);
+
+            // Refresh all affected tables in parallel
+            const refreshPromises = tablesToRefresh.map(tableType => {
+                return OrganizationManager.refreshEntityTable(tableType)
+                    .then(() => debugLog('DELETE', 'OK Refreshed ' + tableType + ' table'))
+                    .catch(err => debugLog('DELETE', 'FAIL Failed to refresh ' + tableType + ':', err));
+            });
+
+            await Promise.all(refreshPromises);
+            debugLog('DELETE', 'OK All affected tables refreshed');
         } else {
             showToast('Failed to delete: ' + result.message, 'error');
         }
@@ -324,7 +422,7 @@ async function executeDelete() {
         debugLog('DELETE', 'FAIL Error: ' + error.message);
         showToast('Error deleting: ' + error.message, 'error');
     } finally {
-        hideDeleteLoading();
+        hideDeleteLoading('executeDelete-finally');
         debugLog('DELETE', '=== executeDelete COMPLETE ===');
     }
 }

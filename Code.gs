@@ -185,13 +185,57 @@ function include(filename) {
  * @returns {string} Combined script HTML.
  */
 function getPageScripts(pageName, dataTemplate) {
+  Logger.log('═══════════════════════════════════════════════════');
+  Logger.log('getPageScripts called for: ' + pageName);
+
   switch (pageName) {
     case 'organization':
+      Logger.log('Loading organization page scripts...');
+
       // Load DataTable manager and CRUD operations (which now includes delete functionality)
+      Logger.log('Rendering organization_datatables.html...');
       const datatablesScript = renderTemplate('minimal/assets/js/organization_datatables.html', dataTemplate);
+      Logger.log('  - Length: ' + (datatablesScript ? datatablesScript.length : 0));
+
+      Logger.log('Rendering organization_crud.html...');
       const crudScript = renderTemplate('minimal/assets/js/organization_crud.html', dataTemplate);
-      return datatablesScript + '\n' + crudScript;
+      Logger.log('  - Length: ' + (crudScript ? crudScript.length : 0));
+
+      // Load diagram view toggle and components
+      Logger.log('Rendering view-toggle.html...');
+      const viewToggleScript = renderTemplate('minimal/assets/js/view-toggle.html', dataTemplate);
+      Logger.log('  - Length: ' + (viewToggleScript ? viewToggleScript.length : 0));
+
+      Logger.log('Rendering org-diagram-controls.html...');
+      const orgDiagramControls = renderTemplate('minimal/assets/js/org-diagram-controls.html', dataTemplate);
+      Logger.log('  - Length: ' + (orgDiagramControls ? orgDiagramControls.length : 0));
+
+      Logger.log('Rendering org-diagram-tooltip.html...');
+      const orgDiagramTooltip = renderTemplate('minimal/assets/js/org-diagram-tooltip.html', dataTemplate);
+      Logger.log('  - Length: ' + (orgDiagramTooltip ? orgDiagramTooltip.length : 0));
+
+      Logger.log('Rendering org-diagram-context-menu.html...');
+      const orgDiagramContextMenu = renderTemplate('minimal/assets/js/org-diagram-context-menu.html', dataTemplate);
+      Logger.log('  - Length: ' + (orgDiagramContextMenu ? orgDiagramContextMenu.length : 0));
+
+      Logger.log('Rendering org-diagram.html...');
+      const orgDiagramScript = renderTemplate('minimal/assets/js/org-diagram.html', dataTemplate);
+      Logger.log('  - Length: ' + (orgDiagramScript ? orgDiagramScript.length : 0));
+
+      // Combine all scripts in proper order
+      const combinedScripts = datatablesScript + '\n' + crudScript + '\n' +
+             viewToggleScript + '\n' +
+             orgDiagramControls + '\n' +
+             orgDiagramTooltip + '\n' +
+             orgDiagramContextMenu + '\n' +
+             orgDiagramScript;
+
+      Logger.log('Combined scripts length: ' + (combinedScripts ? combinedScripts.length : 0));
+      Logger.log('═══════════════════════════════════════════════════');
+
+      return combinedScripts;
     default:
+      Logger.log('No scripts for page: ' + pageName);
       return '';
   }
 }
@@ -842,3 +886,5 @@ function callAPI(endpoint, data) {
     };
   }
 }
+
+
