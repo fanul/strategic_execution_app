@@ -1,0 +1,442 @@
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-overlay-content">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="loading-overlay-message">Loading...</div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-white sidebar">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-3">
+                        <h4><i class="bi bi-graph-up-arrow text-primary"></i> SEM App</h4>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="user-info">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle fs-3 me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold" id="userName">Loading...</div>
+                                <small class="text-muted" id="userRole">Role</small>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <button class="btn btn-sm btn-outline-danger w-100" onclick="logout()">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </div>
+
+                    <!-- Navigation Menu -->
+                    <ul class="nav flex-column">
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=dashboard">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+
+                        <!-- Organization -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=organization">
+                                <i class="bi bi-building"></i> Organization
+                            </a>
+                        </li>
+
+                        <!-- Strategic Planning -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=strategic-plan">
+                                <i class="bi bi-compass"></i> Strategic Planning
+                            </a>
+                        </li>
+
+                        <!-- Performance -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=kpi">
+                                <i class="bi bi-graph-up"></i> KPI Management
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=okr">
+                                <i class="bi bi-trophy"></i> Weekly OKRs
+                            </a>
+                        </li>
+
+                        <!-- Programs -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=programs">
+                                <i class="bi bi-diagram-3-fill"></i> Programs
+                            </a>
+                        </li>
+
+                        <!-- Impact Centers -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=impact-centers">
+                                <i class="bi bi-radar"></i> Impact Centers
+                            </a>
+                        </li>
+
+                        <!-- Reports -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=reports">
+                                <i class="bi bi-file-earmark-bar-graph"></i> Reports
+                            </a>
+                        </li>
+
+                        <!-- UI Testing (Admin Only) -->
+                        <li class="nav-item admin-only">
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=ui-test">
+                                <i class="bi bi-clipboard-check"></i> UI Tests
+                            </a>
+                        </li>
+
+                        <!-- Settings -->
+                        <li class="nav-item">
+                            <hr>
+                            <a class="nav-link" href="<?= WEB_APP_URL ?>?page=settings">
+                                <i class="bi bi-gear"></i> Settings
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-4">
+
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view-section active">
+                    <?!= include('Dashboard'); ?>
+                </div>
+
+                <!-- Organization View -->
+                <div id="organization-view" class="view-section">
+                    <?!= include('Pages/organization'); ?>
+                </div>
+
+                <!-- Strategic Planning View -->
+                <div id="strategic-plan-view" class="view-section">
+                    <?!= include('Pages/strategic-plan'); ?>
+                </div>
+
+                <!-- KPI View -->
+                <div id="kpi-view" class="view-section">
+                    <?!= include('Pages/kpi'); ?>
+                </div>
+
+                <!-- OKR View -->
+                <div id="okr-view" class="view-section">
+                    <?!= include('Pages/okr'); ?>
+                </div>
+
+                <!-- Programs View -->
+                <div id="programs-view" class="view-section">
+                    <?!= include('Pages/programs'); ?>
+                </div>
+
+                <!-- Impact Centers View -->
+                <div id="impact-centers-view" class="view-section">
+                    <?!= include('Pages/impact-centers'); ?>
+                </div>
+
+                <!-- Reports View -->
+                <div id="reports-view" class="view-section">
+                    <?!= include('Pages/reports'); ?>
+                </div>
+
+                <!-- UI Test View (Admin Only) -->
+                <div id="ui-test-view" class="view-section admin-only">
+                    <?!= include('Pages/ui-test'); ?>
+                </div>
+
+                <!-- Users/Admin View (Admin Only) -->
+                <div id="users-view" class="view-section admin-only">
+                    <?!= include('Pages/users'); ?>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settings-view" class="view-section">
+                    <h2>Application Settings</h2>
+                    <hr>
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">User Preferences</h6>
+                        </div>
+                        <div class="card-body">
+                            <form>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="emailNotif" checked>
+                                    <label class="form-check-label" for="emailNotif">Enable Email Notifications</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Language</label>
+                                    <select class="form-select">
+                                        <option>English</option>
+                                        <option>Bahasa Indonesia</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Timezone</label>
+                                    <select class="form-select">
+                                        <option>Asia/Jakarta (WIB)</option>
+                                        <option>Asia/Makassar (WITA)</option>
+                                        <option>Asia/Jayapura (WIT)</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-primary"
+                                    onclick="saveSettings()">Save Changes</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Administration Section (Admin Only) -->
+                    <div class="card shadow mb-4 admin-only">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Administration</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small">Manage application users, organizational roles, and security permissions.</p>
+                            <button class="btn btn-primary" onclick="switchView('users')">
+                                <i class="bi bi-people"></i> Manage Users & Roles
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card shadow admin-only">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-danger">System Configuration</h6>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-outline-primary mb-2" onclick="initializeApp()">
+                                <i class="bi bi-gear-fill"></i> Initialize Application
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="viewSystemLogs()">
+                                <i class="bi bi-file-text"></i> View System Logs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastMessage">
+                Action completed.
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Logic -->
+    <script>
+
+        // View Switching with Preloader
+        function switchView(viewName, navElement) {
+            // Show loading overlay immediately
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+                setTimeout(() => loadingOverlay.classList.add('show'), 10);
+            }
+
+            // Hide all views immediately
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = 'none';
+            });
+
+            // Update Nav Active State
+            if (navElement) {
+                document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+                navElement.classList.add('active');
+            } else {
+                // Find nav element by view name if not provided
+                const navLink = document.querySelector(`[onclick*="switchView('${viewName}'"]`);
+                if (navLink) {
+                    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+                    navLink.classList.add('active');
+                }
+            }
+
+            // Small delay to ensure DOM settles, then show new view
+            setTimeout(() => {
+                const targetId = viewName + '-view';
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.style.display = 'block';
+                    // Force reflow to ensure display is applied
+                    void target.offsetHeight;
+                    target.classList.add('active');
+                }
+
+                // Hide loading overlay after view is visible
+                setTimeout(() => {
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.remove('show');
+                        setTimeout(() => {
+                            loadingOverlay.style.display = 'none';
+                        }, 300);
+                    }
+                }, 300);
+            }, 100);
+        }
+
+        // Auth & User Management
+        function loadUserContext() {
+            // Use mock user in development mode
+            if (DEVELOPMENT_MODE) {
+                console.log('Development mode: Using mock user');
+                currentUser = getMockUser();
+                updateUserUI(currentUser);
+                return;
+            }
+            
+            // Production mode: Load real user from backend
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response && response.success && response.data) {
+                        currentUser = response.data;
+                        updateUserUI(currentUser);
+                    } else {
+                        // Fallback to mock user if no session
+                        console.warn('No user session found, using mock user');
+                        currentUser = getMockUser();
+                        updateUserUI(currentUser);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.error('Failed to load user context:', error);
+                    // Fallback to mock user on error
+                    currentUser = getMockUser();
+                    updateUserUI(currentUser);
+                })
+                .callAPI('auth/me', {});
+        }
+
+        function updateUserUI(user) {
+            document.getElementById('userName').textContent = user.full_name || user.username;
+            document.getElementById('userRole').textContent = user.role_name || 'User';
+
+            // Show admin-only items if user is admin
+            if (user.is_admin || user.role_code === 'SUPER_ADMIN' || user.role_code === 'ADMIN') {
+                document.body.classList.add('is-admin');
+            } else {
+                document.body.classList.remove('is-admin');
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Clear session and redirect
+                google.script.run
+                    .withSuccessHandler(function() {
+                        window.location.reload();
+                    })
+                    .callAPI('auth/logout', {});
+            }
+        }
+
+        // API Helper
+        function callAPI(endpoint, data) {
+            // This function will be implemented by the backend
+            // It provides a unified way to call backend API endpoints
+            console.log('API Call:', endpoint, data);
+        }
+
+        // Settings
+        function saveSettings() {
+            showToast('Settings saved successfully', 'Settings');
+        }
+
+        function initializeApp() {
+            if (confirm('This will initialize the application with default roles and super admin user. Continue?')) {
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        if (response.success) {
+                            showToast('Application initialized successfully!', 'Success');
+                        } else {
+                            showToast('Initialization failed: ' + response.message, 'Error');
+                        }
+                    })
+                    .initializeApp();
+            }
+        }
+
+        function viewSystemLogs() {
+            showToast('System logs viewer - Coming soon', 'Info');
+        }
+
+        // Initial Page Load based on PAGE_NAME parameter
+        (function() {
+            // Get PAGE_NAME from server-side variable
+            const currentPageName = '<?= PAGE_NAME ?>';
+
+            // Wait for DOM to be ready
+            document.addEventListener('DOMContentLoaded', function() {
+                if (currentPageName && currentPageName !== 'dashboard') {
+                    // Find the view element for this page
+                    const viewElement = document.getElementById(currentPageName + '-view');
+                    if (viewElement) {
+                        // Hide all views first
+                        document.querySelectorAll('.view-section').forEach(el => {
+                            el.classList.remove('active');
+                            el.style.display = 'none';
+                        });
+
+                        // Show the requested view
+                        viewElement.classList.add('active');
+                        viewElement.style.display = 'block';
+
+                        // Update sidebar active state
+                        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+
+                        // Find and activate the correct nav link
+                        const navLinks = document.querySelectorAll('.nav-link');
+                        navLinks.forEach(link => {
+                            const href = link.getAttribute('href');
+                            if (href && href.includes('page=' + currentPageName)) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                }
+            });
+        })();
+
+        // Initial Load
+        window.onload = function () {
+            // Load user context
+            loadUserContext();
+
+            // Load dashboard data
+            google.script.run
+                .withSuccessHandler(updateDashboard)
+                .withFailureHandler(function(error) {
+                    console.error('Dashboard load error:', error);
+                })
+                .getDashboardData();
+        };
+
+        function updateDashboard(data) {
+            if (data && data.stats) {
+                if (document.getElementById('stat-total-goals')) {
+                    document.getElementById('stat-total-goals').innerText = data.stats.totalGoals || 0;
+                }
+                if (document.getElementById('stat-active-kpis')) {
+                    document.getElementById('stat-active-kpis').innerText = data.stats.activeKPIs || 0;
+                }
+            }
+        }

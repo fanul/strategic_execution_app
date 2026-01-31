@@ -1,0 +1,790 @@
+<script>
+/**
+ * Main Application Logic for Strategic Execution Monitoring Application
+ * Handles application initialization, view management, routing, and global events
+ */
+
+// ============================================================================
+// APPLICATION CLASS
+// ============================================================================
+
+class Application {
+    constructor() {
+        this.name = 'Strategic Execution Monitoring';
+        this.version = '1.0.0';
+        this.currentUser = null;
+        this.currentView = 'dashboard';
+        this.views = {};
+        this.plugins = [];
+        this.isInitialized = false;
+        this.developmentMode = false;
+    }
+
+    // ========================================================================
+    // INITIALIZATION
+    // ========================================================================
+
+    /**
+     * Initialize application
+     */
+    async init() {
+        if (this.isInitialized) return;
+
+        console.log(`[${this.name}] Initializing...`);
+
+        try {
+            // Show loading
+            const loading = new LoadingOverlay('Initializing application...');
+            loading.show();
+
+            // Initialize authentication
+            await auth.init();
+            this.currentUser = auth.user;
+
+            if (!this.currentUser) {
+                console.warn('No user session found');
+                loading.hide();
+                return;
+            }
+
+            // Initialize views
+            this._initializeViews();
+
+            // Initialize plugins
+            await this._initializePlugins();
+
+            // Setup event listeners
+            this._setupEventListeners();
+
+            // Setup global error handler
+            this._setupErrorHandler();
+
+            // Register service worker
+            await this._registerServiceWorker();
+
+            // Preload core data using DataOrchestrator
+            if (typeof dataOrchestrator !== 'undefined') {
+                console.log('Preloading core application data...');
+                try {
+                    await dataOrchestrator.loadGroup('core', {
+                        forceRefresh: false,
+                        showProgress: true
+                    });
+                    console.log('Core data preloaded successfully');
+                } catch (error) {
+                    console.warn('Failed to preload core data:', error);
+                    // Continue initialization even if preload fails
+                }
+            }
+
+            // Update UI
+            updateAuthUI();
+
+            // Load initial view
+            const defaultView = StorageUtils.getSession('lastView', 'dashboard');
+            this.switchView(defaultView);
+
+            // Mark as initialized
+            this.isInitialized = true;
+
+            loading.hide();
+
+            console.log(`[${this.name}] Initialized successfully`);
+
+            // Trigger app ready event
+            this._triggerEvent('ready');
+
+        } catch (error) {
+            console.error('Application initialization error:', error);
+            showErrorToast('Failed to initialize application. Please refresh the page.');
+        }
+    }
+
+    // ========================================================================
+    // VIEW MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Initialize views
+     * @private
+     */
+    _initializeViews() {
+        // Define available views
+        this.views = {
+            'dashboard': {
+                title: 'Dashboard',
+                icon: 'speedometer2',
+                element: document.getElementById('dashboard-view'),
+                onLoad: this._loadDashboard.bind(this)
+            },
+            'organization': {
+                title: 'Organization',
+                icon: 'building',
+                element: document.getElementById('organization-view'),
+                onLoad: this._loadOrganization.bind(this)
+            },
+            'strategic-plan': {
+                title: 'Strategic Planning',
+                icon: 'compass',
+                element: document.getElementById('strategic-plan-view'),
+                onLoad: this._loadStrategicPlan.bind(this)
+            },
+            'kpi': {
+                title: 'KPI Management',
+                icon: 'graph-up',
+                element: document.getElementById('kpi-view'),
+                onLoad: this._loadKPI.bind(this)
+            },
+            'okr': {
+                title: 'Weekly OKRs',
+                icon: 'trophy',
+                element: document.getElementById('okr-view'),
+                onLoad: this._loadOKR.bind(this)
+            },
+            'programs': {
+                title: 'Programs',
+                icon: 'diagram-3-fill',
+                element: document.getElementById('programs-view'),
+                onLoad: this._loadPrograms.bind(this)
+            },
+            'impact-centers': {
+                title: 'Impact Centers',
+                icon: 'radar',
+                element: document.getElementById('impact-centers-view'),
+                onLoad: this._loadImpactCenters.bind(this)
+            },
+            'reports': {
+                title: 'Reports',
+                icon: 'file-earmark-bar-graph',
+                element: document.getElementById('reports-view'),
+                onLoad: this._loadReports.bind(this)
+            },
+            'users': {
+                title: 'User Management',
+                icon: 'people',
+                element: document.getElementById('users-view'),
+                adminOnly: true,
+                onLoad: this._loadUsers.bind(this)
+            },
+            'settings': {
+                title: 'Settings',
+                icon: 'gear',
+                element: document.getElementById('settings-view'),
+                onLoad: this._loadSettings.bind(this)
+            },
+            'ui-test': {
+                title: 'UI Tests',
+                icon: 'clipboard-check',
+                element: document.getElementById('ui-test-view'),
+                adminOnly: true,
+                onLoad: this._loadUITest.bind(this)
+            }
+        };
+    }
+
+    /**
+     * Switch to a view
+     * @param {string} viewName - View name
+     * @param {HTMLElement} navElement - Navigation element that triggered the switch
+     */
+    async switchView(viewName, navElement = null) {
+        const view = this.views[viewName];
+        if (!view) {
+            console.error(`View not found: ${viewName}`);
+            return;
+        }
+
+        // Check admin access
+        if (view.adminOnly && !auth.isAdmin()) {
+            showToast('You do not have permission to access this page', 'Access Denied');
+            return;
+        }
+
+        // Hide all views
+        document.querySelectorAll('.view-section').forEach(el => {
+            el.classList.remove('active');
+        });
+
+        // Update navigation active state
+        if (navElement) {
+            document.querySelectorAll('.nav-link').forEach(el => {
+                el.classList.remove('active');
+            });
+            navElement.classList.add('active');
+        } else {
+            // Find nav element by view name
+            const navLink = document.querySelector(`[onclick*="switchView('${viewName}'"]`);
+            if (navLink) {
+                document.querySelectorAll('.nav-link').forEach(el => {
+                    el.classList.remove('active');
+                });
+                navLink.classList.add('active');
+            }
+        }
+
+        // Show selected view
+        if (view.element) {
+            view.element.classList.add('active');
+
+            // Load view data
+            if (view.onLoad) {
+                try {
+                    await view.onLoad();
+                } catch (error) {
+                    console.error(`Error loading view ${viewName}:`, error);
+                }
+            }
+        }
+
+        // Update current view
+        this.currentView = viewName;
+
+        // Save to session storage
+        StorageUtils.saveSession('lastView', viewName);
+
+        // Update page title
+        document.title = `${view.title} - ${this.name}`;
+
+        // Trigger view change event
+        this._triggerEvent('viewChange', { viewName, view });
+    }
+
+    // ========================================================================
+    // VIEW LOADERS
+    // ========================================================================
+
+    async _loadDashboard() {
+        console.log('Loading dashboard...');
+
+        try {
+            // Use DataOrchestrator for efficient loading with caching
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('dashboard', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                if (data.dashboard && data.dashboard.executiveStats) {
+                    this._updateDashboardStats(data.dashboard.executiveStats);
+                }
+
+                // Store data for other components to use
+                this._currentViewData = data;
+            } else {
+                // Fallback to direct API call
+                const response = await api.dashboard.getExecutiveData();
+                if (response.success && response.data) {
+                    this._updateDashboardStats(response.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+        }
+    }
+
+    _updateDashboardStats(data) {
+        // Update stat cards
+        if (data.stats) {
+            this._updateStatCard('stat-total-goals', data.stats.totalGoals);
+            this._updateStatCard('stat-active-kpis', data.stats.activeKPIs);
+            this._updateStatCard('stat-pending-reviews', data.stats.pendingReviews);
+        }
+    }
+
+    _updateStatCard(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value || 0;
+        }
+    }
+
+    async _loadOrganization() {
+        console.log('Loading organization...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('organization', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                // Store data for organization components to use
+                this._currentViewData = data;
+            }
+
+            // Organization view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading organization:', error);
+        }
+    }
+
+    async _loadStrategicPlan() {
+        console.log('Loading strategic plan...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('strategic-plan', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // Strategic plan view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading strategic plan:', error);
+        }
+    }
+
+    async _loadKPI() {
+        console.log('Loading KPI management...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('kpi', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // KPI view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading KPI:', error);
+        }
+    }
+
+    async _loadOKR() {
+        console.log('Loading OKRs...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('okr', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // OKR view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading OKRs:', error);
+        }
+    }
+
+    async _loadPrograms() {
+        console.log('Loading programs...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('programs', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // Programs view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading programs:', error);
+        }
+    }
+
+    async _loadImpactCenters() {
+        console.log('Loading impact centers...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('impact-centers', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // Impact centers view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading impact centers:', error);
+        }
+    }
+
+    async _loadReports() {
+        console.log('Loading reports...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('reports', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // Reports view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading reports:', error);
+        }
+    }
+
+    async _loadUsers() {
+        console.log('Loading user management...');
+
+        try {
+            // Use DataOrchestrator for efficient loading
+            if (typeof dataOrchestrator !== 'undefined') {
+                const data = await dataOrchestrator.loadView('users', {
+                    forceRefresh: false,
+                    showProgress: false
+                });
+
+                this._currentViewData = data;
+            }
+
+            // Users view will be loaded by its own script
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    }
+
+    async _loadSettings() {
+        console.log('Loading settings...');
+        // Settings view will be loaded by its own script
+    }
+
+    async _loadUITest() {
+        console.log('Loading UI tests...');
+        // UI test view will be loaded by its own script
+    }
+
+    // ========================================================================
+    // PLUGIN SYSTEM
+    // ========================================================================
+
+    /**
+     * Register a plugin
+     * @param {object} plugin - Plugin object with init() method
+     */
+    registerPlugin(plugin) {
+        if (typeof plugin.init !== 'function') {
+            console.error('Plugin must have an init() method');
+            return;
+        }
+
+        this.plugins.push(plugin);
+        console.log(`Plugin registered: ${plugin.name || 'Unnamed'}`);
+    }
+
+    /**
+     * Initialize all plugins
+     * @private
+     */
+    async _initializePlugins() {
+        for (const plugin of this.plugins) {
+            try {
+                await plugin.init(this);
+                console.log(`Plugin initialized: ${plugin.name || 'Unnamed'}`);
+            } catch (error) {
+                console.error(`Plugin initialization error (${plugin.name || 'Unnamed'}):`, error);
+            }
+        }
+    }
+
+    // ========================================================================
+    // EVENT HANDLERS
+    // ========================================================================
+
+    /**
+     * Setup global event listeners
+     * @private
+     */
+    _setupEventListeners() {
+        // Authentication events
+        auth.on('login', (user) => {
+            console.log('User logged in:', user);
+            this.currentUser = user;
+            updateAuthUI();
+        });
+
+        auth.on('logout', () => {
+            console.log('User logged out');
+            this.currentUser = null;
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+K / Cmd+K for global search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                this._showGlobalSearch();
+            }
+
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                const openModal = document.querySelector('.modal.show');
+                if (openModal) {
+                    bootstrap.Modal.getInstance(openModal)?.hide();
+                }
+            }
+        });
+
+        // Handle online/offline status
+        window.addEventListener('online', () => {
+            showToast('You are back online', 'Connection Restored');
+            this._triggerEvent('online');
+        });
+
+        window.addEventListener('offline', () => {
+            showWarningToast('You are offline. Some features may be unavailable.');
+            this._triggerEvent('offline');
+        });
+
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this._triggerEvent('blur');
+            } else {
+                this._triggerEvent('focus');
+                // Refresh data when tab becomes active again
+                this._refreshCurrentView();
+            }
+        });
+    }
+
+    /**
+     * Setup global error handler
+     * @private
+     */
+    _setupErrorHandler() {
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            // Log error to server
+            this._logError(event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            // Log error to server
+            this._logError(event.reason);
+        });
+    }
+
+    /**
+     * Log error to server
+     * @private
+     */
+    async _logError(error) {
+        try {
+            // Send error details to server for logging
+            const errorData = {
+                message: error.message || error.toString(),
+                stack: error.stack,
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                timestamp: new Date().toISOString()
+            };
+
+            await api.system.getLogs({ error: errorData });
+        } catch (e) {
+            console.error('Failed to log error:', e);
+        }
+    }
+
+    // ========================================================================
+    // SERVICE WORKER
+    // ========================================================================
+
+    /**
+     * Register service worker for PWA functionality
+     * @private
+     */
+    async _registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('Service worker registered:', registration);
+
+                // Listen for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New version available
+                            this._showUpdateNotification();
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Service worker registration failed:', error);
+            }
+        }
+    }
+
+    /**
+     * Show update notification
+     * @private
+     */
+    _showUpdateNotification() {
+        const toast = new Toast({
+            title: 'Update Available',
+            message: 'A new version of the application is available. Click to update.',
+            type: 'info',
+            duration: 0, // Don't auto dismiss
+            closeButton: true
+        });
+
+        const toastEl = toast.show();
+        toastEl.addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+
+    // ========================================================================
+    // UTILITY METHODS
+    // ========================================================================
+
+    /**
+     * Show global search
+     * @private
+     */
+    _showGlobalSearch() {
+        // TODO: Implement global search modal
+        showToast('Global search - Coming soon', 'Info');
+    }
+
+    /**
+     * Refresh current view data
+     * @private
+     */
+    async _refreshCurrentView() {
+        const view = this.views[this.currentView];
+        if (view && view.onLoad) {
+            try {
+                // Use DataOrchestrator to refresh data if available
+                if (typeof dataOrchestrator !== 'undefined') {
+                    // Clear cache for current view to force refresh
+                    const viewGroups = this._getViewDataGroups(this.currentView);
+                    viewGroups.forEach(group => dataOrchestrator.clearCache(group));
+                }
+
+                await view.onLoad();
+            } catch (error) {
+                console.error('Error refreshing view:', error);
+            }
+        }
+    }
+
+    /**
+     * Get data groups for a view
+     * @private
+     */
+    _getViewDataGroups(viewName) {
+        const viewDataMap = {
+            'dashboard': ['dashboard', 'core'],
+            'organization': ['organization', 'core'],
+            'strategic-plan': ['strategic', 'core'],
+            'kpi': ['kpi', 'organization', 'core'],
+            'okr': ['okr', 'core'],
+            'programs': ['programs', 'kpi', 'core'],
+            'impact-centers': ['impactCenters', 'strategic', 'core'],
+            'reports': ['reports', 'dashboard', 'core'],
+            'users': ['users', 'organization', 'core']
+        };
+        return viewDataMap[viewName] || ['core'];
+    }
+
+    /**
+     * Trigger application event
+     * @private
+     */
+    _triggerEvent(eventName, data = null) {
+        const event = new CustomEvent(`app:${eventName}`, {
+            detail: data
+        });
+        window.dispatchEvent(event);
+    }
+
+    /**
+     * Add event listener
+     * @param {string} eventName - Event name
+     * @param {function} callback - Event callback
+     */
+    on(eventName, callback) {
+        window.addEventListener(`app:${eventName}`, callback);
+    }
+
+    /**
+     * Remove event listener
+     * @param {string} eventName - Event name
+     * @param {function} callback - Event callback
+     */
+    off(eventName, callback) {
+        window.removeEventListener(`app:${eventName}`, callback);
+    }
+}
+
+// ============================================================================
+// CREATE GLOBAL APPLICATION INSTANCE
+// ============================================================================
+
+const app = new Application();
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.Application = Application;
+    window.app = app;
+}
+
+// ============================================================================
+// VIEW SWITCHING HELPER (for backward compatibility)
+// ============================================================================
+
+/**
+ * Switch view helper function
+ * Used by onclick attributes in navigation
+ * @param {string} viewName - View name
+ * @param {HTMLElement} navElement - Navigation element
+ */
+function switchView(viewName, navElement) {
+    app.switchView(viewName, navElement);
+}
+
+// ============================================================================
+// APPLICATION INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize application when DOM is ready
+ */
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check if we should use development mode
+    const devMode = StorageUtils.getSession('developmentMode', false);
+    app.developmentMode = devMode;
+
+    // Initialize application
+    await app.init();
+});
+
+/**
+ * Initialize application on window load (fallback)
+ */
+window.onload = async function() {
+    if (!app.isInitialized) {
+        await app.init();
+    }
+};
+
+</script>

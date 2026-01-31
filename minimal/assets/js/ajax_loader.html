@@ -1,0 +1,123 @@
+<script>
+// Page navigation via AJAX
+function navigateToPage(pageName) {
+    debugLog('AJAX', 'Loading page: ' + pageName);
+
+    // Show loading in main content area
+    showViewLoading();
+
+    // Update active nav
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    const activeLink = document.querySelector('.nav-link[data-page="' + pageName + '"]');
+    if (activeLink) activeLink.classList.add('active');
+
+    // Fetch page content
+    apiCall('page/get', { page: pageName })
+        .then(response => {
+            if (response.success) {
+                // Update main content
+                document.getElementById('main-content').innerHTML = response.data.content;
+
+                // Update modals container
+                const modalContainer = document.getElementById('page-modals');
+                if (modalContainer) modalContainer.innerHTML = response.data.modals;
+
+                // Execute page scripts
+                executeScripts(response.data.scripts);
+
+                // Update URL
+                const url = new URL(window.location.href);
+                url.searchParams.set('page', pageName);
+                window.history.pushState({ page: pageName }, '', url);
+
+                // Initialize page
+                initPage(pageName);
+
+                debugLog('AJAX', 'Page loaded: ' + pageName);
+            } else {
+                showToast('Failed to load page: ' + response.message, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Error loading page: ' + error, 'error');
+            debugLog('AJAX', 'Error: ' + error);
+        })
+        .finally(() => {
+            hideViewLoading();
+        });
+}
+
+// Show loading in main content area
+function showViewLoading() {
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+    mainContent.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted">Loading...</p>
+            </div>
+        </div>
+    `;
+}
+
+// Hide view loading (content already replaced)
+function hideViewLoading() {
+    // Content already replaced, nothing to hide
+}
+
+// Execute scripts dynamically
+function executeScripts(scriptHTML) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = scriptHTML;
+
+    const scripts = tempDiv.querySelectorAll('script');
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
+        });
+        newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+    });
+}
+
+// Initialize page-specific functionality
+function initPage(pageName) {
+    debugLog('AJAX', 'Initializing page: ' + pageName);
+
+    switch (pageName) {
+        case 'organization':
+            if (typeof window.OrganizationManager !== 'undefined') {
+                window.OrganizationManager.initialize();
+            }
+            break;
+        case 'settings':
+            if (typeof loadSettings === 'function') {
+                loadSettings();
+            }
+            break;
+        case 'dashboard':
+        case 'strategic-plan':
+        case 'kpi':
+            // Add initialization for these pages when needed
+            break;
+    }
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', (event) => {
+    const page = event.state?.page || 'dashboard';
+    debugLog('AJAX', 'Popstate - navigating to: ' + page);
+    navigateToPage(page);
+});
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('ajax_loader.html');
+}
+</script>

@@ -1,0 +1,63 @@
+<script>
+// Page-specific initialization and routing
+document.addEventListener('DOMContentLoaded', async function() {
+    // Get page from URL parameter
+    const params = new URLSearchParams(window.location.search);
+    const initialPage = params.get('page') || 'dashboard';
+
+    debugLog('ROUTER', 'Initial page: ' + initialPage);
+
+    // First: Load settings to initialize debug panel (needed on all pages)
+    await loadSettings();
+
+    // Highlight active navigation based on current page
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('data-page') === initialPage) {
+            link.classList.add('active');
+        }
+    });
+
+    // Wait for navigateToPage to be defined (it's in ajax_loader.html which loads after router)
+    const waitForNavigateToPage = setInterval(() => {
+        if (typeof navigateToPage === 'function') {
+            clearInterval(waitForNavigateToPage);
+            debugLog('ROUTER', 'navigateToPage function found, loading initial page');
+            navigateToPage(initialPage);
+
+            // Update user info (mock for now)
+            const userNameEl = document.getElementById('userName');
+            const userRoleEl = document.getElementById('userRole');
+            if (userNameEl) userNameEl.textContent = 'Demo User';
+            if (userRoleEl) userRoleEl.textContent = 'Administrator';
+
+            debugLog('ROUTER', 'App initialization complete');
+
+            // Debug: Find all visible spinners after initialization
+            if (typeof debugFindSpinners === 'function') {
+                setTimeout(() => debugFindSpinners(), 500);
+            }
+        } else {
+            debugLog('ROUTER', 'Waiting for navigateToPage function...');
+        }
+    }, 100);
+
+    // Timeout after 5 seconds
+    setTimeout(() => {
+        clearInterval(waitForNavigateToPage);
+        if (typeof navigateToPage !== 'function') {
+            console.error('navigateToPage function never loaded!');
+            // Show error to user
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) {
+                mainContent.innerHTML = '<div class="alert alert-danger">Error: Application failed to initialize properly. Please refresh the page.</div>';
+            }
+        }
+    }, 5000);
+});
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('router.html');
+}
+</script>

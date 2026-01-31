@@ -1,0 +1,97 @@
+<script>
+    // ============================================================================
+        // APPLICATION CODE WITH DEBUG LOGGING AND CRUD FUNCTIONALITY
+        // ============================================================================
+
+    // IMMEDIATE LOG to verify script loading
+    console.log('[INIT] debug_panel_script.html loaded - creating debugLog function');
+
+    // Enable/disable debug mode globally (loaded from settings)
+    let DEBUG_MODE = false;
+
+    // Loading timeout for safety
+    let loadingTimeout = null;
+
+    // Debug logger function - ALWAYS logs to console
+    function debugLog(category, message, data = null) {
+        const timestamp = new Date().toISOString();
+        const logEntry = '[' + timestamp + '] [' + category + '] ' + message;
+
+        // ALWAYS log to console
+        console.log(logEntry, data !== null ? data : '');
+
+        // Also add to debug panel if exists AND has addLog method
+        if (window.debugPanel && typeof window.debugPanel.addLog === 'function') {
+            window.debugPanel.addLog(logEntry, data);
+        }
+    }
+
+    // Log to console only (debugPanel not ready yet)
+    console.log('[INIT] debugLog function created');
+
+    // Debug Panel Object
+    window.debugPanel = {
+        logs: [],
+
+        addLog(message, data) {
+            const entry = { message, data, time: new Date() };
+            this.logs.push(entry);
+
+            const container = document.getElementById('debugLogs');
+            if (!container) return;
+
+            const category = message.match(/\[(API|APP|ERROR|SUCCESS|ROUTER|SETTINGS|AJAX)\]/)?.[1] || 'INFO';
+
+            const div = document.createElement('div');
+            div.className = 'debug-log-entry ' + category;
+            div.textContent = message + (data ? ' ' + JSON.stringify(data) : '');
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        },
+
+        clear() {
+            this.logs = [];
+            const container = document.getElementById('debugLogs');
+            if (container) container.innerHTML = '';
+        },
+
+        download() {
+            const text = this.logs.map(l => '[' + l.time.toISOString() + '] ' + l.message + ' ' + JSON.stringify(l.data)).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'debug-' + Date.now() + '.log';
+            a.click();
+        },
+
+        toggle() {
+            const panel = document.getElementById('debugPanel');
+            if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        },
+
+        show() {
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                panel.style.display = 'block';
+                console.log('[DEBUG] Panel shown');
+            }
+        },
+
+        hide() {
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                panel.style.display = 'none';
+                console.log('[DEBUG] Panel hidden');
+            }
+        }
+    };
+
+    // Log debug panel creation
+    debugLog('INIT', 'Debug panel object created');
+
+    // Track script loading
+    if (window.scriptLoadTracker) {
+        window.scriptLoadTracker.loaded('debug_panel_script.html');
+    }
+</script>

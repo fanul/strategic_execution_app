@@ -1,0 +1,309 @@
+<script>
+// Render functions with DataTable initialization
+function renderDirectorates(directorates) {
+    debugLog('DATATABLE', '=== renderDirectorates START ===');
+    debugLog('DATATABLE', 'Directorates data received: ' + (directorates ? directorates.length : 0) + ' items', directorates);
+
+    const table = $('#directorates-table');
+    const tbody = document.getElementById('directorates-body');
+    if (!tbody) {
+        debugLog('DATATABLE', 'FAIL directorates-body element NOT FOUND');
+        return;
+    }
+    debugLog('DATATABLE', 'OK directorates-body element found');
+
+    // Destroy existing DataTable FIRST
+    if (directoratesTable) {
+        directoratesTable.destroy();
+        directoratesTable = null;
+        debugLog('DATATABLE', 'OK Old DataTable destroyed');
+    }
+
+    if (!directorates.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No directorates found</td></tr>';
+        debugLog('DATATABLE', 'OK No data to display');
+        return;
+    }
+
+    // Generate HTML
+    tbody.innerHTML = directorates.map(d =>
+        '<tr>' +
+            '<td>' + (d.directorate_code || '-') + '</td>' +
+            '<td>' + d.directorate_name + '</td>' +
+            '<td>' + (d.description || '-') + '</td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-outline-primary" onclick="editItem(\'directorate\', \'' + d.directorate_id + '\')">Edit</button> ' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(\'directorate\', \'' + d.directorate_id + '\')">Delete</button>' +
+            '</td>' +
+        '</tr>'
+    ).join('');
+    debugLog('DATATABLE', 'OK Generated ' + directorates.length + ' rows in DOM');
+
+    // Verify DOM update
+    const actualRows = tbody.querySelectorAll('tr').length;
+    debugLog('DATATABLE', 'OK Verified ' + actualRows + ' rows in DOM');
+
+    // Initialize new DataTable
+    directoratesTable = table.DataTable({
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        language: { search: "_INPUT_", searchPlaceholder: "Search..." }
+    });
+
+    // Verify DataTable initialization
+    const dtRows = directoratesTable.rows().count();
+    debugLog('DATATABLE', 'OK DataTable initialized with ' + dtRows + ' rows');
+    debugLog('DATATABLE', '=== renderDirectorates COMPLETE ===');
+}
+
+function renderWorkUnits(workUnits) {
+    debugLog('DATATABLE', '=== renderWorkUnits START ===');
+    debugLog('DATATABLE', 'Work units data received: ' + (workUnits ? workUnits.length : 0) + ' items');
+
+    const table = $('#work-units-table');
+    const tbody = document.getElementById('work-units-body');
+    if (!tbody) {
+        debugLog('DATATABLE', 'FAIL work-units-body element NOT FOUND');
+        return;
+    }
+
+    // Destroy existing DataTable FIRST
+    if (workUnitsTable) {
+        workUnitsTable.destroy();
+        workUnitsTable = null;
+        debugLog('DATATABLE', 'OK Old DataTable destroyed');
+    }
+
+    if (!workUnits.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No work units found</td></tr>';
+        debugLog('DATATABLE', 'OK No data to display');
+        return;
+    }
+
+    tbody.innerHTML = workUnits.map(w =>
+        '<tr>' +
+            '<td>' + (w.work_unit_code || '-') + '</td>' +
+            '<td>' + w.work_unit_name + '</td>' +
+            '<td>' + (w.directorate_name || '-') + '</td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-outline-primary" onclick="editItem(\'work-unit\', \'' + w.work_unit_id + '\')">Edit</button> ' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(\'work-unit\', \'' + w.work_unit_id + '\')">Delete</button>' +
+            '</td>' +
+        '</tr>'
+    ).join('');
+    debugLog('DATATABLE', 'OK Generated ' + workUnits.length + ' rows');
+
+    workUnitsTable = table.DataTable({
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        language: { search: "_INPUT_", searchPlaceholder: "Search..." }
+    });
+    debugLog('DATATABLE', 'OK DataTable initialized with ' + workUnitsTable.rows().count() + ' rows');
+    debugLog('DATATABLE', '=== renderWorkUnits COMPLETE ===');
+}
+
+function renderAffairs(affairs) {
+    debugLog('DATATABLE', '=== renderAffairs START ===');
+    debugLog('DATATABLE', 'Affairs data received: ' + (affairs ? affairs.length : 0) + ' items');
+
+    const table = $('#affairs-table');
+    const tbody = document.getElementById('affairs-body');
+    if (!tbody) {
+        debugLog('DATATABLE', 'FAIL affairs-body element NOT FOUND');
+        return;
+    }
+
+    // Destroy existing DataTable FIRST
+    if (affairsTable) {
+        affairsTable.destroy();
+        affairsTable = null;
+        debugLog('DATATABLE', 'OK Old DataTable destroyed');
+    }
+
+    if (!affairs.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No affairs found</td></tr>';
+        debugLog('DATATABLE', 'OK No data to display');
+        return;
+    }
+
+    tbody.innerHTML = affairs.map(a => {
+        // Build hierarchy display: Directorate - Work Unit
+        const hierarchy = [];
+        if (a.directorate_name && a.directorate_name !== '-') hierarchy.push(a.directorate_name);
+        if (a.work_unit_name && a.work_unit_name !== '-') hierarchy.push(a.work_unit_name);
+        const hierarchyDisplay = hierarchy.length > 0 ? hierarchy.join(' > ') : '-';
+
+        return '<tr>' +
+            '<td>' + (a.affair_code || '-') + '</td>' +
+            '<td>' + a.affair_name + '</td>' +
+            '<td><small>' + hierarchyDisplay + '</small></td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-outline-primary" onclick="editItem(\'affair\', \'' + a.affair_id + '\')">Edit</button> ' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(\'affair\', \'' + a.affair_id + '\')">Delete</button>' +
+            '</td>' +
+        '</tr>';
+    }).join('');
+    debugLog('DATATABLE', 'OK Generated ' + affairs.length + ' rows');
+
+    affairsTable = table.DataTable({
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        language: { search: "_INPUT_", searchPlaceholder: "Search..." }
+    });
+    debugLog('DATATABLE', 'OK DataTable initialized with ' + affairsTable.rows().count() + ' rows');
+    debugLog('DATATABLE', '=== renderAffairs COMPLETE ===');
+}
+
+function renderPositions(positions) {
+    debugLog('DATATABLE', '=== renderPositions START ===');
+    debugLog('DATATABLE', 'Positions data received: ' + (positions ? positions.length : 0) + ' items');
+
+    const table = $('#positions-table');
+    const tbody = document.getElementById('positions-body');
+    if (!tbody) {
+        debugLog('DATATABLE', 'FAIL positions-body element NOT FOUND');
+        return;
+    }
+
+    // Destroy existing DataTable FIRST
+    if (positionsTable) {
+        positionsTable.destroy();
+        positionsTable = null;
+        debugLog('DATATABLE', 'OK Old DataTable destroyed');
+    }
+
+    if (!positions.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No positions found</td></tr>';
+        debugLog('DATATABLE', 'OK No data to display');
+        return;
+    }
+
+    tbody.innerHTML = positions.map(p => {
+        // Build hierarchy display: Directorate > Work Unit > Affair
+        const hierarchy = [];
+        if (p.directorate_name && p.directorate_name !== '-') hierarchy.push(p.directorate_name);
+        if (p.work_unit_name && p.work_unit_name !== '-') hierarchy.push(p.work_unit_name);
+        if (p.affair_name && p.affair_name !== '-') hierarchy.push(p.affair_name);
+        const hierarchyDisplay = hierarchy.length > 0 ? hierarchy.join(' > ') : '-';
+
+        return '<tr>' +
+            '<td>' + (p.position_code || '-') + '</td>' +
+            '<td>' + p.position_name + '</td>' +
+            '<td>' + (p.position_level || '-') + '</td>' +
+            '<td><small>' + hierarchyDisplay + '</small></td>' +
+            '<td>' +
+                '<button class="btn btn-sm btn-outline-primary" onclick="editItem(\'position\', \'' + p.position_id + '\')">Edit</button> ' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(\'position\', \'' + p.position_id + '\')">Delete</button>' +
+            '</td>' +
+        '</tr>';
+    }).join('');
+    debugLog('DATATABLE', 'OK Generated ' + positions.length + ' rows');
+
+    positionsTable = table.DataTable({
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50],
+        language: { search: "_INPUT_", searchPlaceholder: "Search..." }
+    });
+    debugLog('DATATABLE', 'OK DataTable initialized with ' + positionsTable.rows().count() + ' rows');
+    debugLog('DATATABLE', '=== renderPositions COMPLETE ===');
+}
+
+// Load Organization Data
+async function loadOrganizationData() {
+    debugLog('APP', '=== loadOrganizationData START ===');
+
+    // Show loading overlays for all tables
+    showTableLoading('directorates');
+    showTableLoading('work-units');
+    showTableLoading('affairs');
+    showTableLoading('positions');
+
+    try {
+        debugLog('APP', 'Step 1: Loading directorates...');
+        const directorates = await apiCall('directorates/list');
+        debugLog('APP', 'Directorates API result:', directorates);
+        if (directorates.success) {
+            renderDirectorates(directorates.data || []);
+        } else {
+            debugLog('APP', 'FAIL Directorates API call failed');
+        }
+
+        debugLog('APP', 'Step 2: Loading work units...');
+        const workUnits = await apiCall('work-units/list');
+        debugLog('APP', 'Work units API result:', workUnits);
+        if (workUnits.success) {
+            renderWorkUnits(workUnits.data || []);
+        } else {
+            debugLog('APP', 'FAIL Work units API call failed');
+        }
+
+        debugLog('APP', 'Step 3: Loading affairs...');
+        const affairs = await apiCall('affairs/list');
+        debugLog('APP', 'Affairs API result:', affairs);
+        if (affairs.success) {
+            renderAffairs(affairs.data || []);
+        } else {
+            debugLog('APP', 'FAIL Affairs API call failed');
+        }
+
+        debugLog('APP', 'Step 4: Loading positions...');
+        const positions = await apiCall('positions/list');
+        debugLog('APP', 'Positions API result:', positions);
+        if (positions.success) {
+            renderPositions(positions.data || []);
+        } else {
+            debugLog('APP', 'FAIL Positions API call failed');
+        }
+
+        debugLog('APP', '=== loadOrganizationData COMPLETE ===');
+    } catch (error) {
+        debugLog('APP', 'FAIL loadOrganizationData ERROR:', error);
+        showToast('Failed to load organization data: ' + error.message, 'error');
+    } finally {
+        // Hide all loading overlays
+        hideTableLoading('directorates');
+        hideTableLoading('work-units');
+        hideTableLoading('affairs');
+        hideTableLoading('positions');
+    }
+}
+
+// Show table loading overlay
+function showTableLoading(tableType) {
+    debugLog('DATATABLE', 'Show loading for ' + tableType);
+    const tableId = tableType + '-table';
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    // Create loading overlay if not exists
+    let overlay = document.getElementById(tableId + '-loading');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = tableId + '-loading';
+        overlay.className = 'table-loading-overlay';
+        overlay.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        table.parentElement.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+}
+
+// Hide table loading overlay
+function hideTableLoading(tableType) {
+    debugLog('DATATABLE', 'Hide loading for ' + tableType);
+    const overlay = document.getElementById(tableType + '-table-loading');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('datatables_manager.html');
+}
+</script>

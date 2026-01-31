@@ -1,0 +1,712 @@
+/**
+ * Enhanced Features for Strategic Execution Monitoring Application
+ * Provides advanced functionality: bulk actions, validation tools, rollover utilities
+ *
+ * STATUS: PLANNED FEATURES - Not yet integrated into UI
+ *
+ * This module contains advanced features that are developed but not yet integrated
+ * into the application interface. These classes should be integrated as follows:
+ *
+ * TO INTEGRATE:
+ * 1. BulkActionsManager - Add to pages with tables (users, kpi, etc.)
+ * 2. SMARTValidator - Add to goal/vision/mission creation forms
+ * 3. PeriodRollover - Add to Strategic Plan > Periods page
+ * 4. AssignmentOverlapDetector - Add to organization assignment forms
+ * 5. GoalKPIAlignmentChecker - Add to goal detail view
+ *
+ * Classes are exported to window object and ready to use when needed.
+ */
+
+// ============================================================================
+// BULK ACTIONS MANAGER
+// ============================================================================
+
+class BulkActionsManager {
+    constructor() {
+        this.selectedItems = new Set();
+    }
+
+    /**
+     * Toggle item selection
+     */
+    toggleSelection(itemId) {
+        if (this.selectedItems.has(itemId)) {
+            this.selectedItems.delete(itemId);
+        } else {
+            this.selectedItems.add(itemId);
+        }
+        this._updateSelectionUI();
+    }
+
+    /**
+     * Select all items
+     */
+    selectAll(items) {
+        items.forEach(item => this.selectedItems.add(item));
+        this._updateSelectionUI();
+    }
+
+    /**
+     * Clear selection
+     */
+    clearSelection() {
+        this.selectedItems.clear();
+        this._updateSelectionUI();
+    }
+
+    /**
+     * Get selected items
+     */
+    getSelected() {
+        return Array.from(this.selectedItems);
+    }
+
+    /**
+     * Bulk delete items
+     */
+    async bulkDelete(endpoint, itemType) {
+        const selected = this.getSelected();
+        if (selected.length === 0) {
+            showErrorMessage('No items selected');
+            return;
+        }
+
+        const confirmed = confirm(`Are you sure you want to delete ${selected.length} ${itemType}(s)?`);
+        if (!confirmed) return;
+
+        showLoadingOverlay();
+        const results = { success: 0, failed: 0 };
+
+        for (const id of selected) {
+            try {
+                const response = await api.call(endpoint, { id });
+                if (response.success) results.success++;
+                else results.failed++;
+            } catch (error) {
+                results.failed++;
+            }
+        }
+
+        hideLoadingOverlay();
+        showSuccessMessage(`Deleted: ${results.success}, Failed: ${results.failed}`);
+        this.clearSelection();
+
+        // Trigger page reload
+        if (typeof window.refreshTable === 'function') {
+            window.refreshTable();
+        }
+    }
+
+    /**
+     * Bulk activate/deactivate users
+     */
+    async bulkToggleUserStatus(active) {
+        const selected = this.getSelected();
+        if (selected.length === 0) return;
+
+        showLoadingOverlay();
+        const results = { success: 0, failed: 0 };
+
+        for (const userId of selected) {
+            try {
+                const response = await api.call('users/update', {
+                    user_id: userId,
+                    is_active: active
+                });
+                if (response.success) results.success++;
+                else results.failed++;
+            } catch (error) {
+                results.failed++;
+            }
+        }
+
+        hideLoadingOverlay();
+        showSuccessMessage(`${active ? 'Activated' : 'Deactivated'}: ${results.success}, Failed: ${results.failed}`);
+        this.clearSelection();
+
+        if (typeof window.refreshTable === 'function') {
+            window.refreshTable();
+        }
+    }
+
+    /**
+     * Bulk assign role
+     */
+    async bulkAssignRole(roleId) {
+        const selected = this.getSelected();
+        if (selected.length === 0) return;
+
+        showLoadingOverlay();
+        const results = { success: 0, failed: 0 };
+
+        for (const userId of selected) {
+            try {
+                const response = await api.call('users/update', {
+                    user_id: userId,
+                    role_id: roleId
+                });
+                if (response.success) results.success++;
+                else results.failed++;
+            } catch (error) {
+                results.failed++;
+            }
+        }
+
+        hideLoadingOverlay();
+        showSuccessMessage(`Role assigned: ${results.success}, Failed: ${results.failed}`);
+        this.clearSelection();
+
+        if (typeof window.refreshTable === 'function') {
+            window.refreshTable();
+        }
+    }
+
+    _updateSelectionUI() {
+        const count = this.selectedItems.size;
+        const countBadges = document.querySelectorAll('.bulk-selection-count');
+        countBadges.forEach(badge => badge.textContent = count);
+
+        const buttons = document.querySelectorAll('.bulk-action-btn');
+        buttons.forEach(btn => {
+            btn.disabled = count === 0;
+        });
+    }
+}
+
+// ============================================================================
+// SMART VALIDATOR
+// ============================================================================
+
+class SMARTValidator {
+    /**
+     * Validate if a statement meets SMART criteria
+     * @param {string} statement - The statement to validate
+     * @param {string} type - Type of statement (vision, mission, goal, objective)
+     * @returns {Object} Validation result with score and suggestions
+     */
+    static validate(statement, type = 'goal') {
+        const result = {
+            isValid: false,
+            score: 0,
+            criteria: {
+                specific: { pass: false, message: '', weight: 20 },
+                measurable: { pass: false, message: '', weight: 25 },
+                achievable: { pass: false, message: '', weight: 20 },
+                relevant: { pass: false, message: '', weight: 20 },
+                timeBound: { pass: false, message: '', weight: 15 }
+            },
+            suggestions: [],
+            overallFeedback: ''
+        };
+
+        const text = statement.toLowerCase().trim();
+
+        // Check Specific
+        if (text.length >= 20 && /\b(what|which|who|how|specific|particular|certain)\b/i.test(statement)) {
+            result.criteria.specific.pass = true;
+            result.criteria.specific.message = 'Good: Statement is specific and clear';
+        } else {
+            result.criteria.specific.message = 'Improve: Add more specificity. What exactly are you trying to achieve?';
+            result.suggestions.push('Define exactly what you want to accomplish');
+        }
+
+        // Check Measurable
+        const measurableIndicators = /\b(percent|%|number|count|rate|ratio|score|index|amount|value|increase|decrease|reduce|grow)\b/i;
+        if (measurableIndicators.test(statement) || /\d+[%$]?\b/.test(statement)) {
+            result.criteria.measurable.pass = true;
+            result.criteria.measurable.message = 'Good: Statement includes measurable elements';
+        } else {
+            result.criteria.measurable.message = 'Improve: Add quantifiable metrics or targets';
+            result.suggestions.push('Include specific numbers, percentages, or measurable outcomes');
+        }
+
+        // Check Achievable
+        const achievableIndicators = /\b(can|able|feasible|realistic|possible|within|capacity|resource|available)\b/i;
+        if (achievableIndicators.test(statement) || statement.length >= 50) {
+            result.criteria.achievable.pass = true;
+            result.criteria.achievable.message = 'Good: Statement appears achievable';
+        } else {
+            result.criteria.achievable.message = 'Consider: Is this realistic given available resources?';
+            result.suggestions.push('Ensure you have or can obtain the necessary resources');
+        }
+
+        // Check Relevant
+        const relevantIndicators = /\b(alignment|align|strategic|priority|important|business|organization|objective|support|contribute)\b/i;
+        if (relevantIndicators.test(statement)) {
+            result.criteria.relevant.pass = true;
+            result.criteria.relevant.message = 'Good: Statement shows relevance to strategic objectives';
+        } else {
+            result.criteria.relevant.message = 'Consider: How does this align with broader objectives?';
+            result.suggestions.push('Connect this goal to strategic priorities or organizational objectives');
+        }
+
+        // Check Time-Bound
+        const timeIndicators = /\b(by|before|until|within|during|year|quarter|month|week|deadline|target|fiscal|q[1-4]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i;
+        const datePattern = /\b\d{4}\b|\d{1,2}\/\d{1,2}|\d{1,2}-\d{1,2}/;
+        if (timeIndicators.test(statement) || datePattern.test(statement)) {
+            result.criteria.timeBound.pass = true;
+            result.criteria.timeBound.message = 'Good: Statement includes time constraints';
+        } else {
+            result.criteria.timeBound.message = 'Critical: Add specific deadline or timeframe';
+            result.suggestions.push('Set a clear target date or timeframe for completion');
+        }
+
+        // Calculate score
+        let totalScore = 0;
+        let totalWeight = 0;
+
+        for (const criterion of Object.values(result.criteria)) {
+            totalWeight += criterion.weight;
+            if (criterion.pass) {
+                totalScore += criterion.weight;
+            }
+        }
+
+        result.score = Math.round((totalScore / totalWeight) * 100);
+        result.isValid = result.score >= 70;
+
+        // Overall feedback
+        if (result.score >= 90) {
+            result.overallFeedback = 'Excellent! This statement is very well-defined and meets SMART criteria.';
+        } else if (result.score >= 70) {
+            result.overallFeedback = 'Good statement with room for improvement. Consider the suggestions above.';
+        } else if (result.score >= 50) {
+            result.overallFeedback = 'Fair statement. Several criteria need attention to make it SMART-compliant.';
+        } else {
+            result.overallFeedback = 'Poor statement. Major revision needed to meet SMART criteria.';
+        }
+
+        return result;
+    }
+
+    /**
+     * Display SMART validation result
+     */
+    static displayResult(result, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const scoreClass = result.score >= 70 ? 'success' : result.score >= 50 ? 'warning' : 'danger';
+        const scoreColor = result.score >= 70 ? '#198754' : result.score >= 50 ? '#ffc107' : '#dc3545';
+
+        let html = `
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">SMART Analysis</h5>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Overall Score</span>
+                            <span class="badge bg-${scoreClass}" style="font-size: 1.2rem;">${result.score}%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-${scoreClass}" role="progressbar"
+                                 style="width: ${result.score}%; background-color: ${scoreColor} !important;">
+                                ${result.score >= 70 ? 'SMART Compliant' : 'Needs Improvement'}
+                            </div>
+                        </div>
+                        <p class="mt-2 mb-0 ${result.score >= 70 ? 'text-success' : 'text-danger'}">
+                            ${result.overallFeedback}
+                        </p>
+                    </div>
+
+                    <h6 class="mt-4">Criteria Breakdown</h6>
+                    <div class="list-group">
+        `;
+
+        const criteriaLabels = {
+            specific: { label: 'Specific', icon: 'bi-crosshair' },
+            measurable: { label: 'Measurable', icon: 'bi-rulers' },
+            achievable: { label: 'Achievable', icon: 'bi-check-circle' },
+            relevant: { label: 'Relevant', icon: 'bi-link-45deg' },
+            timeBound: { label: 'Time-Bound', icon: 'bi-calendar-check' }
+        };
+
+        for (const [key, criterion] of Object.entries(result.criteria)) {
+            const iconClass = criterion.pass ? 'text-success' : 'text-danger';
+            const label = criteriaLabels[key];
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex align-items-start">
+                        <i class="bi ${label.icon} ${iconClass} me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between">
+                                <strong>${label.label}</strong>
+                                <small>${criterion.weight}%</small>
+                            </div>
+                            <p class="mb-0 small ${criterion.pass ? 'text-success' : 'text-muted'}">
+                                ${criterion.message}
+                            </p>
+                        </div>
+                        <i class="bi ${criterion.pass ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} ms-2"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+                    </div>
+
+                    ${result.suggestions.length > 0 ? `
+                        <h6 class="mt-4">Suggestions for Improvement</h6>
+                        <ul class="list-group list-group-flush">
+                            ${result.suggestions.map(s => `
+                                <li class="list-group-item">
+                                    <i class="bi bi-lightbulb text-warning me-2"></i>${s}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+}
+
+// ============================================================================
+// PERIOD ROLLOVER UTILITIES
+// ============================================================================
+
+class PeriodRollover {
+    /**
+     * Roll over period to new year
+     */
+    static async rolloverPeriod(fromPeriodId, toYear, options = {}) {
+        const {
+            includeVisions = true,
+            includeMissions = true,
+            includeGoals = true,
+            includeKPIs = false,
+            updateYearReferences = true
+        } = options;
+
+        showLoadingOverlay();
+
+        try {
+            // Create new period
+            const newPeriodResponse = await api.call('strategic/periods/create', {
+                period_name: `Period ${toYear}`,
+                start_date: `${toYear}-01-01`,
+                end_date: `${toYear}-12-31`,
+                is_active: false
+            });
+
+            if (!newPeriodResponse.success) {
+                throw new Error('Failed to create new period');
+            }
+
+            const newPeriodId = newPeriodResponse.data?.period_id;
+            const rolloverLog = {
+                period: { from: fromPeriodId, to: newPeriodId },
+                items: { visions: 0, missions: 0, goals: 0, kpis: 0 }
+            };
+
+            // Roll over visions
+            if (includeVisions) {
+                const visions = await api.call('strategic/visions/by-period', { period_id: fromPeriodId });
+                if (visions.success && visions.data) {
+                    for (const vision of visions.data) {
+                        await api.call('strategic/visions/create', {
+                            period_id: newPeriodId,
+                            vision_name: updateYearReferences
+                                ? vision.vision_name.replace(/\b\d{4}\b/g, toYear)
+                                : vision.vision_name,
+                            vision_description: vision.vision_description
+                        });
+                        rolloverLog.items.visions++;
+                    }
+                }
+            }
+
+            // Roll over missions
+            if (includeMissions) {
+                const missions = await api.call('strategic/missions/by-vision', { vision_id: 'all' });
+                if (missions.success && missions.data) {
+                    for (const mission of missions.data) {
+                        await api.call('strategic/missions/create', {
+                            vision_id: newPeriodId,
+                            mission_name: updateYearReferences
+                                ? mission.mission_name.replace(/\b\d{4}\b/g, toYear)
+                                : mission.mission_name,
+                            mission_description: mission.mission_description
+                        });
+                        rolloverLog.items.missions++;
+                    }
+                }
+            }
+
+            // Roll over goals
+            if (includeGoals) {
+                const goals = await api.call('strategic/goals/list', { year: newYear(toYear) - 1 });
+                if (goals.success && goals.data) {
+                    for (const goal of goals.data) {
+                        await api.call('strategic/goals/create', {
+                            goal_name: updateYearReferences
+                                ? goal.goal_name.replace(/\b\d{4}\b/g, toYear)
+                                : goal.goal_name,
+                            goal_description: goal.goal_description,
+                            year: toYear,
+                            target_value: goal.target_value
+                        });
+                        rolloverLog.items.goals++;
+                    }
+                }
+            }
+
+            hideLoadingOverlay();
+            showSuccessMessage(`Period rollover complete:\nVisions: ${rolloverLog.items.visions}\nMissions: ${rolloverLog.items.missions}\nGoals: ${rolloverLog.items.goals}`);
+
+            return rolloverLog;
+
+        } catch (error) {
+            hideLoadingOverlay();
+            showErrorMessage('Period rollover failed: ' + error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Show rollover dialog
+     */
+    static showRolloverDialog(currentPeriodId, currentYear) {
+        const modalHtml = `
+            <div class="modal fade" id="rolloverModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Period Rollover</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="rollover-form">
+                                <div class="mb-3">
+                                    <label class="form-label">Target Year *</label>
+                                    <input type="number" class="form-control" id="rollover-year"
+                                           value="${parseInt(currentYear) + 1}" min="${parseInt(currentYear) + 1}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Include in Rollover:</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="include-visions" checked>
+                                        <label class="form-check-label" for="include-visions">Visions</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="include-missions" checked>
+                                        <label class="form-check-label" for="include-missions">Missions</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="include-goals" checked>
+                                        <label class="form-check-label" for="include-goals">Goals</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="include-kpis">
+                                        <label class="form-check-label" for="include-kpis">KPIs (caution)</label>
+                                    </div>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="update-year-refs" checked>
+                                    <label class="form-check-label" for="update-year-refs">
+                                        Update year references in text (e.g., "2024" → "2025")
+                                    </label>
+                                </div>
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <strong>Warning:</strong> This will create copies of selected items.
+                                    Please review carefully before proceeding.
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="PeriodRollover._executeRollover('${currentPeriodId}', '${currentYear}')">
+                                <i class="bi bi-arrow-repeat me-1"></i>Execute Rollover
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const existingModal = document.getElementById('rolloverModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        new bootstrap.Modal(document.getElementById('rolloverModal')).show();
+    }
+
+    static async _executeRollover(fromPeriodId, currentYear) {
+        const toYear = document.getElementById('rollover-year').value;
+        const options = {
+            includeVisions: document.getElementById('include-visions').checked,
+            includeMissions: document.getElementById('include-missions').checked,
+            includeGoals: document.getElementById('include-goals').checked,
+            includeKPIs: document.getElementById('include-kpis').checked,
+            updateYearReferences: document.getElementById('update-year-refs').checked
+        };
+
+        await PeriodRollover.rolloverPeriod(fromPeriodId, toYear, options);
+        bootstrap.Modal.getInstance(document.getElementById('rolloverModal')).hide();
+    }
+}
+
+// ============================================================================
+// ASSIGNMENT OVERLAP DETECTOR
+// ============================================================================>
+
+class AssignmentOverlapDetector {
+    /**
+     * Check for overlapping assignments
+     */
+    static async checkOverlap(positionId, startDate, endDate, excludeAssignmentId = null) {
+        try {
+            const assignments = await api.call('organization/assignments/list', {
+                position_id: positionId
+            });
+
+            if (!assignments.success || !assignments.data) {
+                return { hasOverlap: false, conflicts: [] };
+            }
+
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const conflicts = [];
+
+            for (const assignment of assignments.data) {
+                if (excludeAssignmentId && assignment.assignment_id === excludeAssignmentId) {
+                    continue;
+                }
+
+                const assignmentStart = new Date(assignment.start_date);
+                const assignmentEnd = new Date(assignment.end_date);
+
+                // Check for overlap
+                if (start <= assignmentEnd && end >= assignmentStart) {
+                    conflicts.push({
+                        assignment_id: assignment.assignment_id,
+                        user: assignment.user_name,
+                        position: assignment.position_name,
+                        period: `${assignmentStart.toLocaleDateString()} - ${assignmentEnd.toLocaleDateString()}`
+                    });
+                }
+            }
+
+            return {
+                hasOverlap: conflicts.length > 0,
+                conflicts: conflicts
+            };
+
+        } catch (error) {
+            console.error('Overlap check error:', error);
+            return { hasOverlap: false, conflicts: [], error: error.message };
+        }
+    }
+
+    /**
+     * Display overlap warning
+     */
+    static displayOverlapWarning(conflicts, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container || conflicts.length === 0) return;
+
+        const html = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>Assignment Conflict Detected</h6>
+                <p>The following assignments overlap with the selected period:</p>
+                <ul class="mb-0">
+                    ${conflicts.map(c => `
+                        <li><strong>${c.user}</strong> - ${c.position} (${c.period})</li>
+                    `).join('')}
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+
+        container.innerHTML = html + container.innerHTML;
+    }
+}
+
+// ============================================================================
+// GOAL-KPI ALIGNMENT CHECKER
+// ============================================================================
+
+class GoalKPIAlignmentChecker {
+    /**
+     * Check alignment between goals and KPIs
+     */
+    static async checkAlignment(goalId) {
+        try {
+            const [goalResponse, kpiResponse] = await Promise.all([
+                api.call('strategic/goals/get', { goal_id: goalId }),
+                api.call('kpi/organizational/list', { year: new Date().getFullYear() })
+            ]);
+
+            if (!goalResponse.success || !kpiResponse.success) {
+                return { aligned: [], unaligned: [], score: 0 };
+            }
+
+            const goal = goalResponse.data;
+            const kpis = kpiResponse.data || [];
+            const goalKeywords = this._extractKeywords(goal.goal_name + ' ' + (goal.goal_description || ''));
+
+            const aligned = [];
+            const unaligned = [];
+
+            kpis.forEach(kpi => {
+                const kpiKeywords = this._extractKeywords(kpi.kpi_name + ' ' + (kpi.description || ''));
+                const matchCount = this._countKeywordMatches(goalKeywords, kpiKeywords);
+                const alignmentScore = (matchCount / Math.max(goalKeywords.length, kpiKeywords.length)) * 100;
+
+                if (alignmentScore >= 30) {
+                    aligned.push({ kpi, score: Math.round(alignmentScore) });
+                } else {
+                    unaligned.push({ kpi, score: Math.round(alignmentScore) });
+                }
+            });
+
+            aligned.sort((a, b) => b.score - a.score);
+
+            const totalScore = kpis.length > 0
+                ? Math.round((aligned.reduce((sum, a) => sum + a.score, 0)) / kpis.length)
+                : 0;
+
+            return { aligned, unaligned, score: totalScore };
+
+        } catch (error) {
+            console.error('Alignment check error:', error);
+            return { aligned: [], unaligned: [], score: 0, error: error.message };
+        }
+    }
+
+    /**
+     * Extract keywords from text
+     * @private
+     */
+    static _extractKeywords(text) {
+        const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be']);
+        const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+        return [...new Set(words.filter(w => w.length > 3 && !stopWords.has(w)))];
+    }
+
+    /**
+     * Count keyword matches
+     * @private
+     */
+    static _countKeywordMatches(keywords1, keywords2) {
+        const set2 = new Set(keywords2);
+        return keywords1.filter(k => set2.has(k)).length;
+    }
+}
+
+// ============================================================================
+// EXPORT
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.BulkActionsManager = BulkActionsManager;
+    window.SMARTValidator = SMARTValidator;
+    window.PeriodRollover = PeriodRollover;
+    window.AssignmentOverlapDetector = AssignmentOverlapDetector;
+    window.GoalKPIAlignmentChecker = GoalKPIAlignmentChecker;
+    window.bulkActions = new BulkActionsManager();
+}

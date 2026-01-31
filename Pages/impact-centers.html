@@ -1,0 +1,358 @@
+<!-- impact-centers.html -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-radar"></i> Impact Centers</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary" onclick="createImpactCenter()">
+            <i class="bi bi-plus-circle"></i> New Impact Center
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-light">
+                <h6 class="m-0 font-weight-bold text-primary">Impact Centers</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="impactCentersTable" class="table table-bordered table-hover table-striped datatable" width="100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th class="text-center">Year</th>
+                                <th class="text-center">Work Units</th>
+                                <th class="text-center">Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="impactCentersBody">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-info">Monthly Progress</h6>
+                <div id="selectedICName" class="small text-muted"></div>
+            </div>
+            <div class="card-body">
+                <div id="progressPanel">
+                    <p class="text-muted text-center py-5">Select an Impact Center to view progress</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Impact Center Modal -->
+<div class="modal fade" id="impactCenterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="icModalTitle">New Impact Center</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="icForm">
+                    <input type="hidden" name="impact_center_id" id="icId">
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="impact_center_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="impact_center_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Year <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="year" value="2026" required>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="icActive" checked>
+                        <label class="form-check-label" for="icActive">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveImpactCenter()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div class="modal fade" id="progressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Submit Monthly Progress</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="progressForm">
+                    <input type="hidden" name="impact_center_id" id="progressICId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Month</label>
+                            <select class="form-select" name="month" required>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Year</label>
+                            <input type="number" class="form-control" name="year" value="2026" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Achievement Percentage (%) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="achievement_percentage" min="0" max="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveProgress()">Submit Progress</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+        color: #0d6efd !important;
+        background-color: #fff !important;
+        border: 1px solid #0d6efd;
+        font-weight: bold;
+    }
+    #impactCentersTable tr { cursor: pointer; }
+</style>
+
+<script>
+let icTable;
+let allICs = [];
+let currentICId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Init DataTable
+    icTable = $('#impactCentersTable').DataTable({
+        responsive: true,
+        ordering: true,
+        pageLength: 10,
+        columnDefs: [{ defaultContent: "", targets: "_all" }]
+    });
+    
+    loadImpactCenters();
+    
+    // Row click handler (event delegation)
+    $('#impactCentersTable tbody').on('click', 'tr', function () {
+        const data = icTable.row(this).data();
+        if (data) {
+            // Find ID from allICs by code (first column)
+            const code = data[0];
+            const ic = allICs.find(i => i.impact_center_code === code);
+            if (ic) selectImpactCenter(ic.impact_center_id);
+        }
+    });
+});
+
+function loadImpactCenters() {
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response.success) {
+                allICs = response.data || [];
+                renderImpactCenters(allICs);
+            }
+        })
+        .withFailureHandler(showError)
+        .callAPI('impact-centers/listImpactCenters', {});
+}
+
+function renderImpactCenters(data) {
+    if (icTable) icTable.clear();
+    
+    data.forEach(ic => {
+        icTable.row.add([
+            ic.impact_center_code,
+            ic.impact_center_name,
+            `<div class="text-center">${ic.year}</div>`,
+            `<div class="text-center"><span class="badge bg-info">${ic.work_unit_count || 0}</span></div>`,
+            `<div class="text-center"><span class="badge ${ic.is_active ? 'bg-success' : 'bg-secondary'}">${ic.is_active ? 'Active' : 'Inactive'}</span></div>`,
+            `
+                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editImpactCenter('${ic.impact_center_id}')">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteImpactCenter('${ic.impact_center_id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `
+        ]);
+    });
+    
+    icTable.draw();
+}
+
+function selectImpactCenter(id) {
+    currentICId = id;
+    const ic = allICs.find(i => i.impact_center_id === id);
+    document.getElementById('selectedICName').innerText = ic ? ic.impact_center_name : '';
+    
+    // UI feedback for selection
+    $('#impactCentersTable tbody tr').removeClass('table-primary');
+    // find row in datatable to highlight? For now just load progress.
+    
+    loadProgress(id);
+}
+
+function loadProgress(id) {
+    const panel = document.getElementById('progressPanel');
+    panel.innerHTML = '<p class="text-muted text-center py-5">Loading progress...</p>';
+    
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response.success) {
+                renderProgressUI(response.data);
+            }
+        })
+        .callAPI('impact-centers/listProgress', {impactCenterId: id});
+}
+
+function renderProgressUI(data) {
+    const panel = document.getElementById('progressPanel');
+    
+    let html = `
+        <button class="btn btn-sm btn-success w-100 mb-4" onclick="createNewProgress()">
+            <i class="bi bi-plus-circle"></i> Submit New Progress
+        </button>
+    `;
+    
+    if (!data || data.length === 0) {
+        html += '<p class="text-muted text-center py-3 border rounded bg-light">No progress recorded yet.</p>';
+    } else {
+        html += data.map(p => `
+            <div class="mb-4 pb-2 border-bottom">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <strong>${getMonthName(p.month)} ${p.year}</strong>
+                    <span class="badge bg-primary">${p.achievement_percentage}%</span>
+                </div>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar" style="width: ${p.achievement_percentage}%"></div>
+                </div>
+                ${p.notes ? `<p class="mt-2 small text-muted mb-0">${p.notes}</p>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    panel.innerHTML = html;
+}
+
+function getMonthName(month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+}
+
+function createImpactCenter() {
+    document.getElementById('icForm').reset();
+    document.getElementById('icId').value = '';
+    document.getElementById('icModalTitle').innerText = 'New Impact Center';
+    new bootstrap.Modal(document.getElementById('impactCenterModal')).show();
+}
+
+function editImpactCenter(id) {
+    const ic = allICs.find(i => i.impact_center_id === id);
+    if (!ic) return;
+    
+    const form = document.getElementById('icForm');
+    form.impact_center_id.value = ic.impact_center_id;
+    form.impact_center_name.value = ic.impact_center_name;
+    form.impact_center_code.value = ic.impact_center_code;
+    form.year.value = ic.year;
+    form.is_active.checked = ic.is_active;
+    
+    document.getElementById('icModalTitle').innerText = 'Edit Impact Center';
+    new bootstrap.Modal(document.getElementById('impactCenterModal')).show();
+}
+
+function saveImpactCenter() {
+    const form = document.getElementById('icForm');
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.is_active = form.is_active.checked;
+    
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response.success) {
+                bootstrap.Modal.getInstance(document.getElementById('impactCenterModal')).hide();
+                loadImpactCenters();
+                showToast('Impact Center saved', 'Success');
+            }
+        })
+        .callAPI('impact-centers/saveImpactCenter', data);
+}
+
+function deleteImpactCenter(id) {
+    if (!confirm('Are you sure you want to delete this Impact Center?')) return;
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response.success) {
+                loadImpactCenters();
+                showToast('Impact Center deleted', 'Success');
+            } else {
+                showError(response.message);
+            }
+        })
+        .callAPI('impact-centers/deleteImpactCenter', {impact_center_id: id});
+}
+
+function createNewProgress() {
+    if (!currentICId) return;
+    document.getElementById('progressForm').reset();
+    document.getElementById('progressICId').value = currentICId;
+    new bootstrap.Modal(document.getElementById('progressModal')).show();
+}
+
+function saveProgress() {
+    const form = document.getElementById('progressForm');
+    const data = Object.fromEntries(new FormData(form).entries());
+    
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response.success) {
+                bootstrap.Modal.getInstance(document.getElementById('progressModal')).hide();
+                loadProgress(currentICId);
+                showToast('Progress submitted', 'Success');
+            }
+        })
+        .callAPI('impact-centers/submitProgress', data);
+}
+
+function showError(error) {
+    console.error(error);
+    alert('Error: ' + error);
+}
+
+function showToast(msg, title) {
+    alert(title + ': ' + msg);
+}
+</script>

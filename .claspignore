@@ -1,0 +1,19 @@
+# Ignore frontend JavaScript files (now inlined in Index.html)
+assets/js/**/*.js
+
+# Ignore other build files
+**/node_modules/**
+**/.git/**
+**/inline-script.js
+**/inline-script-es6.js
+
+# Ignore backup files
+**/*.backup
+**/*_backup/**
+
+# Ignore documentation files
+docs/**/*.md
+
+# PWA files (served as static, not pushed via clasp)
+manifest.json
+service-worker.js

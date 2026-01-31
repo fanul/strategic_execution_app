@@ -1,0 +1,98 @@
+<!-- Sidebar -->
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-white sidebar">
+    <div class="position-sticky pt-3">
+        <div class="text-center mb-3">
+            <h4><i class="bi bi-graph-up-arrow text-primary"></i> SEM App</h4>
+        </div>
+
+        <!-- User Info -->
+        <div class="user-info">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person-circle fs-3 me-2"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold" id="userName">Loading...</div>
+                    <small class="text-muted" id="userRole">Role</small>
+                </div>
+            </div>
+            <hr class="my-2">
+            <button class="btn btn-sm btn-outline-danger w-100" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </div>
+
+        <!-- Navigation Menu -->
+        <ul class="nav flex-column">
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'Dashboard' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=Dashboard">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+
+            <!-- Organization -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'organization' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=organization">
+                    <i class="bi bi-building"></i> Organization
+                </a>
+            </li>
+
+            <!-- Strategic Planning -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'strategic-plan' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=strategic-plan">
+                    <i class="bi bi-compass"></i> Strategic Planning
+                </a>
+            </li>
+
+            <!-- Performance -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'kpi' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=kpi">
+                    <i class="bi bi-graph-up"></i> KPI Management
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'okr' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=okr">
+                    <i class="bi bi-trophy"></i> Weekly OKRs
+                </a>
+            </li>
+
+            <!-- Programs -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'programs' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=programs">
+                    <i class="bi bi-diagram-3-fill"></i> Programs
+                </a>
+            </li>
+
+            <!-- Impact Centers -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'impact-centers' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=impact-centers">
+                    <i class="bi bi-radar"></i> Impact Centers
+                </a>
+            </li>
+
+            <!-- Reports -->
+            <li class="nav-item">
+                <a class="nav-link <?= PAGE_NAME === 'reports' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=reports">
+                    <i class="bi bi-file-earmark-bar-graph"></i> Reports
+                </a>
+            </li>
+
+            <!-- Settings -->
+            <li class="nav-item">
+                <hr>
+                <a class="nav-link <?= PAGE_NAME === 'settings' ? 'active' : '' ?>"
+                   href="<?= WEB_APP_URL ?>?page=settings">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

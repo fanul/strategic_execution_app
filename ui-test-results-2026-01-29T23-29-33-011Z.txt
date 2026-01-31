@@ -1,0 +1,265 @@
+UI AUTOMATED TEST RESULTS
+Generated: 1/30/2026, 6:29:33 AM
+================================================================================
+
+SUMMARY
+--------------------------------------------------------------------------------
+Total Tests: 87
+Passed: 75 (86.2%)
+Failed: 12 (13.8%)
+Warnings: 0 (0.0%)
+
+================================================================================
+
+MODULE: Organization Management
+--------------------------------------------------------------------------------
+
+  Directorates Section [section]
+    ✓ Directorates DataTable exists
+      Selector: table#directoratesTable
+    ✗ Create Directorate button
+      Selector: button[onclick*="createDirectorate"]
+      Message: Element not found
+    ✓ Table has Code column
+      Selector: th:contains("Code")
+    ✓ Table has Name column
+      Selector: th:contains("Name")
+    ✓ Table has Director column
+      Selector: th:contains("Director")
+    ✓ Table has Actions column
+      Selector: th:contains("Actions")
+
+  Work Units Section [section]
+    ✗ Work Units DataTable exists
+      Selector: table#workUnitsTable
+      Message: Element not found
+    ✗ Create Work Unit button
+      Selector: button[onclick*="createWorkUnit"]
+      Message: Element not found
+    ✗ Table has Directorate column
+      Selector: #workUnitsTable th:contains("Directorate")
+      Message: Element not found
+
+  Directorate Modal [modal]
+    ✗ Directorate modal exists
+      Selector: #directorateModal
+      Message: Element not found
+    ✗ Name field exists
+      Selector: #directorateForm input[name="directorate_name"]
+      Message: Element not found
+    ✗ Code field exists
+      Selector: #directorateForm input[name="directorate_code"]
+      Message: Element not found
+    ✗ Save button exists
+      Selector: button[onclick*="saveDirectorate"]
+      Message: Element not found
+
+MODULE: KPI Management
+--------------------------------------------------------------------------------
+
+  Organizational KPIs Tab [section]
+    ✓ Organizational KPI DataTable exists
+      Selector: table#orgKPITable
+    ✓ Create KPI button exists
+      Selector: button[onclick*="createNewKPI"]
+    ✓ Table has Code column
+      Selector: #orgKPITable th:contains("Code")
+    ✓ Table has Name column
+      Selector: #orgKPITable th:contains("Name")
+    ✓ Table has Type column
+      Selector: #orgKPITable th:contains("Type")
+    ✓ Table has Target column
+      Selector: #orgKPITable th:contains("Target")
+    ✓ Table has Progress column
+      Selector: #orgKPITable th:contains("Progress")
+
+  Individual KPIs Tab [section]
+    ✓ Individual KPI DataTable exists
+      Selector: table#indKPITable
+    ✗ Individual KPI tab exists
+      Selector: #individual-kpi-tab
+      Message: Element not found
+
+  KPI Modal Form [modal]
+    ✓ KPI modal exists
+      Selector: #kpiModal
+    ✓ KPI Name field exists
+      Selector: #kpiForm input[name="kpi_name"]
+    ✓ KPI Code field exists
+      Selector: #kpiForm input[name="kpi_code"]
+    ✓ KPI Type dropdown exists
+      Selector: #kpiForm select[name="kpi_type"]
+    ✓ Perspective dropdown exists
+      Selector: #kpiForm select[name="perspective"]
+    ✓ Target Value field exists
+      Selector: #kpiForm input[name="target_value"]
+    ✓ Save KPI button exists
+      Selector: button[onclick*="saveKPI"]
+
+  Filters [filters]
+    ✓ Year filter exists
+      Selector: #yearFilter
+    ✓ Perspective filter exists
+      Selector: #perspectiveFilter
+
+MODULE: OKR Management
+--------------------------------------------------------------------------------
+
+  Weekly OKRs Section [section]
+    ✓ Week selector exists
+      Selector: #weekSelector
+    ✓ Create OKR button exists
+      Selector: button[onclick*="createNewOKR"]
+    ✓ My OKRs content area exists
+      Selector: #myOKRsContent
+
+  Review Tab [section]
+    ✓ Pending Reviews tab exists
+      Selector: #review-tab
+    ✓ Review content area exists
+      Selector: #reviewOKRsContent
+
+  OKR Modal [modal]
+    ✓ OKR modal exists
+      Selector: #okrModal
+    ✓ Objective field exists
+      Selector: #okrForm textarea[name="objective_text"]
+    ✓ Key Result 1 field exists
+      Selector: #okrForm input[name="key_result_1"]
+    ✓ KR1 Progress field exists
+      Selector: #okrForm input[name="key_result_1_progress"]
+    ✓ Key Result 2 field exists
+      Selector: #okrForm input[name="key_result_2"]
+    ✓ Key Result 3 field exists
+      Selector: #okrForm input[name="key_result_3"]
+    ✓ Save OKR button exists
+      Selector: button[onclick*="saveOKR"]
+
+  Review Modal [modal]
+    ✓ Review modal exists
+      Selector: #reviewModal
+    ✓ Review notes field exists
+      Selector: #reviewNotes
+    ✓ Submit review button exists
+      Selector: button[onclick*="submitReview"]
+
+  History Table [section]
+    ✓ OKR History DataTable exists
+      Selector: table#okrHistoryTable
+    ✓ Table has Week column
+      Selector: #okrHistoryTable th:contains("Week")
+    ✓ Table has Objective column
+      Selector: #okrHistoryTable th:contains("Objective")
+    ✓ Table has Progress column
+      Selector: #okrHistoryTable th:contains("Progress")
+
+MODULE: Programs & Activities
+--------------------------------------------------------------------------------
+
+  Programs Table [section]
+    ✓ Programs DataTable exists
+      Selector: table#programsTable
+    ✓ Create Program button exists
+      Selector: button[onclick*="createProgram"]
+    ✓ Table has Code column
+      Selector: #programsTable th:contains("Code")
+    ✓ Table has Budget column
+      Selector: #programsTable th:contains("Budget")
+    ✓ Table has Activities column
+      Selector: #programsTable th:contains("Activities")
+
+  Activities Modal [modal]
+    ✓ Activities modal exists
+      Selector: #activitiesModal
+    ✓ Activities DataTable exists
+      Selector: table#activitiesTable
+    ✓ Add Activity button exists
+      Selector: button[onclick*="addActivity"]
+
+  Activity Form Modal [modal]
+    ✓ Activity modal exists
+      Selector: #activityModal
+    ✓ Activity Name field exists
+      Selector: #activityForm input[name="activity_name"]
+    ✓ Unit Price field exists
+      Selector: #activityForm input[name="unit_price"]
+    ✓ Quantity field exists
+      Selector: #activityForm input[name="quantity"]
+    ✓ Save Activity button exists
+      Selector: button[onclick*="saveActivity"]
+
+  Program Modal [modal]
+    ✓ Program modal exists
+      Selector: #programModal
+    ✓ Program Name field exists
+      Selector: #programForm input[name="program_name"]
+    ✓ Budget field exists
+      Selector: #programForm input[name="budget_amount"]
+
+MODULE: Impact Centers
+--------------------------------------------------------------------------------
+
+  Impact Centers Table [section]
+    ✓ Impact Centers DataTable exists
+      Selector: table#impactCentersTable
+    ✓ Create Impact Center button exists
+      Selector: button[onclick*="createImpactCenter"]
+    ✓ Table has Code column
+      Selector: #impactCentersTable th:contains("Code")
+    ✓ Table has Year column
+      Selector: #impactCentersTable th:contains("Year")
+
+  Progress Panel [section]
+    ✓ Progress panel exists
+      Selector: #progressPanel
+    ✓ Selected IC name display exists
+      Selector: #selectedICName
+
+  Impact Center Modal [modal]
+    ✓ Impact Center modal exists
+      Selector: #impactCenterModal
+    ✓ Name field exists
+      Selector: #icForm input[name="impact_center_name"]
+    ✓ Code field exists
+      Selector: #icForm input[name="impact_center_code"]
+    ✓ Year field exists
+      Selector: #icForm input[name="year"]
+
+  Progress Submission Modal [modal]
+    ✓ Progress modal exists
+      Selector: #progressModal
+    ✓ Month selector exists
+      Selector: #progressForm select[name="month"]
+    ✓ Achievement field exists
+      Selector: #progressForm input[name="achievement_percentage"]
+    ✓ Submit Progress button exists
+      Selector: button[onclick*="saveProgress"]
+
+MODULE: Strategic Planning
+--------------------------------------------------------------------------------
+
+  Navigation Tabs [section]
+    ✓ Vision tab exists
+      Selector: #vision-tab
+    ✗ Mission tab exists
+      Selector: #mission-tab
+      Message: Element not found
+    ✓ Initiatives tab exists
+      Selector: #initiatives-tab
+    ✓ Goals tab exists
+      Selector: #goals-tab
+
+  Vision Section [section]
+    ✗ Vision content area exists
+      Selector: #visionContent
+      Message: Element not found
+    ✗ Create Vision button exists
+      Selector: button[onclick*="createVision"]
+      Message: Element not found
+
+  Initiatives Table [section]
+    ✓ Initiatives table exists
+      Selector: table#initiativesTable
+
+================================================================================
+END OF REPORT

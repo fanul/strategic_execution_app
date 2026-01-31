@@ -1,0 +1,543 @@
+<script>
+/**
+ * Authentication Module for Strategic Execution Monitoring Application
+ * Handles user authentication, session management, and authorization
+ */
+
+// ============================================================================
+// AUTHENTICATION MANAGER CLASS
+// ============================================================================
+
+class AuthManager {
+    constructor() {
+        this.user = null;
+        this.isAuthenticated = false;
+        this.sessionTimeout = 30 * 60 * 1000; // 30 minutes
+        this.sessionTimer = null;
+        this.refreshTokenTimer = null;
+        this.STORAGE_KEY_USER = 'sem_user';
+        this.STORAGE_KEY_SESSION = 'sem_session';
+    }
+
+    // ========================================================================
+    // INITIALIZATION
+    // ========================================================================
+
+    /**
+     * Initialize authentication
+     */
+    async init() {
+        // Check for existing session
+        const savedSession = this._getStoredSession();
+        if (savedSession) {
+            this.user = savedSession.user;
+            this.isAuthenticated = true;
+            this._startSessionTimer();
+            return this.user;
+        }
+
+        // Try to get current user from backend
+        try {
+            const response = await api.auth.me();
+            if (response.success && response.data) {
+                this.user = response.data;
+                this.isAuthenticated = true;
+                this._saveSession(this.user);
+                this._startSessionTimer();
+                return this.user;
+            }
+        } catch (error) {
+            console.error('Auth init error:', error);
+        }
+
+        return null;
+    }
+
+    // ========================================================================
+    // LOGIN
+    // ========================================================================
+
+    /**
+     * Login with username/email and password
+     * @param {string} username - Username or email
+     * @param {string} password - Password
+     * @returns {Promise} Login response
+     */
+    async login(username, password) {
+        try {
+            const response = await api.auth.login(username, password);
+
+            if (response.success) {
+                this.user = response.data;
+                this.isAuthenticated = true;
+                this._saveSession(this.user);
+                this._startSessionTimer();
+                this._triggerEvent('login', this.user);
+            }
+
+            return response;
+
+        } catch (error) {
+            console.error('Login error:', error);
+            return {
+                success: false,
+                message: 'Login failed. Please try again.',
+                error: error
+            };
+        }
+    }
+
+    // ========================================================================
+    // LOGOUT
+    // ========================================================================
+
+    /**
+     * Logout current user
+     */
+    async logout() {
+        try {
+            await api.auth.logout();
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            this._clearSession();
+            this._stopSessionTimer();
+            this._triggerEvent('logout');
+            // Redirect to login page
+            window.location.reload();
+        }
+    }
+
+    // ========================================================================
+    // SESSION MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Start session timeout timer
+     * @private
+     */
+    _startSessionTimer() {
+        this._stopSessionTimer();
+
+        // Reset session timer on user activity
+        this._resetSessionTimer();
+
+        // Listen for user activity
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+        events.forEach(event => {
+            document.addEventListener(event, this._resetSessionTimer.bind(this));
+        });
+    }
+
+    /**
+     * Stop session timeout timer
+     * @private
+     */
+    _stopSessionTimer() {
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+            this.sessionTimer = null;
+        }
+        if (this.refreshTokenTimer) {
+            clearInterval(this.refreshTokenTimer);
+            this.refreshTokenTimer = null;
+        }
+    }
+
+    /**
+     * Reset session timer
+     * @private
+     */
+    _resetSessionTimer() {
+        clearTimeout(this.sessionTimer);
+
+        this.sessionTimer = setTimeout(() => {
+            this._handleSessionTimeout();
+        }, this.sessionTimeout);
+    }
+
+    /**
+     * Handle session timeout
+     * @private
+     */
+    _handleSessionTimeout() {
+        console.warn('Session timed out');
+        this.logout();
+    }
+
+    // ========================================================================
+    // STORAGE
+    // ========================================================================
+
+    /**
+     * Save session to storage
+     * @private
+     */
+    _saveSession(user) {
+        const session = {
+            user,
+            timestamp: Date.now()
+        };
+        sessionStorage.setItem(this.STORAGE_KEY_SESSION, JSON.stringify(session));
+    }
+
+    /**
+     * Get stored session
+     * @private
+     */
+    _getStoredSession() {
+        try {
+            const sessionStr = sessionStorage.getItem(this.STORAGE_KEY_SESSION);
+            if (sessionStr) {
+                const session = JSON.parse(sessionStr);
+                // Check if session is still valid
+                if (Date.now() - session.timestamp < this.sessionTimeout) {
+                    return session;
+                }
+            }
+        } catch (error) {
+            console.error('Error getting stored session:', error);
+        }
+        return null;
+    }
+
+    /**
+     * Clear session from storage
+     * @private
+     */
+    _clearSession() {
+        sessionStorage.removeItem(this.STORAGE_KEY_SESSION);
+        sessionStorage.removeItem(this.STORAGE_KEY_USER);
+        this.user = null;
+        this.isAuthenticated = false;
+    }
+
+    // ========================================================================
+    // PERMISSION CHECKING
+    // ========================================================================
+
+    /**
+     * Check if user has permission
+     * @param {string} module - Module name
+     * @param {string} action - Action (create, read, update, delete)
+     * @returns {boolean}
+     */
+    hasPermission(module, action) {
+        if (!this.user || !this.user.permissions) {
+            return false;
+        }
+
+        const permissions = this.user.permissions;
+        return permissions[module] && permissions[module][action];
+    }
+
+    /**
+     * Check if user has any of the specified permissions
+     * @param {array} permissionList - List of {module, action} objects
+     * @returns {boolean}
+     */
+    hasAnyPermission(permissionList) {
+        return permissionList.some(p => this.hasPermission(p.module, p.action));
+    }
+
+    /**
+     * Check if user has all of the specified permissions
+     * @param {array} permissionList - List of {module, action} objects
+     * @returns {boolean}
+     */
+    hasAllPermissions(permissionList) {
+        return permissionList.every(p => this.hasPermission(p.module, p.action));
+    }
+
+    /**
+     * Check if user is admin
+     * @returns {boolean}
+     */
+    isAdmin() {
+        if (!this.user) return false;
+        return this.user.is_admin ||
+               this.user.role_code === 'SUPER_ADMIN' ||
+               this.user.role_code === 'ADMIN';
+    }
+
+    /**
+     * Check if user can access resource
+     * @param {string} resourceType - Type of resource
+     * @param {string} resourceId - Resource ID
+     * @returns {boolean}
+     */
+    canAccess(resourceType, resourceId) {
+        // Admin can access everything
+        if (this.isAdmin()) return true;
+
+        // Check permissions based on resource type
+        switch (resourceType) {
+            case 'user':
+                // Users can access their own data
+                return this.user.user_id === resourceId;
+
+            case 'position':
+                // Check if user is assigned to position
+                // This would need additional logic
+                return true;
+
+            default:
+                return this.hasPermission(resourceType, 'read');
+        }
+    }
+
+    // ========================================================================
+    // PASSWORD MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Change password
+     * @param {string} oldPassword - Current password
+     * @param {string} newPassword - New password
+     * @returns {Promise}
+     */
+    async changePassword(oldPassword, newPassword) {
+        try {
+            const response = await api.auth.changePassword(oldPassword, newPassword);
+
+            if (response.success) {
+                this._triggerEvent('passwordChanged');
+            }
+
+            return response;
+
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Failed to change password',
+                error: error
+            };
+        }
+    }
+
+    /**
+     * Request password reset
+     * @param {string} email - Email address
+     * @returns {Promise}
+     */
+    async resetPassword(email) {
+        try {
+            return await api.auth.resetPassword(email);
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Failed to request password reset',
+                error: error
+            };
+        }
+    }
+
+    // ========================================================================
+    // USER PROFILE
+    // ========================================================================
+
+    /**
+     * Update user profile
+     * @param {object} profileData - Profile data to update
+     * @returns {Promise}
+     */
+    async updateProfile(profileData) {
+        try {
+            const response = await api.users.update(this.user.user_id, profileData);
+
+            if (response.success && response.data) {
+                this.user = { ...this.user, ...response.data };
+                this._saveSession(this.user);
+                this._triggerEvent('profileUpdated', this.user);
+            }
+
+            return response;
+
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Failed to update profile',
+                error: error
+            };
+        }
+    }
+
+    // ========================================================================
+    // EVENT HANDLING
+    // ========================================================================
+
+    /**
+     * Trigger authentication event
+     * @private
+     */
+    _triggerEvent(eventName, data = null) {
+        const event = new CustomEvent(`auth:${eventName}`, {
+            detail: data
+        });
+        window.dispatchEvent(event);
+    }
+
+    /**
+     * Add event listener
+     * @param {string} eventName - Event name (login, logout, etc.)
+     * @param {function} callback - Event callback
+     */
+    on(eventName, callback) {
+        window.addEventListener(`auth:${eventName}`, callback);
+    }
+
+    /**
+     * Remove event listener
+     * @param {string} eventName - Event name
+     * @param {function} callback - Event callback
+     */
+    off(eventName, callback) {
+        window.removeEventListener(`auth:${eventName}`, callback);
+    }
+}
+
+// ============================================================================
+// CREATE GLOBAL AUTH INSTANCE
+// ============================================================================
+
+const auth = new AuthManager();
+
+// Make available globally
+if (typeof window !== 'undefined') {
+    window.AuthManager = AuthManager;
+    window.auth = auth;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Require authentication - redirects to login if not authenticated
+ * @returns {object|null} User object if authenticated
+ */
+function requireAuth() {
+    if (!auth.isAuthenticated || !auth.user) {
+        // Show login modal or redirect
+        showLoginModal();
+        return null;
+    }
+    return auth.user;
+}
+
+/**
+ * Require permission - shows error if user doesn't have permission
+ * @param {string} module - Module name
+ * @param {string} action - Action name
+ * @returns {boolean} True if has permission
+ */
+function requirePermission(module, action) {
+    if (!auth.hasPermission(module, action)) {
+        showToast('You do not have permission to perform this action', 'Access Denied');
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Require admin - shows error if user is not admin
+ * @returns {boolean} True if is admin
+ */
+function requireAdmin() {
+    if (!auth.isAdmin()) {
+        showToast('This action requires administrator privileges', 'Access Denied');
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Show login modal
+ */
+function showLoginModal() {
+    // Create and show login modal
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'loginModal';
+    modal.setAttribute('tabindex', '-1');
+    modal.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Login Required</h5>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label">Username or Email</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+
+    // Handle form submission
+    modal.querySelector('#loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const username = formData.get('username');
+        const password = formData.get('password');
+
+        const response = await auth.login(username, password);
+        if (response.success) {
+            modalInstance.hide();
+            modal.remove();
+            window.location.reload();
+        } else {
+            showToast(response.message || 'Login failed', 'Error');
+        }
+    });
+}
+
+/**
+ * Update auth UI elements based on current user
+ */
+function updateAuthUI() {
+    if (!auth.user) return;
+
+    // Update user name
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl) {
+        userNameEl.textContent = auth.user.full_name || auth.user.username;
+    }
+
+    // Update user role
+    const userRoleEl = document.getElementById('userRole');
+    if (userRoleEl) {
+        userRoleEl.textContent = auth.user.role_name || 'User';
+    }
+
+    // Show/hide admin-only elements
+    if (auth.isAdmin()) {
+        document.body.classList.add('is-admin');
+    } else {
+        document.body.classList.remove('is-admin');
+    }
+
+    // Update permission-based visibility
+    document.querySelectorAll('[data-permission]').forEach(el => {
+        const permission = el.dataset.permission;
+        const [module, action] = permission.split(':');
+        if (!auth.hasPermission(module, action)) {
+            el.style.display = 'none';
+        }
+    });
+}
+
+</script>

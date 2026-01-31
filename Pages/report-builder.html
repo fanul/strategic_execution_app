@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Builder - Strategic Execution Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="?path=/assets/css/custom.css" rel="stylesheet">
+    <style>
+        .field-palette {
+            min-height: 200px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .field-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .field-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #0d6efd;
+        }
+
+        .field-item.selected {
+            background: #e7f1ff;
+            border-color: #0d6efd;
+        }
+
+        .field-item.dragging {
+            opacity: 0.5;
+        }
+
+        .report-canvas {
+            min-height: 400px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .report-section {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fdfdfd;
+        }
+
+        .report-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .report-field {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+        .report-field-actions {
+            margin-left: auto;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .template-card {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .template-card:hover {
+            border-color: #0d6efd;
+            transform: translateY(-2px);
+        }
+
+        .template-card.selected {
+            border-color: #0d6efd;
+            background: #e7f1ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="report-builder-page">
+        <div class="container-fluid">
+            <!-- Page Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1"><i class="bi bi-file-earmark-bar-graph me-2"></i>Custom Report Builder</h2>
+                            <p class="text-muted mb-0">Create custom reports with drag-and-drop interface</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-secondary me-2" onclick="reportBuilder.showTemplates()">
+                                <i class="bi bi-collection me-1"></i>Templates
+                            </button>
+                            <button class="btn btn-outline-primary me-2" onclick="reportBuilder.saveReport()">
+                                <i class="bi bi-save me-1"></i>Save Report
+                            </button>
+                            <button class="btn btn-primary" onclick="reportBuilder.generateReport()">
+                                <i class="bi bi-play-fill me-1"></i>Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Configuration Tabs -->
+            <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#design-tab">
+                        <i class="bi bi-grid-3x3 me-2"></i>Design
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#filters-tab">
+                        <i class="bi bi-funnel me-2"></i>Filters
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#preview-tab">
+                        <i class="bi bi-eye me-2"></i>Preview
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Design Tab -->
+                <div class="tab-pane fade show active" id="design-tab">
+                    <div class="row">
+                        <!-- Data Source Selection -->
+                        <div class="col-12 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3">
+                                            <label class="form-label">Data Source:</label>
+                                            <select class="form-select" id="data-source" onchange="reportBuilder.loadDataSource(this.value)">
+                                                <option value="">-- Select Data Source --</option>
+                                                <option value="kpis">KPIs</option>
+                                                <option value="goals">Strategic Goals</option>
+                                                <option value="programs">Programs & Activities</option>
+                                                <option value="okrs">OKRs</option>
+                                                <option value="users">Users</option>
+                                                <option value="organization">Organization Structure</option>
+                                                <option value="impact-centers">Impact Centers</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Report Name:</label>
+                                            <input type="text" class="form-control" id="report-name" placeholder="My Custom Report">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Year:</label>
+                                            <select class="form-select" id="report-year">
+                                                <option value="2026">2026</option>
+                                                <option value="2025" selected>2025</option>
+                                                <option value="2024">2024</option>
+                                                <option value="2023">2023</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Period:</label>
+                                            <select class="form-select" id="report-period">
+                                                <option value="all">All Periods</option>
+                                                <option value="q1">Q1</option>
+                                                <option value="q2">Q2</option>
+                                                <option value="q3">Q3</option>
+                                                <option value="q4">Q4</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Field Palette -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Available Fields</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="field-palette" id="field-palette">
+                                        <p class="text-muted text-center">Select a data source to see available fields</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>Aggregations</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="reportBuilder.addAggregation('sum')">Sum</button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="reportBuilder.addAggregation('avg')">Average</button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="reportBuilder.addAggregation('count')">Count</button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="reportBuilder.addAggregation('min')">Min</button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="reportBuilder.addAggregation('max')">Max</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Report Canvas -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Report Layout</h6>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-secondary" onclick="reportBuilder.addSection('table')">
+                                            <i class="bi bi-table me-1"></i>Table
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="reportBuilder.addSection('chart')">
+                                            <i class="bi bi-bar-chart me-1"></i>Chart
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="reportBuilder.addSection('cards')">
+                                            <i class="bi bi-columns-gap me-1"></i>Cards
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="report-canvas" id="report-canvas">
+                                        <p class="text-muted text-center mt-5">
+                                            <i class="bi bi-arrow-left me-2"></i>
+                                            Drag fields here or add sections to build your report
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters Tab -->
+                <div class="tab-pane fade" id="filters-tab">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="bi bi-funnel-fill me-2"></i>Report Filters</h6>
+                                    <button class="btn btn-sm btn-primary" onclick="reportBuilder.addFilter()">
+                                        <i class="bi bi-plus-lg me-1"></i>Add Filter
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="filters-container">
+                                        <p class="text-muted">No filters added. Click "Add Filter" to create conditions.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Filter Logic</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="filter-logic" id="logic-and" checked>
+                                        <label class="form-check-label" for="logic-and">
+                                            <strong>AND</strong> - All conditions must be met
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="filter-logic" id="logic-or">
+                                        <label class="form-check-label" for="logic-or">
+                                            <strong>OR</strong> - Any condition can be met
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Grouping</h6>
+                                </div>
+                                <div class="card-body">
+                                    <label class="form-label">Group By:</label>
+                                    <select class="form-select" id="group-by-field" multiple>
+                                        <option value="">No grouping</option>
+                                    </select>
+                                    <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Tab -->
+                <div class="tab-pane fade" id="preview-tab">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-eye-fill me-2"></i>Report Preview</h6>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="reportBuilder.exportPreview('excel')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="reportBuilder.exportPreview('pdf')">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="reportBuilder.exportPreview('csv')">
+                                    <i class="bi bi-filetype-csv me-1"></i>CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="preview-container" style="min-height: 500px;">
+                                <p class="text-muted text-center mt-5">Configure your report and click "Generate Report" to see a preview.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates Modal -->
+    <div class="modal fade" id="templatesModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report Templates</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row" id="templates-container">
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('kpi-summary')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-graph-up display-4 text-primary mb-3"></i>
+                                    <h6>KPI Summary Report</h6>
+                                    <p class="text-muted small">Overview of all KPIs with achievement status</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('goal-progress')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-flag-fill display-4 text-success mb-3"></i>
+                                    <h6>Goal Progress Report</h6>
+                                    <p class="text-muted small">Track strategic goal completion and initiatives</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('okr-status')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-bullseye display-4 text-warning mb-3"></i>
+                                    <h6>OKR Status Report</h6>
+                                    <p class="text-muted small">Weekly OKR tracking and scoring</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('program-gantt')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-calendar-range display-4 text-info mb-3"></i>
+                                    <h6>Program Timeline</h6>
+                                    <p class="text-muted small">Gantt chart view of programs and activities</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('budget-analysis')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-cash-stack display-4 text-success mb-3"></i>
+                                    <h6>Budget Analysis</h6>
+                                    <p class="text-muted small">Budget allocation vs actual spending</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card template-card" onclick="reportBuilder.loadTemplate('organization-summary')">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-building display-4 text-danger mb-3"></i>
+                                    <h6>Organization Summary</h6>
+                                    <p class="text-muted small">Overview of organizational structure and positions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="?path=/assets/js/utils.js"></script>
+    <script src="?path=/assets/js/api.js"></script>
+    <script src="?path=/assets/js/export.js"></script>
+
+    <script>
+        class ReportBuilder {
+            constructor() {
+                this.currentDataSource = null;
+                this.selectedFields = [];
+                this.sections = [];
+                this.filters = [];
+                this.currentConfig = {};
+            }
+
+            async loadDataSource(source) {
+                this.currentDataSource = source;
+                this.selectedFields = [];
+
+                const fieldDefinitions = {
+                    'kpis': [
+                        { name: 'kpi_name', label: 'KPI Name', type: 'text' },
+                        { name: 'description', label: 'Description', type: 'text' },
+                        { name: 'perspective', label: 'Perspective', type: 'select' },
+                        { name: 'target_value', label: 'Target Value', type: 'number' },
+                        { name: 'actual_value', label: 'Actual Value', type: 'number' },
+                        { name: 'achievement_percentage', label: 'Achievement %', type: 'percent' },
+                        { name: 'year', label: 'Year', type: 'number' },
+                        { name: 'directorate_name', label: 'Directorate', type: 'text' },
+                        { name: 'work_unit_name', label: 'Work Unit', type: 'text' }
+                    ],
+                    'goals': [
+                        { name: 'goal_name', label: 'Goal Name', type: 'text' },
+                        { name: 'goal_description', label: 'Description', type: 'text' },
+                        { name: 'year', label: 'Year', type: 'number' },
+                        { name: 'target_value', label: 'Target', type: 'number' },
+                        { name: 'current_progress', label: 'Progress', type: 'percent' },
+                        { name: 'vision_name', label: 'Vision', type: 'text' },
+                        { name: 'mission_name', label: 'Mission', type: 'text' }
+                    ],
+                    'programs': [
+                        { name: 'program_name', label: 'Program Name', type: 'text' },
+                        { name: 'description', label: 'Description', type: 'text' },
+                        { name: 'start_date', label: 'Start Date', type: 'date' },
+                        { name: 'end_date', label: 'End Date', type: 'date' },
+                        { name: 'budget_allocated', label: 'Budget', type: 'currency' },
+                        { name: 'progress_percentage', label: 'Progress', type: 'percent' },
+                        { name: 'owner_name', label: 'Owner', type: 'text' }
+                    ],
+                    'okrs': [
+                        { name: 'objective', label: 'Objective', type: 'text' },
+                        { name: 'key_result', label: 'Key Result', type: 'text' },
+                        { name: 'target_value', label: 'Target', type: 'number' },
+                        { name: 'current_value', label: 'Current', type: 'number' },
+                        { name: 'progress_percentage', label: 'Progress', type: 'percent' },
+                        { name: 'week_number', label: 'Week', type: 'number' },
+                        { name: 'owner_name', label: 'Owner', type: 'text' }
+                    ],
+                    'users': [
+                        { name: 'username', label: 'Username', type: 'text' },
+                        { name: 'full_name', label: 'Full Name', type: 'text' },
+                        { name: 'email', label: 'Email', type: 'email' },
+                        { name: 'role_name', label: 'Role', type: 'text' },
+                        { name: 'work_unit_name', label: 'Work Unit', type: 'text' },
+                        { name: 'is_active', label: 'Active', type: 'boolean' }
+                    ],
+                    'organization': [
+                        { name: 'directorate_name', label: 'Directorate', type: 'text' },
+                        { name: 'work_unit_name', label: 'Work Unit', type: 'text' },
+                        { name: 'affair_name', label: 'Affair', type: 'text' },
+                        { name: 'position_name', label: 'Position', type: 'text' },
+                        { name: 'position_level', label: 'Level', type: 'number' },
+                        { name: 'incumbent', label: 'Incumbent', type: 'text' }
+                    ],
+                    'impact-centers': [
+                        { name: 'center_name', label: 'Center Name', type: 'text' },
+                        { name: 'description', label: 'Description', type: 'text' },
+                        { name: 'leader_name', label: 'Leader', type: 'text' },
+                        { name: 'progress_percentage', label: 'Progress', type: 'percent' },
+                        { name: 'completion_date', label: 'Completion Date', type: 'date' }
+                    ]
+                };
+
+                const fields = fieldDefinitions[source] || [];
+                this._renderFieldPalette(fields);
+            }
+
+            _renderFieldPalette(fields) {
+                const palette = document.getElementById('field-palette');
+                if (fields.length === 0) {
+                    palette.innerHTML = '<p class="text-muted text-center">No fields available</p>';
+                    return;
+                }
+
+                palette.innerHTML = fields.map(field => `
+                    <div class="field-item" draggable="true" data-field="${field.name}" data-type="${field.type}">
+                        <i class="bi bi-grip-vertical me-2 text-muted"></i>
+                        ${field.label}
+                        <small class="text-muted ms-auto">(${field.type})</small>
+                    </div>
+                `).join('');
+
+                this._setupDragAndDrop();
+            }
+
+            _setupDragAndDrop() {
+                const fields = document.querySelectorAll('.field-item');
+                const canvas = document.getElementById('report-canvas');
+
+                fields.forEach(field => {
+                    field.addEventListener('dragstart', (e) => {
+                        field.classList.add('dragging');
+                        e.dataTransfer.setData('text/plain', field.dataset.field);
+                        e.dataTransfer.setData('field-type', field.dataset.type);
+                    });
+
+                    field.addEventListener('dragend', () => {
+                        field.classList.remove('dragging');
+                    });
+
+                    field.addEventListener('click', () => {
+                        field.classList.toggle('selected');
+                        if (field.classList.contains('selected')) {
+                            this.selectedFields.push({
+                                name: field.dataset.field,
+                                type: field.dataset.type,
+                                label: field.textContent.trim()
+                            });
+                        } else {
+                            this.selectedFields = this.selectedFields.filter(f => f.name !== field.dataset.field);
+                        }
+                    });
+                });
+
+                canvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    canvas.style.borderColor = '#0d6efd';
+                });
+
+                canvas.addEventListener('dragleave', () => {
+                    canvas.style.borderColor = '#dee2e6';
+                });
+
+                canvas.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    canvas.style.borderColor = '#dee2e6';
+                    const fieldName = e.dataTransfer.getData('text/plain');
+                    const fieldType = e.dataTransfer.getData('field-type');
+                    this.addFieldToCanvas(fieldName, fieldType);
+                });
+            }
+
+            addFieldToCanvas(fieldName, fieldType) {
+                const field = this.selectedFields.find(f => f.name === fieldName);
+                if (!field) return;
+
+                const canvas = document.getElementById('report-canvas');
+                if (canvas.querySelector('.text-muted')) {
+                    canvas.innerHTML = '';
+                }
+
+                const fieldHtml = `
+                    <div class="report-field">
+                        <i class="bi bi-grip-vertical me-2 text-muted"></i>
+                        ${field.label}
+                        <div class="report-field-actions">
+                            <button class="btn btn-sm btn-link text-danger" onclick="this.closest('.report-field').remove()">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                canvas.insertAdjacentHTML('beforeend', fieldHtml);
+            }
+
+            addSection(type) {
+                const canvas = document.getElementById('report-canvas');
+                if (canvas.querySelector('.text-muted')) {
+                    canvas.innerHTML = '';
+                }
+
+                const sectionId = 'section-' + Date.now();
+                let sectionHtml = '';
+
+                switch (type) {
+                    case 'table':
+                        sectionHtml = `
+                            <div class="report-section" id="${sectionId}">
+                                <div class="report-section-header">
+                                    <strong><i class="bi bi-table me-2"></i>Table Section</strong>
+                                    <button class="btn btn-sm btn-link text-danger" onclick="document.getElementById('${sectionId}').remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <p class="text-muted small">Drag fields here to add them to this table</p>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'chart':
+                        sectionHtml = `
+                            <div class="report-section" id="${sectionId}">
+                                <div class="report-section-header">
+                                    <strong><i class="bi bi-bar-chart me-2"></i>Chart Section</strong>
+                                    <button class="btn btn-sm btn-link text-danger" onclick="document.getElementById('${sectionId}').remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <select class="form-select form-select-sm mb-2" onchange="reportBuilder.setChartType('${sectionId}', this.value)">
+                                        <option value="bar">Bar Chart</option>
+                                        <option value="line">Line Chart</option>
+                                        <option value="pie">Pie Chart</option>
+                                        <option value="doughnut">Doughnut Chart</option>
+                                    </select>
+                                    <p class="text-muted small">Drag numeric fields here for chart data</p>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'cards':
+                        sectionHtml = `
+                            <div class="report-section" id="${sectionId}">
+                                <div class="report-section-header">
+                                    <strong><i class="bi bi-columns-gap me-2"></i>KPI Cards</strong>
+                                    <button class="btn btn-sm btn-link text-danger" onclick="document.getElementById('${sectionId}').remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <p class="text-muted small">Drag fields here to create KPI cards</p>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                }
+
+                canvas.insertAdjacentHTML('beforeend', sectionHtml);
+            }
+
+            addFilter() {
+                const container = document.getElementById('filters-container');
+                if (container.querySelector('.text-muted')) {
+                    container.innerHTML = '';
+                }
+
+                const filterId = 'filter-' + Date.now();
+                const filterHtml = `
+                    <div class="filter-item" id="${filterId}">
+                        <select class="form-select form-select-sm" style="width: 200px;">
+                            <option value="">Select field...</option>
+                        </select>
+                        <select class="form-select form-select-sm" style="width: 120px;">
+                            <option value="equals">equals</option>
+                            <option value="contains">contains</option>
+                            <option value="greater">greater than</option>
+                            <option value="less">less than</option>
+                            <option value="between">between</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm" placeholder="Value">
+                        <button class="btn btn-sm btn-outline-danger" onclick="document.getElementById('${filterId}').remove()">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.insertAdjacentHTML('beforeend', filterHtml);
+            }
+
+            async generateReport() {
+                if (!this.currentDataSource) {
+                    showErrorMessage('Please select a data source');
+                    return;
+                }
+
+                showLoadingOverlay();
+
+                try {
+                    // Collect report configuration
+                    this.currentConfig = {
+                        dataSource: this.currentDataSource,
+                        name: document.getElementById('report-name').value || 'Custom Report',
+                        year: document.getElementById('report-year').value,
+                        period: document.getElementById('report-period').value,
+                        fields: this.selectedFields,
+                        filters: this.filters,
+                        sections: this.sections
+                    };
+
+                    // Fetch data based on data source
+                    let data = [];
+                    switch (this.currentDataSource) {
+                        case 'kpis':
+                            const kpiResponse = await api.call('kpi/organizational/list', { year: this.currentConfig.year });
+                            data = kpiResponse.success ? (kpiResponse.data || []) : [];
+                            break;
+                        case 'goals':
+                            const goalResponse = await api.call('strategic/goals/list', { year: this.currentConfig.year });
+                            data = goalResponse.success ? (goalResponse.data || []) : [];
+                            break;
+                        case 'programs':
+                            const progResponse = await api.call('programs/list', { year: this.currentConfig.year });
+                            data = progResponse.success ? (progResponse.data || []) : [];
+                            break;
+                        default:
+                            data = [];
+                    }
+
+                    this._renderPreview(data);
+                    showSuccessMessage('Report generated successfully');
+
+                } catch (error) {
+                    console.error('Report generation error:', error);
+                    showErrorMessage('Failed to generate report: ' + error.message);
+                } finally {
+                    hideLoadingOverlay();
+                }
+            }
+
+            _renderPreview(data) {
+                const previewContainer = document.getElementById('preview-container');
+
+                if (data.length === 0) {
+                    previewContainer.innerHTML = '<p class="text-muted text-center mt-5">No data available for the selected criteria.</p>';
+                    return;
+                }
+
+                // Generate table preview
+                const fields = this.selectedFields.length > 0 ? this.selectedFields : Object.keys(data[0]).slice(0, 6).map(key => ({
+                    name: key,
+                    label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    type: typeof data[0][key]
+                }));
+
+                let html = `
+                    <h4 class="mb-3">${this.currentConfig.name}</h4>
+                    <p class="text-muted">Showing ${data.length} records</p>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                    `;
+
+                fields.forEach(field => {
+                    html += `<th>${field.label}</th>`;
+                });
+
+                html += `
+                                </tr>
+                            </thead>
+                            <tbody>
+                        `;
+
+                data.forEach(row => {
+                    html += '<tr>';
+                    fields.forEach(field => {
+                        const value = row[field.name];
+                        html += `<td>${value !== undefined ? value : '-'}</td>`;
+                    });
+                    html += '</tr>';
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                previewContainer.innerHTML = html;
+            }
+
+            async exportPreview(format) {
+                const data = {
+                    title: this.currentConfig.name || 'Report',
+                    headers: this.selectedFields.map(f => f.label),
+                    data: [] // Would need to collect actual data
+                };
+
+                await exportManager.export(format, {
+                    ...data,
+                    filename: data.title.replace(/\s+/g, '-').toLowerCase()
+                });
+            }
+
+            showTemplates() {
+                new bootstrap.Modal(document.getElementById('templatesModal')).show();
+            }
+
+            loadTemplate(templateId) {
+                console.log('Loading template:', templateId);
+                bootstrap.Modal.getInstance(document.getElementById('templatesModal')).hide();
+                showSuccessMessage('Template loaded: ' + templateId);
+                // Would load template configuration here
+            }
+
+            saveReport() {
+                const config = {
+                    name: document.getElementById('report-name').value,
+                    dataSource: this.currentDataSource,
+                    fields: this.selectedFields,
+                    filters: this.filters,
+                    sections: this.sections
+                };
+
+                StorageUtils.save('report-template-' + Date.now(), config);
+                showSuccessMessage('Report saved successfully');
+            }
+
+            addAggregation(type) {
+                showErrorMessage('Aggregation feature coming soon');
+            }
+
+            setChartType(sectionId, type) {
+                console.log('Setting chart type for', sectionId, 'to', type);
+            }
+        }
+
+        const reportBuilder = new ReportBuilder();
+    </script>
+</body>
+</html>

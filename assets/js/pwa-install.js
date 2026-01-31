@@ -1,0 +1,516 @@
+/**
+ * PWA Installation Manager
+ * Handles service worker registration, install prompts, and offline capabilities
+ */
+
+class PWAInstallManager {
+    constructor() {
+        this.deferredPrompt = null;
+        this.isInstallable = false;
+        this.isInstalled = false;
+    }
+
+    /**
+     * Initialize PWA
+     */
+    async init() {
+        // Check if running as standalone PWA
+        this.isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+
+        // Register service worker
+        await this._registerServiceWorker();
+
+        // Setup install prompt listeners
+        this._setupInstallPrompt();
+
+        // Setup app update listener
+        this._setupUpdateListener();
+
+        // Log PWA status
+        console.log('PWA Status:', {
+            isInstalled: this.isInstalled,
+            isSecure: window.isSecureContext,
+            serviceWorker: 'serviceWorker' in navigator
+        });
+    }
+
+    /**
+     * Register service worker
+     * @private
+     */
+    async _registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register(
+                    '?path=/service-worker.js',
+                    { scope: '/' }
+                );
+
+                console.log('Service Worker registered:', registration);
+
+                // Listen for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            this._showUpdateAvailable();
+                        }
+                    });
+                });
+
+                return registration;
+            } catch (error) {
+                console.error('Service Worker registration failed:', error);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Setup install prompt listener
+     * @private
+     */
+    _setupInstallPrompt() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            this.deferredPrompt = e;
+            this.isInstallable = true;
+
+            // Show install button in UI
+            this._showInstallButton();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            // App was installed
+            this.isInstalled = true;
+            this.isInstallable = false;
+            this.deferredPrompt = null;
+
+            this._hideInstallButton();
+            showSuccessMessage('App installed successfully!');
+        });
+    }
+
+    /**
+     * Setup update listener
+     * @private
+     */
+    _setupUpdateListener() {
+        // Check for updates periodically
+        setInterval(async () => {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.update();
+                }
+            }
+        }, 60 * 60 * 1000); // Every hour
+    }
+
+    /**
+     * Show install button in UI
+     * @private
+     */
+    _showInstallButton() {
+        // Remove existing button
+        const existingBtn = document.getElementById('pwa-install-btn');
+        if (existingBtn) existingBtn.remove();
+
+        // Create install button
+        const installBtn = document.createElement('button');
+        installBtn.id = 'pwa-install-btn';
+        installBtn.className = 'btn btn-primary btn-sm';
+        installBtn.innerHTML = '<i class="bi bi-download me-1"></i>Install App';
+        installBtn.style.position = 'fixed';
+        installBtn.style.bottom = '20px';
+        installBtn.style.right = '20px';
+        installBtn.style.zIndex = '9999';
+        installBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        installBtn.onclick = () => this.promptInstall();
+
+        document.body.appendChild(installBtn);
+
+        // Animate in
+        setTimeout(() => {
+            installBtn.style.transition = 'all 0.3s';
+            installBtn.style.transform = 'translateY(0)';
+        }, 100);
+    }
+
+    /**
+     * Hide install button
+     * @private
+     */
+    _hideInstallButton() {
+        const btn = document.getElementById('pwa-install-btn');
+        if (btn) {
+            btn.style.transform = 'translateY(100px)';
+            setTimeout(() => btn.remove(), 300);
+        }
+    }
+
+    /**
+     * Prompt user to install app
+     */
+    async promptInstall() {
+        if (!this.deferredPrompt) {
+            showErrorMessage('App is not installable on this device');
+            return;
+        }
+
+        // Show the install prompt
+        this.deferredPrompt.prompt();
+
+        // Wait for the user to respond to the prompt
+        const { outcome } = await this.deferredPrompt.userChoice;
+
+        console.log(`User response to install prompt: ${outcome}`);
+
+        // We've used the prompt, and can't use it again
+        this.deferredPrompt = null;
+        this.isInstallable = false;
+
+        // Hide the install button
+        if (outcome === 'accepted') {
+            this._hideInstallButton();
+        }
+    }
+
+    /**
+     * Show update available notification
+     * @private
+     */
+    _showUpdateAvailable() {
+        const updateDiv = document.createElement('div');
+        updateDiv.id = 'pwa-update-notification';
+        updateDiv.className = 'alert alert-info alert-dismissible fade show';
+        updateDiv.style.position = 'fixed';
+        updateDiv.style.top = '20px';
+        updateDiv.style.right = '20px';
+        updateDiv.style.zIndex = '10000';
+        updateDiv.style.maxWidth = '400px';
+        updateDiv.innerHTML = `
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>New version available!</strong>
+            <p class="mb-2 small">A new version of the app is ready to install.</p>
+            <button class="btn btn-sm btn-primary me-2" onclick="pwaInstall.updateApp()">
+                Update Now
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="alert">
+                Later
+            </button>
+        `;
+
+        document.body.appendChild(updateDiv);
+
+        // Auto-hide after 30 seconds
+        setTimeout(() => {
+            const btn = updateDiv.querySelector('[data-bs-dismiss="alert"]');
+            if (btn) btn.click();
+        }, 30000);
+    }
+
+    /**
+     * Update the app
+     */
+    async updateApp() {
+        const notification = document.getElementById('pwa-update-notification');
+        if (notification) notification.remove();
+
+        // Tell the new service worker to skip waiting
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration && registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+        }
+
+        // Reload the page
+        window.location.reload();
+    }
+
+    /**
+     * Check if app is installed
+     */
+    checkIsInstalled() {
+        return this.isInstalled || window.matchMedia('(display-mode: standalone)').matches;
+    }
+
+    /**
+     * Get install instructions for different browsers
+     */
+    getInstallInstructions() {
+        const userAgent = navigator.userAgent;
+
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            return {
+                browser: 'Safari (iOS)',
+                instructions: [
+                    'Tap the Share button',
+                    'Scroll down and tap "Add to Home Screen"',
+                    'Tap "Add" to install the app'
+                ],
+                icon: 'bi-apple'
+            };
+        } else if (/Android/.test(userAgent)) {
+            return {
+                browser: 'Chrome (Android)',
+                instructions: [
+                    'Tap the menu button (three dots)',
+                    'Tap "Add to Home Screen" or "Install App"',
+                    'Confirm installation'
+                ],
+                icon: 'bi-google-play'
+            };
+        } else if (/Chrome/.test(userAgent)) {
+            return {
+                browser: 'Chrome (Desktop)',
+                instructions: [
+                    'Click the install icon in the address bar',
+                    'Click "Install"',
+                    'App will be available from your applications'
+                ],
+                icon: 'bi-chrome'
+            };
+        } else if (/Edge/.test(userAgent)) {
+            return {
+                browser: 'Edge',
+                instructions: [
+                    'Click the install icon in the address bar',
+                    'Click "Install"',
+                    'App will be available from your applications'
+                ],
+                icon: 'bi-microsoft-edge'
+            };
+        } else {
+            return {
+                browser: 'Unknown Browser',
+                instructions: [
+                    'Look for an install icon in the address bar',
+                    'Or check your browser settings for "Add to Home Screen" or "Install App"'
+                ],
+                icon: 'bi-question-circle'
+            };
+        }
+    }
+
+    /**
+     * Show install instructions modal
+     */
+    showInstallInstructions() {
+        const info = this.getInstallInstructions();
+
+        const modalHtml = `
+            <div class="modal fade" id="installInstructionsModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi ${info.icon} me-2"></i>Install App
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>${info.browser}</strong></p>
+                            <ol>
+                                ${info.instructions.map(i => `<li class="mb-2">${i}</li>`).join('')}
+                            </ol>
+                            <div class="alert alert-info">
+                                <i class="bi bi-lightbulb me-2"></i>
+                                <strong>Tip:</strong> Installing the app allows offline access
+                                and a faster, app-like experience.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                                Got it!
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const existingModal = document.getElementById('installInstructionsModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        new bootstrap.Modal(document.getElementById('installInstructionsModal')).show();
+    }
+
+    /**
+     * Show splash screen
+     */
+    showSplashScreen() {
+        const splash = document.createElement('div');
+        splash.id = 'pwa-splash';
+        splash.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            transition: opacity 0.5s;
+        `;
+        splash.innerHTML = `
+            <div style="text-align: center; color: white;">
+                <div style="font-size: 64px; margin-bottom: 20px;">
+                    <i class="bi bi-bullseye"></i>
+                </div>
+                <h1 style="font-size: 32px; margin-bottom: 10px;">Strategic Execution</h1>
+                <p style="font-size: 18px; opacity: 0.9;">Monitoring Application</p>
+                <div class="spinner-border text-light mt-4" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(splash);
+
+        // Fade out after 2 seconds
+        setTimeout(() => {
+            splash.style.opacity = '0';
+            setTimeout(() => splash.remove(), 500);
+        }, 2000);
+    }
+}
+
+// ============================================================================
+// OFFLINE MANAGER
+// ============================================================================
+
+class OfflineManager {
+    constructor() {
+        this.isOnline = navigator.onLine;
+        this.pendingRequests = [];
+    }
+
+    /**
+     * Initialize offline manager
+     */
+    init() {
+        window.addEventListener('online', () => this._handleOnline());
+        window.addEventListener('offline', () => this._handleOffline());
+
+        this._showOnlineStatus();
+    }
+
+    /**
+     * Handle online event
+     * @private
+     */
+    _handleOnline() {
+        this.isOnline = true;
+        this._showOnlineStatus();
+
+        // Sync pending requests
+        this._syncPendingRequests();
+
+        showSuccessToast('You are back online');
+    }
+
+    /**
+     * Handle offline event
+     * @private
+     */
+    _handleOffline() {
+        this.isOnline = false;
+        this._showOnlineStatus();
+
+        showWarningToast('You are offline. Some features may be unavailable.');
+    }
+
+    /**
+     * Show online status indicator
+     * @private
+     */
+    _showOnlineStatus() {
+        let indicator = document.getElementById('online-status-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'online-status-indicator';
+            indicator.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                z-index: 9998;
+                transition: all 0.3s;
+            `;
+            document.body.appendChild(indicator);
+        }
+
+        if (this.isOnline) {
+            indicator.style.background = '#198754';
+            indicator.style.color = 'white';
+            indicator.innerHTML = '<i class="bi bi-wifi me-1"></i>Online';
+        } else {
+            indicator.style.background = '#dc3545';
+            indicator.style.color = 'white';
+            indicator.innerHTML = '<i class="bi bi-wifi-off me-1"></i>Offline';
+        }
+    }
+
+    /**
+     * Queue request for when back online
+     */
+    queueRequest(endpoint, data) {
+        this.pendingRequests.push({ endpoint, data, timestamp: Date.now() });
+        StorageUtils.save('offline-pending-requests', this.pendingRequests);
+    }
+
+    /**
+     * Sync pending requests
+     * @private
+     */
+    async _syncPendingRequests() {
+        const stored = StorageUtils.get('offline-pending-requests', []);
+        this.pendingRequests = [...this.pendingRequests, ...stored];
+
+        if (this.pendingRequests.length === 0) return;
+
+        showLoadingOverlay();
+        const results = { success: 0, failed: 0 };
+
+        for (const request of this.pendingRequests) {
+            try {
+                const response = await api.call(request.endpoint, request.data);
+                if (response.success) results.success++;
+                else results.failed++;
+            } catch (error) {
+                results.failed++;
+            }
+        }
+
+        this.pendingRequests = [];
+        StorageUtils.remove('offline-pending-requests');
+
+        hideLoadingOverlay();
+
+        if (results.success > 0 || results.failed > 0) {
+            showInfoToast(`Synced: ${results.success}, Failed: ${results.failed}`);
+        }
+    }
+}
+
+// ============================================================================
+// EXPORT
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.PWAInstallManager = PWAInstallManager;
+    window.OfflineManager = OfflineManager;
+    window.pwaInstall = new PWAInstallManager();
+    window.offlineManager = new OfflineManager();
+}

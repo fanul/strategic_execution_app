@@ -1,0 +1,1261 @@
+<!-- organization.html -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-building"></i> Organization Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newOrgModal">
+            <i class="bi bi-plus-circle"></i> Add New
+        </button>
+    </div>
+</div>
+
+<!-- Tabs for different org entities -->
+<ul class="nav nav-tabs" id="orgTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="directorates-tab" data-bs-toggle="tab" data-bs-target="#directorates" type="button">
+            <i class="bi bi-diagram-3"></i> Directorates
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="workunits-tab" data-bs-toggle="tab" data-bs-target="#workunits" type="button">
+            <i class="bi bi-diagram-2"></i> Work Units
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="affairs-tab" data-bs-toggle="tab" data-bs-target="#affairs" type="button">
+            <i class="bi bi-briefcase"></i> Affairs
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="positions-tab" data-bs-toggle="tab" data-bs-target="#positions" type="button">
+            <i class="bi bi-person-badge"></i> Positions
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button">
+            <i class="bi bi-person-check"></i> Assignments
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="orgchart-tab" data-bs-toggle="tab" data-bs-target="#orgchart" type="button" onclick="loadOrgChart()">
+            <i class="bi bi-diagram-3-fill"></i> Org Chart
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content pt-3" id="orgTabContent">
+    <!-- Directorates Tab -->
+    <div class="tab-pane fade show active" id="directorates" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Directorates</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="directoratesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directoratesBody">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Work Units Tab -->
+    <div class="tab-pane fade" id="workunits" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Work Units</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="workunitsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Directorate</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workunitsBody">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Affairs Tab -->
+    <div class="tab-pane fade" id="affairs" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Affairs (Urusan)</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="affairsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Work Unit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="affairsBody">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Positions Tab -->
+    <div class="tab-pane fade" id="positions" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Positions</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="positionsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Level</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsBody">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments Tab -->
+    <div class="tab-pane fade" id="assignments" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Position Assignments</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="assignmentsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Position</th>
+                                <th>Period</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignmentsBody">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    
+    <!-- Org Chart Tab -->
+    <div class="tab-pane fade" id="orgchart" role="tabpanel">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Organizational Diagram</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="drawOrgChart()"><i class="bi bi-arrow-clockwise"></i> Refresh Chart</button>
+            </div>
+            <div class="card-body">
+                <div id="chart_div" style="width: 100%; height: 600px; overflow: auto; background-color: #f8f9fa; border-radius: 4px;"></div>
+                <div class="mt-3 small text-muted">
+                    <i class="bi bi-info-circle"></i> Use scrollbars to navigate large charts. Click nodes to expand/collapse.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Adding New Organization Entity -->
+<div class="modal fade" id="newOrgModal" tabindex="-1" aria-labelledby="newOrgModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newOrgModalLabel">Add New Organization Entity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newOrgForm">
+                    <!-- Entity Type Selector -->
+                    <div class="mb-3">
+                        <label class="form-label">Entity Type</label>
+                    <input type="hidden" id="entityId">
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" id="entityType" onchange="updateFormFields()">
+                            <option value="directorate">Directorate</option>
+                            <option value="workunit">Work Unit</option>
+                            <option value="affair">Affair (Urusan)</option>
+                            <option value="position">Position</option>
+                            <option value="assignment">Position Assignment</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Form Fields -->
+                    <div id="formFields">
+                        <!-- Default fields (Directorate) -->
+                        <div class="mb-3">
+                            <label class="form-label">Code *</label>
+                            <input type="text" class="form-control" id="entityCode" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="entityName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="entityDescription" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewEntity()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* Fix active tab color - REQUESTED STYLE: White BG, Blue Text? */
+    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+        color: #0d6efd !important;
+        background-color: #fff !important;
+        border: 1px solid #0d6efd;
+        font-weight: bold;
+    }
+    /* Ensure inactive tabs are Black/Dark Gray like before */
+    .nav-link {
+        color: #495057; 
+    }
+    .nav-link:hover {
+        color: #0a58ca;
+    }
+    .org-node {
+        padding: 5px;
+        min-width: 150px;
+    }
+    .org-node.directorate {
+        background-color: #e3f2fd;
+        border: 1px solid #90caf9;
+        color: #0d47a1;
+    }
+    .org-node.workunit {
+        background-color: #f3e5f5;
+        border: 1px solid #ce93d8;
+        color: #4a148c;
+    }
+    .org-node.affair {
+        background-color: #e8f5e9;
+        border: 1px solid #a5d6a7;
+        color: #1b5e20;
+    }
+</style>
+<script>
+// Scope all organization page variables to prevent conflicts
+(function() {
+// DataTables instances
+let directoratesTable, workunitsTable, affairsTable, positionsTable, assignmentsTable;
+// Data stores
+let allDirectorates = [];
+let allWorkUnits = [];
+let allAffairs = [];
+let allPositions = [];
+let allAssignments = [];
+let allUsers = [];
+let isEditMode = false;
+
+// Load organization data when tab is activated
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Organization page loaded. DEVELOPMENT_MODE:', DEVELOPMENT_MODE);
+
+    // Initialize DataTables for all tables
+    initializeDataTables();
+    
+    // Initialize Select2 for all select elements
+    initializeSelect2();
+    
+    // Load initial data sequentially to handle dependencies
+    // Directorates -> Work Units -> Affairs & Positions
+    loadDirectorates(() => {
+        loadWorkUnits(() => {
+            loadAffairs(); 
+            loadPositions();
+            loadUsers(() => {
+                loadAssignments();
+            });
+        });
+    });
+    
+    // Load other tabs when clicked
+    document.getElementById('workunits-tab').addEventListener('click', loadWorkUnits);
+    document.getElementById('affairs-tab').addEventListener('click', loadAffairs);
+    document.getElementById('positions-tab').addEventListener('click', loadPositions);
+    document.getElementById('assignments-tab').addEventListener('click', loadAssignments);
+});
+
+function initializeDataTables() {
+    // Clear loading rows that have colspan (causes column count issues)
+    document.querySelectorAll('tbody[id$="Body"]').forEach(el => el.innerHTML = '');
+    
+    // DataTables configuration
+    const dtConfig = {
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+        language: {
+            search: "Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            infoEmpty: "No entries available",
+            infoFiltered: "(filtered from _MAX_ total entries)",
+            zeroRecords: "No matching records found",
+            emptyTable: "No data available in table"
+        },
+        responsive: true,
+        autoWidth: false
+        // Let HTML headers define columns
+    };
+    
+    // Initialize each table
+    if (!directoratesTable) directoratesTable = $('#directoratesTable').DataTable(dtConfig);
+    if (!workunitsTable) workunitsTable = $('#workunitsTable').DataTable(dtConfig);
+    if (!affairsTable) affairsTable = $('#affairsTable').DataTable(dtConfig);
+    if (!positionsTable) positionsTable = $('#positionsTable').DataTable(dtConfig);
+    if (!assignmentsTable) assignmentsTable = $('#assignmentsTable').DataTable(dtConfig);
+}
+
+function initializeSelect2() {
+    // Initialize Select2 on all select elements in modals, excluding DataTables length menus
+    $('.form-select:not(.dataTables_length select)').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select an option',
+        allowClear: true
+    });
+}
+
+function loadDirectorates(callback) {
+    if (typeof DEVELOPMENT_MODE !== 'undefined' && DEVELOPMENT_MODE) {
+        // Use mock data in development
+        const mockData = [
+            {
+                directorate_id: 'dir-001',
+                directorate_code: 'DIR-001',
+                directorate_name: 'Directorate of Finance',
+                description: 'Handles financial operations',
+                is_active: true
+            },
+            {
+                directorate_id: 'dir-002',
+                directorate_code: 'DIR-002',
+                directorate_name: 'Directorate of Human Resources',
+                description: 'Human resources management',
+                is_active: true
+            },
+            {
+                directorate_id: 'dir-003',
+                directorate_code: 'DIR-003',
+                directorate_name: 'Directorate of IT',
+                description: 'Information technology',
+                is_active: false
+            }
+        ];
+        
+        renderDirectorates(mockData);
+        if (typeof callback === 'function') callback();
+        return;
+    }
+    
+    // Production mode: Load from backend
+    google.script.run
+        .withSuccessHandler(function(response) {
+            console.log('API Response (Directorates):', response);
+            if (response && response.success) {
+                console.log('Rendering data:', response.data);
+                renderDirectorates(response.data);
+                if (typeof callback === 'function') callback();
+            } else {
+                console.error('API Error:', response);
+                if (typeof showError !== 'undefined') {
+                    showError('Failed to load directorates: ' + (response ? response.message : 'Unknown error'));
+                } else {
+                    alert('Failed to load directorates');
+                }
+            }
+        })
+        .withFailureHandler(function(error) {
+            console.error(error);
+            if (typeof showError !== 'undefined') showError(error);
+        })
+        .callAPI('organization/directorates/list', {});
+}
+
+function renderDirectorates(data) {
+    console.log('renderDirectorates called with:', data);
+    
+    // Clear existing DataTable data
+    if (directoratesTable) {
+        directoratesTable.clear();
+    }
+    
+    // Store for editing
+    allDirectorates = data;
+    
+    if (!data || data.length === 0) {
+        console.warn('No data to render');
+        if (directoratesTable) {
+            directoratesTable.draw();
+        }
+        return;
+    }
+    
+    // Add rows to DataTable
+    data.forEach(dir => {
+        directoratesTable.row.add([
+            dir.directorate_code,
+            dir.directorate_name,
+            dir.description || '-',
+            `<span class="badge ${dir.is_active ? 'bg-success' : 'bg-secondary'}">${dir.is_active ? 'Active' : 'Inactive'}</span>`,
+            `
+                <button class="btn btn-sm btn-outline-primary" onclick="editDirectorate('${dir.directorate_id}')">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteDirectorate('${dir.directorate_id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `
+        ]);
+    });
+    
+    // Redraw table
+    directoratesTable.draw();
+}
+
+function loadWorkUnits(callback) {
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                renderWorkUnits(response.data);
+                if (typeof callback === 'function') callback();
+            } else {
+                 document.getElementById('workunitsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load work units</td></tr>';
+            }
+        })
+        .callAPI('organization/workunits/list', {});
+}
+
+function renderWorkUnits(data) {
+    if (workunitsTable) workunitsTable.clear();
+    allWorkUnits = data; // Cache
+    
+    if (!data || data.length === 0) {
+        if (workunitsTable) workunitsTable.draw();
+        return;
+    }
+
+    const availableIDs = allDirectorates ? allDirectorates.map(d => d.directorate_id) : [];
+    console.log('Available Directorate IDs:', availableIDs);
+
+    data.forEach(item => {
+        // Resolve Directorate Name
+        const directorate = allDirectorates ? allDirectorates.find(d => {
+             // Robust comparison: String conversion, trim, lowercase
+             const id1 = String(d.directorate_id || '').trim().toLowerCase();
+             const id2 = String(item.directorate_id || '').trim().toLowerCase();
+             return id1 === id2 && id1 !== '';
+        }) : null;
+        
+        if (!directorate) {
+             console.warn('Directorate lookup failed for WorkUnit:', item.work_unit_code, 'Dir ID:', item.directorate_id);
+        }
+
+        const directorateName = directorate ? `${directorate.directorate_code} - ${directorate.directorate_name}` : 
+            `<span class="text-danger" title="${item.directorate_id}">Unknown (ID mismatch)</span>`;
+
+        workunitsTable.row.add([
+            item.work_unit_code,
+            item.work_unit_name,
+            directorateName,
+            `<span class="badge ${item.is_active ? 'bg-success' : 'bg-secondary'}">${item.is_active ? 'Active' : 'Inactive'}</span>`,
+            `
+                <button class="btn btn-sm btn-outline-primary" onclick="editWorkUnit('${item.work_unit_id}')">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteWorkUnit('${item.work_unit_id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `
+        ]);
+    });
+    workunitsTable.draw();
+}
+
+// ==== ORG CHART LOGIC ====
+let chartLoaded = false;
+function loadOrgChart() {
+    if (!chartLoaded) {
+        google.charts.load('current', {packages:["orgchart"]});
+        google.charts.setOnLoadCallback(function() {
+            chartLoaded = true;
+            drawOrgChart();
+        });
+    } else {
+        drawOrgChart();
+    }
+}
+
+function drawOrgChart() {
+    if (typeof google === 'undefined' || !google.visualization) return;
+
+    const data = new google.visualization.DataTable();
+    data.addColumn('string', 'Name');
+    data.addColumn('string', 'Manager');
+    data.addColumn('string', 'ToolTip');
+
+    // Directorates (Roots)
+    if (allDirectorates) {
+        allDirectorates.forEach(d => {
+            data.addRow([
+                {
+                    v: d.directorate_id,
+                    f: `<div class="org-node directorate"><strong>${d.directorate_name}</strong><br><small>${d.directorate_code}</small></div>`
+                },
+                '', 
+                d.description || ''
+            ]);
+        });
+    }
+
+    // Work Units (Level 2)
+    if (allWorkUnits) {
+        allWorkUnits.forEach(wu => {
+            if (!wu.directorate_id) return;
+            // Robust lookup with fallback
+            const parent = allDirectorates ? allDirectorates.find(d => String(d.directorate_id).trim().toLowerCase() === String(wu.directorate_id).trim().toLowerCase()) : null;
+            
+            // If parent not found, we cannot draw this node in the hierarchy (it would be a root, but that's confusing). 
+            // Or we draw it as root? Google OrgChart treats no-parent as root.
+            // Let's draw it as root if parent missing, but color text red?
+            const parentId = parent ? parent.directorate_id : ''; 
+            
+            data.addRow([
+                {
+                    v: wu.work_unit_id,
+                    f: `<div class="org-node workunit"><strong>${wu.work_unit_name}</strong><br><small>${wu.work_unit_code}</small></div>`
+                },
+                parentId,
+                wu.description || ''
+            ]);
+        });
+    }
+    
+    // Affairs (Level 3)
+    if (allAffairs) {
+        allAffairs.forEach(aff => {
+            if (!aff.work_unit_id) return;
+            const parent = allWorkUnits ? allWorkUnits.find(w => String(w.work_unit_id).trim().toLowerCase() === String(aff.work_unit_id).trim().toLowerCase()) : null;
+            const parentId = parent ? parent.work_unit_id : '';
+            
+            data.addRow([
+                {
+                    v: aff.affair_id,
+                    f: `<div class="org-node affair"><strong>${aff.affair_name}</strong><br><small>${aff.affair_code}</small></div>`
+                },
+                parentId,
+                aff.description || ''
+            ]);
+        });
+    }
+
+    const container = document.getElementById('chart_div');
+    const chart = new google.visualization.OrgChart(container);
+    chart.draw(data, {allowHtml:true, size: 'medium', allowCollapse: true});
+}
+
+function loadAffairs() {
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                renderAffairs(response.data);
+            } else {
+                console.error('API Error:', response);
+                document.getElementById('affairsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load affairs</td></tr>';
+            }
+        })
+        .withFailureHandler(function(error) {
+            console.error(error);
+            document.getElementById('affairsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading affairs</td></tr>';
+        })
+        .callAPI('organization/affairs/list', {});
+}
+
+function renderAffairs(data) {
+    if (affairsTable) affairsTable.clear();
+    allAffairs = data; // Cache
+    
+    if (!data || data.length === 0) {
+        if (affairsTable) affairsTable.draw();
+        return;
+    }
+
+    data.forEach(item => {
+        const workUnit = allWorkUnits.find(w => w.work_unit_id === item.work_unit_id);
+        const workUnitName = workUnit ? `${workUnit.work_unit_code} - ${workUnit.work_unit_name}` : item.work_unit_id;
+
+        affairsTable.row.add([
+            item.affair_code,
+            item.affair_name,
+            workUnitName,
+            `<span class="badge ${item.is_active ? 'bg-success' : 'bg-secondary'}">${item.is_active ? 'Active' : 'Inactive'}</span>`,
+            `
+                <button class="btn btn-sm btn-outline-primary" onclick="editAffair('${item.affair_id}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAffair('${item.affair_id}')"><i class="bi bi-trash"></i></button>
+            `
+        ]);
+    });
+    affairsTable.draw();
+}
+
+function loadPositions() {
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                renderPositions(response.data);
+            } else {
+                 document.getElementById('positionsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load positions</td></tr>';
+            }
+        })
+        .callAPI('organization/positions/list', {});
+}
+
+function renderPositions(data) {
+    if (positionsTable) positionsTable.clear();
+    allPositions = data;
+    
+    if (!data || data.length === 0) {
+        if (positionsTable) positionsTable.draw();
+        return;
+    }
+
+    data.forEach(item => {
+        // Position normally belongs to Work Unit or Directorate? Usually Work Unit from schema
+        // Let's try finding work unit
+        let parentName = '-';
+        if (item.work_unit_id) {
+             const wu = allWorkUnits.find(w => w.work_unit_id === item.work_unit_id);
+             parentName = wu ? `${wu.work_unit_code} - ${wu.work_unit_name}` : item.work_unit_id;
+        }
+
+        positionsTable.row.add([
+            item.position_code,
+            item.position_name,
+            item.position_level,
+            `<span class="badge ${item.is_active ? 'bg-success' : 'bg-secondary'}">${item.is_active ? 'Active' : 'Inactive'}</span>`,
+            `
+                <button class="btn btn-sm btn-outline-primary" onclick="editPosition('${item.position_id}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deletePosition('${item.position_id}')"><i class="bi bi-trash"></i></button>
+            `
+        ]);
+    });
+    positionsTable.draw();
+}
+
+function loadAssignments() {
+     google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                renderAssignments(response.data);
+            } else {
+                 document.getElementById('assignmentsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load assignments</td></tr>';
+            }
+        })
+        .callAPI('organization/assignments/list', {});
+}
+
+function renderAssignments(data) {
+    if (assignmentsTable) assignmentsTable.clear();
+    allAssignments = data;
+    
+    if (!data || data.length === 0) {
+        if (assignmentsTable) assignmentsTable.draw();
+        return;
+    }
+    
+    data.forEach(item => {
+        // Resolve user name
+        const user = allUsers ? allUsers.find(u => u.user_id === item.user_id) : null;
+        const userName = user ? (user.full_name || user.username) : item.user_id;
+        
+        // Resolve position name
+        const pos = allPositions ? allPositions.find(p => p.position_id === item.position_id) : null;
+        const posName = pos ? `${pos.position_code} - ${pos.position_name}` : item.position_id;
+
+        assignmentsTable.row.add([
+            userName,
+            posName,
+            item.start_date || '-',
+            `<span class="badge ${item.assignment_status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${item.assignment_status || 'ACTIVE'}</span>`,
+             `<div class="btn-group">
+                <button class="btn btn-sm btn-outline-primary" onclick="editAssignment('${item.assignment_id}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAssignment('${item.assignment_id}')"><i class="bi bi-trash"></i></button>
+            </div>`
+        ]);
+    });
+    assignmentsTable.draw();
+}
+
+function updateFormFields() {
+    const entityType = document.getElementById('entityType').value;
+    const formFields = document.getElementById('formFields');
+
+    // Ensure data is loaded before building dropdowns
+    if ((entityType === 'workunit' && allDirectorates.length === 0) ||
+        (entityType === 'affair' && allWorkUnits.length === 0) ||
+        (entityType === 'position' && allWorkUnits.length === 0) ||
+        (entityType === 'assignment' && (allPositions.length === 0 || allUsers.length === 0))) {
+
+        // Load missing data and then update form fields
+        if (allDirectorates.length === 0) loadDirectorates(() => {
+            if (allWorkUnits.length === 0) loadWorkUnits(() => {
+                if (allPositions.length === 0) loadPositions(() => {
+                    if (allUsers.length === 0) loadUsers(() => updateFormFields());
+                    else updateFormFields();
+                });
+                else if (allUsers.length === 0) loadUsers(() => updateFormFields());
+                else updateFormFields();
+            });
+            else updateFormFields();
+        });
+        return;
+    }
+
+    // Update form fields based on entity type
+    let fieldsHTML = '';
+
+    switch(entityType) {
+        case 'directorate':
+            fieldsHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Code *</label>
+                    <input type="text" class="form-control" id="entityCode" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="entityName" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="entityDescription" rows="2"></textarea>
+                </div>
+            `;
+            break;
+        case 'workunit':
+            let directorateOptions = '<option value="">Select Directorate...</option>';
+            if (allDirectorates && allDirectorates.length > 0) {
+                directorateOptions += allDirectorates.map(d =>
+                    `<option value="${d.directorate_id}">${d.directorate_code} - ${d.directorate_name}</option>`
+                ).join('');
+            } else {
+                directorateOptions = '<option value="">Loading directorates...</option>';
+            }
+
+            fieldsHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Parent Directorate *</label>
+                    <select class="form-select" id="parentDirectorate" required>
+                        ${directorateOptions}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code *</label>
+                    <input type="text" class="form-control" id="entityCode" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="entityName" required>
+                </div>
+            `;
+            break;
+        case 'affair':
+            let workUnitOptions = '<option value="">Select Work Unit...</option>';
+            if (allWorkUnits && allWorkUnits.length > 0) {
+                workUnitOptions += allWorkUnits.map(w =>
+                    `<option value="${w.work_unit_id}">${w.work_unit_code} - ${w.work_unit_name}</option>`
+                ).join('');
+            } else {
+                workUnitOptions = '<option value="">Loading work units...</option>';
+            }
+
+            fieldsHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Parent Work Unit *</label>
+                    <select class="form-select" id="parentWorkUnit" required>
+                        ${workUnitOptions}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code *</label>
+                    <input type="text" class="form-control" id="entityCode" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="entityName" required>
+                </div>
+            `;
+            break;
+        case 'position':
+             let workUnitOptionsPos = '<option value="">Select Work Unit...</option>';
+            if (allWorkUnits && allWorkUnits.length > 0) {
+                workUnitOptionsPos += allWorkUnits.map(w =>
+                    `<option value="${w.work_unit_id}">${w.work_unit_code} - ${w.work_unit_name}</option>`
+                ).join('');
+            } else {
+                workUnitOptionsPos = '<option value="">Loading work units...</option>';
+            }
+
+            fieldsHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Parent Work Unit *</label>
+                    <select class="form-select" id="parentWorkUnit" required>
+                         ${workUnitOptionsPos}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Position Code *</label>
+                    <input type="text" class="form-control" id="entityCode" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Position Name *</label>
+                    <input type="text" class="form-control" id="entityName" required>
+                </div>
+                 <div class="mb-3">
+                    <label class="form-label">Description</label>
+                     <textarea class="form-control" id="entityDescription" rows="2"></textarea>
+                </div>
+                 <div class="mb-3">
+                    <label class="form-label">Level</label>
+                    <input type="number" class="form-control" id="positionLevel" value="1">
+                </div>
+            `;
+            break;
+        case 'assignment':
+            let userOptions = '<option value="">Select User...</option>';
+            if (allUsers && allUsers.length > 0) {
+                userOptions += allUsers.map(u =>
+                    `<option value="${u.user_id}">${u.full_name || u.username}</option>`
+                ).join('');
+            } else {
+                userOptions = '<option value="">Loading users...</option>';
+            }
+
+            let posOptions = '<option value="">Select Position...</option>';
+            if (allPositions && allPositions.length > 0) {
+                posOptions += allPositions.map(p =>
+                    `<option value="${p.position_id}">${p.position_code} - ${p.position_name}</option>`
+                ).join('');
+            } else {
+                posOptions = '<option value="">Loading positions...</option>';
+            }
+            }
+
+            fieldsHTML = `
+                <div class="mb-3">
+                    <label class="form-label">User *</label>
+                    <select class="form-select" id="userId" required>
+                        <option value="system">System Admin</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Position *</label>
+                    <select class="form-select" id="positionId" required>
+                        ${posOptions}
+                    </select>
+                </div>
+                 <div class="mb-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate">
+                </div>
+            `;
+            break;
+    }
+    
+    formFields.innerHTML = fieldsHTML;
+
+    // Reinitialize Select2 for new select elements
+    $('#formFields .form-select').select2({
+        theme: 'bootstrap-5',
+        dropdownParent: $('#newOrgModal'),
+        width: '100%',
+        placeholder: 'Select an option',
+        allowClear: true
+    });
+}
+
+function saveNewEntity() {
+    const entityType = document.getElementById('entityType').value;
+    const code = document.getElementById('entityCode') ? document.getElementById('entityCode').value : '';
+    const name = document.getElementById('entityName') ? document.getElementById('entityName').value : '';
+    const description = document.getElementById('entityDescription') ? document.getElementById('entityDescription').value : '';
+    
+    // Map form fields to database field names
+    let formData = {};
+    
+    switch(entityType) {
+        case 'directorate':
+            formData = {
+                directorate_code: code,
+                directorate_name: name,
+                description: description,
+                created_by: 'system'
+            };
+            break;
+        case 'workunit':
+            formData = {
+                work_unit_code: code,
+                work_unit_name: name,
+                directorate_id: document.getElementById('parentDirectorate') ? document.getElementById('parentDirectorate').value : '',
+                created_by: 'system'
+            };
+            break;
+        // Add more cases for other entity types
+        default:
+            formData = {
+                code: code,
+                name: name,
+                description: description,
+                created_by: 'system'
+            };
+    }
+    
+    // Validate required fields
+    if (!code || !name) {
+        alert('Code and Name are required fields');
+        return;
+    }
+    
+    // Save via API
+    const action = isEditMode ? 'update' : 'create';
+    const id = document.getElementById('entityId').value;
+    // Add precise ID fields based on type
+    if (id) {
+        if (entityType === 'directorate') formData.directorate_id = id;
+        if (entityType === 'workunit') formData.work_unit_id = id;
+        if (entityType === 'affair') formData.affair_id = id;
+        if (entityType === 'position') formData.position_id = id;
+        if (entityType === 'assignment') formData.assignment_id = id;
+    }
+
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                if (typeof showToast !== 'undefined') {
+                    showToast('Successfully ' + (isEditMode ? 'updated ' : 'created ') + entityType, 'Success');
+                } else {
+                    alert('Successfully ' + (isEditMode ? 'updated ' : 'created ') + entityType);
+                }
+                
+                // Close modal
+                const modalEl = document.getElementById('newOrgModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // Reload the appropriate tab
+                if (entityType === 'directorate') {
+                    loadDirectorates();
+                } else if (entityType === 'workunit') {
+                    loadWorkUnits();
+                } else if (entityType === 'affair') {
+                    loadAffairs();
+                } else if (entityType === 'position') {
+                    loadPositions();
+                } else if (entityType === 'assignment') {
+                    loadAssignments();
+                }
+            } else {
+                const errorMsg = response && response.message ? response.message : 'Unknown error';
+                alert('Error: ' + errorMsg);
+            }
+        })
+        .withFailureHandler(function(error) {
+            console.error('Save error:', error);
+            alert('Error: ' + error);
+        })
+        .callAPI('organization/' + entityType + '/' + action, formData);
+}
+
+function editDirectorate(id) {
+    const directorate = allDirectorates.find(d => d.directorate_id === id);
+    if (!directorate) {
+        alert('Directorate data not found');
+        return;
+    }
+    
+    // Set edit mode
+    isEditMode = true;
+    document.getElementById('entityId').value = id;
+    
+    // Open modal
+    const modal = new bootstrap.Modal(document.getElementById('newOrgModal'));
+    modal.show();
+    
+    // Set type and trigger update (timeout to allow select2/dom update)
+    const typeSelect = document.getElementById('entityType');
+    typeSelect.value = 'directorate';
+    typeSelect.dispatchEvent(new Event('change'));
+    // Disable type selection in edit mode
+    typeSelect.disabled = true;
+    
+    // Update fields
+    setTimeout(() => {
+        if(document.getElementById('entityCode')) document.getElementById('entityCode').value = directorate.directorate_code;
+        if(document.getElementById('entityName')) document.getElementById('entityName').value = directorate.directorate_name;
+        if(document.getElementById('entityDescription')) document.getElementById('entityDescription').value = directorate.description || '';
+    }, 100);
+}
+
+function deleteDirectorate(id) {
+    if (confirm('Are you sure you want to delete this Directorate? This will likely cause ID mismatches in children.')) {
+        google.script.run
+            .withSuccessHandler(() => { 
+                if (typeof showToast !== 'undefined') showToast('Directorate deleted', 'Success');
+                loadDirectorates(); 
+            })
+            .callAPI('organization/directorates/delete', { directorate_id: id });
+    }
+}
+
+function editWorkUnit(id) {
+    const workunit = allWorkUnits.find(w => w.work_unit_id === id);
+    if (!workunit) return;
+    
+    isEditMode = true;
+    document.getElementById('entityId').value = id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('newOrgModal'));
+    modal.show();
+    
+    const typeSelect = document.getElementById('entityType');
+    typeSelect.value = 'workunit';
+    typeSelect.dispatchEvent(new Event('change'));
+    typeSelect.disabled = true;
+    
+    setTimeout(() => {
+        if(document.getElementById('entityCode')) document.getElementById('entityCode').value = workunit.work_unit_code;
+        if(document.getElementById('entityName')) document.getElementById('entityName').value = workunit.work_unit_name;
+        if(document.getElementById('parentDirectorate')) {
+            $('#parentDirectorate').val(workunit.directorate_id).trigger('change');
+        }
+    }, 100);
+}
+
+function deleteWorkUnit(id) {
+    if (confirm('Are you sure you want to delete this Work Unit?')) {
+        google.script.run
+            .withSuccessHandler(() => { 
+                if (typeof showToast !== 'undefined') showToast('Work Unit deleted', 'Success');
+                loadWorkUnits(); 
+            })
+            .callAPI('organization/workunits/delete', { work_unit_id: id });
+    }
+}
+
+function editAffair(id) {
+    const affair = allAffairs.find(a => a.affair_id === id);
+    if (!affair) return;
+    
+    isEditMode = true;
+    document.getElementById('entityId').value = id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('newOrgModal'));
+    modal.show();
+    
+    const typeSelect = document.getElementById('entityType');
+    typeSelect.value = 'affair';
+    typeSelect.dispatchEvent(new Event('change'));
+    typeSelect.disabled = true;
+
+    setTimeout(() => {
+        if(document.getElementById('entityCode')) document.getElementById('entityCode').value = affair.affair_code;
+        if(document.getElementById('entityName')) document.getElementById('entityName').value = affair.affair_name;
+        if(document.getElementById('parentWorkUnit')) {
+             $('#parentWorkUnit').val(affair.work_unit_id).trigger('change');
+        }
+    }, 100);
+}
+
+function deleteAffair(id) {
+    if (confirm('Are you sure you want to delete this Affair?')) {
+        google.script.run
+            .withSuccessHandler(() => { 
+                if (typeof showToast !== 'undefined') showToast('Affair deleted', 'Success');
+                loadAffairs(); 
+            })
+            .callAPI('organization/affairs/delete', { affair_id: id });
+    }
+}
+
+function editPosition(id) {
+    const position = allPositions.find(p => p.position_id === id);
+    if (!position) return;
+    
+    isEditMode = true;
+    document.getElementById('entityId').value = id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('newOrgModal'));
+    modal.show();
+    
+    const typeSelect = document.getElementById('entityType');
+    typeSelect.value = 'position';
+    typeSelect.dispatchEvent(new Event('change'));
+    typeSelect.disabled = true;
+
+    setTimeout(() => {
+        if(document.getElementById('entityName')) document.getElementById('entityName').value = position.position_name;
+        if(document.getElementById('parentWorkUnit')) {
+             $('#parentWorkUnit').val(position.work_unit_id).trigger('change');
+        }
+        if(document.getElementById('minLevel')) document.getElementById('minLevel').value = position.position_level;
+        if(document.getElementById('entityDescription')) document.getElementById('entityDescription').value = position.description || '';
+    }, 100);
+}
+
+function deletePosition(id) {
+    if (confirm('Are you sure you want to delete this Position?')) {
+        google.script.run
+            .withSuccessHandler(() => { 
+                if (typeof showToast !== 'undefined') showToast('Position deleted', 'Success');
+                loadPositions(); 
+            })
+            .callAPI('organization/positions/delete', { position_id: id });
+    }
+}
+
+function editAssignment(id) {
+    const item = allAssignments.find(a => a.assignment_id === id);
+    if (!item) return;
+    
+    isEditMode = true;
+    document.getElementById('entityId').value = id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('newOrgModal'));
+    modal.show();
+    
+    const typeSelect = document.getElementById('entityType');
+    typeSelect.value = 'assignment';
+    typeSelect.dispatchEvent(new Event('change'));
+    typeSelect.disabled = true;
+
+    setTimeout(() => {
+        if(document.getElementById('userId')) $('#userId').val(item.user_id).trigger('change');
+        if(document.getElementById('positionId')) $('#positionId').val(item.position_id).trigger('change');
+        if(document.getElementById('startDate')) document.getElementById('startDate').value = item.start_date || '';
+    }, 100);
+}
+
+function deleteAssignment(id) {
+    if (confirm('Are you sure you want to delete this Assignment?')) {
+        google.script.run
+            .withSuccessHandler(() => { 
+                if (typeof showToast !== 'undefined') showToast('Assignment deleted', 'Success');
+                loadAssignments(); 
+            })
+            .callAPI('organization/assignments/delete', { assignment_id: id });
+    }
+}
+
+
+function resetModal() {
+    isEditMode = false;
+    document.getElementById('entityId').value = '';
+    document.getElementById('newOrgForm').reset();
+    document.getElementById('entityType').disabled = false;
+    // Reset fields to default (Directorate)
+    updateFormFields();
+}
+
+// Attach reset listener to modal close
+document.getElementById('newOrgModal').addEventListener('hidden.bs.modal', resetModal);
+
+function showError(error) {
+    console.error(error);
+    if (typeof showToast !== 'undefined') {
+        showToast('Error loading data: ' + error, 'Error');
+    } else {
+        alert('Error: ' + error);
+    }
+}
+
+function loadUsers(callback) {
+    google.script.run
+        .withSuccessHandler(function(response) {
+            if (response && response.success) {
+                allUsers = response.data;
+                renderUserOptions();
+                if (typeof callback === 'function') callback();
+            }
+        })
+        .callAPI('users/list', {});
+}
+
+function renderUserOptions() {
+    const selector = $('#userId');
+    if (!selector || !selector.length) return;
+    
+    selector.empty().append(new Option('Select User...', ''));
+    if (allUsers) {
+        allUsers.forEach(u => {
+            selector.append(new Option(u.full_name || u.username, u.user_id));
+        });
+    }
+    selector.trigger('change');
+}
+
+// Expose functions to global scope for HTML onclick/onchange attributes
+window.updateFormFields = updateFormFields;
+window.saveNewEntity = saveNewEntity;
+window.editDirectorate = editDirectorate;
+window.deleteDirectorate = deleteDirectorate;
+window.editWorkUnit = editWorkUnit;
+window.deleteWorkUnit = deleteWorkUnit;
+window.editAffair = editAffair;
+window.deleteAffair = deleteAffair;
+window.editPosition = editPosition;
+window.deletePosition = deletePosition;
+window.editAssignment = editAssignment;
+window.deleteAssignment = deleteAssignment;
+window.loadOrgChart = loadOrgChart;
+window.drawOrgChart = drawOrgChart;
+
+})(); // End IIFE for organization page scope
+</script>

@@ -1,0 +1,339 @@
+<script>
+// ============================================================================
+// ENHANCED DELETE CONFIRMATION
+// Handles delete operations with children checking and cascade/reassign options
+// ============================================================================
+
+// Store current delete operation context
+let deleteContext = {
+    type: null,
+    id: null,
+    name: null,
+    children: null,
+    alternatives: null
+};
+
+// Map entity types to API endpoints
+const deleteEndpointMap = {
+    'directorate': {
+        checkChildren: 'directorates/check-children',
+        getAlternatives: 'directorates/get-alternatives',
+        deleteCascade: 'directorates/delete-cascade',
+        deleteReassign: 'directorates/delete-reassign',
+        deleteDirect: 'directorates/delete',
+        idField: 'directorate_id',
+        newNameField: 'new_directorate_id'
+    },
+    'work-unit': {
+        checkChildren: 'work-units/check-children',
+        getAlternatives: 'work-units/get-alternatives',
+        deleteCascade: 'work-units/delete-cascade',
+        deleteReassign: 'work-units/delete-reassign',
+        deleteDirect: 'work-units/delete',
+        idField: 'work_unit_id',
+        newNameField: 'new_work_unit_id'
+    },
+    'affair': {
+        checkChildren: 'affairs/check-children',
+        getAlternatives: 'affairs/get-alternatives',
+        deleteCascade: 'affairs/delete-cascade',
+        deleteReassign: 'affairs/delete-reassign',
+        deleteDirect: 'affairs/delete',
+        idField: 'affair_id',
+        newNameField: 'new_affair_id'
+    },
+    'position': {
+        deleteDirect: 'positions/delete',
+        idField: 'position_id'
+    }
+};
+
+// Helper functions for loading (fallback if showViewLoading not available)
+function showDeleteLoading() {
+    if (typeof showViewLoading === 'function') {
+        showViewLoading();
+    } else {
+        // Fallback: show loading on main content
+        const mainContent = document.getElementById('main-content');
+        if (mainContent && !mainContent.querySelector('.delete-loading-overlay')) {
+            const overlay = document.createElement('div');
+            overlay.className = 'delete-loading-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;z-index:9999;';
+            overlay.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+            document.body.appendChild(overlay);
+        }
+    }
+}
+
+function hideDeleteLoading() {
+    if (typeof hideViewLoading === 'function') {
+        hideViewLoading();
+    } else {
+        // Fallback: remove loading overlay
+        const overlay = document.querySelector('.delete-loading-overlay');
+        if (overlay) overlay.remove();
+    }
+}
+
+// Enhanced delete function
+async function deleteItem(type, id) {
+    debugLog('DELETE', '=== deleteItem START === type=' + type + ', id=' + id);
+
+    // For positions, use direct delete (no children)
+    if (type === 'position') {
+        const itemName = type.charAt(0).toUpperCase() + type.slice(1);
+        if (!confirm('Are you sure you want to delete this ' + itemName + '?')) {
+            debugLog('DELETE', 'FAIL Delete cancelled by user');
+            return;
+        }
+
+        const endpoint = deleteEndpointMap[type].deleteDirect;
+        const result = await apiCall(endpoint, { id });
+        debugLog('DELETE', 'API result:', result);
+
+        if (result.success) {
+            showToast(itemName + ' deleted successfully', 'success');
+            await OrganizationManager.refreshEntityTable(type);
+            debugLog('DELETE', 'OK Delete completed');
+        } else {
+            showToast('Failed to delete: ' + result.message, 'error');
+        }
+        return;
+    }
+
+    // For entities with potential children, check first
+    const endpoints = deleteEndpointMap[type];
+    showDeleteLoading();
+
+    try {
+        // Check for children
+        debugLog('DELETE', 'Checking children for ' + type + ' ' + id);
+        const childrenResult = await apiCall(endpoints.checkChildren, { [endpoints.idField]: id });
+        debugLog('DELETE', 'Children check result:', childrenResult);
+
+        if (!childrenResult.success) {
+            hideDeleteLoading();
+            showToast('Failed to check children: ' + childrenResult.message, 'error');
+            return;
+        }
+
+        const children = childrenResult.data;
+        debugLog('DELETE', 'Children data:', children);
+
+        // Get item details for display
+        const itemEndpoint = type === 'directorate' ? 'directorates/get' :
+                             type === 'work-unit' ? 'work-units/get' :
+                             type === 'affair' ? 'affairs/get' : 'positions/get';
+        const itemResult = await apiCall(itemEndpoint, { id });
+        const itemName = itemResult.success ?
+            (itemResult.data.directorate_name || itemResult.data.work_unit_name || itemResult.data.affair_name || type) :
+            type;
+
+        // Store context
+        deleteContext = {
+            type: type,
+            id: id,
+            name: itemName,
+            children: children,
+            alternatives: null
+        };
+
+        hideDeleteLoading();
+
+        // If no children, show simple confirmation
+        if (!children.hasChildren) {
+            showSimpleDeleteConfirm(type, itemName, id);
+        } else {
+            // Has children - get alternatives and show full modal
+            showDeleteWithChildren(type, itemName, children, id);
+        }
+
+    } catch (error) {
+        hideDeleteLoading();
+        debugLog('DELETE', 'FAIL Error: ' + error.message);
+        showToast('Error checking children: ' + error.message, 'error');
+    }
+}
+
+// Show simple delete confirmation (no children)
+function showSimpleDeleteConfirm(type, itemName, id) {
+    debugLog('DELETE', 'Showing simple delete confirm for ' + itemName);
+
+    // Set up modal content
+    document.getElementById('deleteConfirmTitle').textContent = 'Delete ' + (type.charAt(0).toUpperCase() + type.slice(1));
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteDirectMessage').style.display = 'block';
+    document.getElementById('deleteHasChildrenWarning').style.display = 'none';
+    document.getElementById('deleteChildrenDetails').style.display = 'none';
+    document.getElementById('deleteOptionsSection').style.display = 'none';
+
+    // Set direct delete mode
+    deleteContext.mode = 'direct';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// Show delete confirmation with children options
+async function showDeleteWithChildren(type, itemName, children, id) {
+    debugLog('DELETE', 'Showing delete confirm with children for ' + itemName);
+
+    // Set up modal content
+    document.getElementById('deleteConfirmTitle').textContent = 'Delete ' + (type.charAt(0).toUpperCase() + type.slice(1));
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteDirectMessage').style.display = 'none';
+    document.getElementById('deleteHasChildrenWarning').style.display = 'block';
+    document.getElementById('deleteOptionsSection').style.display = 'block';
+
+    // Update children count and details
+    document.getElementById('childrenCount').textContent = children.total;
+
+    const childrenList = document.getElementById('childrenList');
+    childrenList.innerHTML = '';
+
+    if (children.workUnits > 0) {
+        childrenList.innerHTML += '<li><i class="bi bi-building me-2"></i>' + children.workUnits + ' Work Unit(s)</li>';
+    }
+    if (children.affairs > 0) {
+        childrenList.innerHTML += '<li><i class="bi bi-folder me-2"></i>' + children.affairs + ' Affair(s)</li>';
+    }
+    if (children.positions > 0) {
+        childrenList.innerHTML += '<li><i class="bi bi-person me-2"></i>' + children.positions + ' Position(s)</li>';
+    }
+
+    document.getElementById('deleteChildrenDetails').style.display = childrenList.innerHTML !== '' ? 'block' : 'none';
+
+    // Get alternatives for reassign option
+    const endpoints = deleteEndpointMap[type];
+    showDeleteLoading();
+
+    try {
+        const alternativesResult = await apiCall(endpoints.getAlternatives, { [endpoints.idField]: id });
+        debugLog('DELETE', 'Alternatives result:', alternativesResult);
+
+        if (alternativesResult.success && alternativesResult.data.length > 0) {
+            deleteContext.alternatives = alternativesResult.data;
+
+            // Populate reassign dropdown
+            const reassignSelect = document.getElementById('reassignTarget');
+            reassignSelect.innerHTML = '<option value="">-- Select new parent --</option>';
+            alternativesResult.data.forEach(alt => {
+                reassignSelect.innerHTML += '<option value="' + alt.id + '">' + alt.display + '</option>';
+            });
+
+            // Enable reassign option
+            document.getElementById('deleteOptionReassign').disabled = false;
+        } else {
+            // No alternatives available, disable reassign option
+            deleteContext.alternatives = [];
+            document.getElementById('reassignTarget').innerHTML = '<option value="">-- No alternatives available --</option>';
+            document.getElementById('deleteOptionReassign').disabled = true;
+            document.getElementById('deleteOptionCascade').checked = true;
+        }
+
+        hideDeleteLoading();
+
+        // Set cascade delete as default
+        deleteContext.mode = 'cascade';
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        modal.show();
+
+    } catch (error) {
+        hideDeleteLoading();
+        debugLog('DELETE', 'FAIL Error getting alternatives: ' + error.message);
+        showToast('Error getting alternatives: ' + error.message, 'error');
+    }
+}
+
+// Handle delete option change
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'deleteOption') {
+        const reassignSection = document.getElementById('reassignSection');
+        if (e.target.value === 'reassign') {
+            reassignSection.style.display = 'block';
+            deleteContext.mode = 'reassign';
+        } else {
+            reassignSection.style.display = 'none';
+            deleteContext.mode = 'cascade';
+        }
+    }
+});
+
+// Execute the delete operation
+async function executeDelete() {
+    debugLog('DELETE', '=== executeDelete START === mode=' + deleteContext.mode);
+
+    const type = deleteContext.type;
+    const id = deleteContext.id;
+    const endpoints = deleteEndpointMap[type];
+
+    // Validate reassign option if selected
+    if (deleteContext.mode === 'reassign') {
+        const newParentId = document.getElementById('reassignTarget').value;
+        if (!newParentId) {
+            showToast('Please select a new parent for reassignment', 'error');
+            return;
+        }
+        deleteContext.newParentId = newParentId;
+    }
+
+    // Close modal
+    const modalEl = document.getElementById('deleteConfirmModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+
+    showDeleteLoading();
+
+    try {
+        let result;
+        let endpoint;
+        let data = { [endpoints.idField]: id };
+
+        if (deleteContext.mode === 'cascade') {
+            endpoint = endpoints.deleteCascade;
+            debugLog('DELETE', 'Calling cascade delete: ' + endpoint, data);
+            result = await apiCall(endpoint, data);
+        } else if (deleteContext.mode === 'reassign') {
+            endpoint = endpoints.deleteReassign;
+            data[endpoints.newNameField] = deleteContext.newParentId;
+            debugLog('DELETE', 'Calling reassign and delete: ' + endpoint, data);
+            result = await apiCall(endpoint, data);
+        } else {
+            // Direct delete (no children)
+            endpoint = endpoints.deleteDirect;
+            debugLog('DELETE', 'Calling direct delete: ' + endpoint, data);
+            result = await apiCall(endpoint, data);
+        }
+
+        debugLog('DELETE', 'API result:', result);
+
+        if (result.success) {
+            const typeName = type.charAt(0).toUpperCase() + type.slice(1);
+            showToast(typeName + ' deleted successfully', 'success');
+
+            await OrganizationManager.refreshEntityTable(type);
+            debugLog('DELETE', 'OK Delete completed');
+        } else {
+            showToast('Failed to delete: ' + result.message, 'error');
+        }
+
+    } catch (error) {
+        debugLog('DELETE', 'FAIL Error: ' + error.message);
+        showToast('Error deleting: ' + error.message, 'error');
+    } finally {
+        hideDeleteLoading();
+        debugLog('DELETE', '=== executeDelete COMPLETE ===');
+    }
+}
+
+// Log that the script loaded
+console.log('[DELETE_CONFIRM] Script loaded successfully, deleteItem function is available');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('delete_confirm.html');
+}
+</script>

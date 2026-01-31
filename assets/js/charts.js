@@ -1,0 +1,681 @@
+/**
+ * Chart Components for Strategic Execution Monitoring Application
+ * Provides reusable Chart.js components for data visualization
+ */
+
+// ============================================================================
+// CHART BASE CLASS
+// ============================================================================
+
+class ChartComponent {
+    constructor(options = {}) {
+        this.canvasId = options.canvasId || `chart-${Date.now()}`;
+        this.type = options.type || 'bar';
+        this.data = options.data || {};
+        this.options = options.options || {};
+        this.plugins = options.plugins || [];
+        this.chart = null;
+        this.responsive = options.responsive !== false;
+        this.maintainAspectRatio = options.maintainAspectRatio !== false;
+        this.aspectRatio = options.aspectRatio || 2;
+    }
+
+    /**
+     * Get default chart options
+     */
+    getDefaultOptions() {
+        return {
+            responsive: this.responsive,
+            maintainAspectRatio: this.maintainAspectRatio,
+            aspectRatio: this.aspectRatio,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    cornerRadius: 4,
+                    displayColors: true
+                }
+            },
+            animation: {
+                duration: 750,
+                easing: 'easeInOutQuart'
+            }
+        };
+    }
+
+    /**
+     * Create chart
+     */
+    create() {
+        const canvas = document.getElementById(this.canvasId);
+        if (!canvas) {
+            console.error(`Canvas element not found: ${this.canvasId}`);
+            return null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const mergedOptions = this._mergeOptions();
+
+        this.chart = new Chart(ctx, {
+            type: this.type,
+            data: this.data,
+            options: mergedOptions
+        });
+
+        return this.chart;
+    }
+
+    /**
+     * Merge options
+     * @private
+     */
+    _mergeOptions() {
+        const defaults = this.getDefaultOptions();
+        return this._deepMerge(defaults, this.options);
+    }
+
+    /**
+     * Deep merge objects
+     * @private
+     */
+    _deepMerge(target, source) {
+        const result = { ...target };
+
+        for (const key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
+                    result[key] = this._deepMerge(target[key] || {}, source[key]);
+                } else {
+                    result[key] = source[key];
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Update chart data
+     */
+    update(data) {
+        if (!this.chart) return;
+
+        this.chart.data = data;
+        this.chart.update();
+    }
+
+    /**
+     * Destroy chart
+     */
+    destroy() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+    }
+}
+
+// ============================================================================
+// TRAFFIC LIGHT CHART (KPI Status)
+// ============================================================================
+
+class TrafficLightChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'doughnut'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        font: { size: 14 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Create traffic light chart data
+     */
+    static createData(red, yellow, green) {
+        return {
+            labels: ['Red (<70%)', 'Yellow (70-90%)', 'Green (>90%)'],
+            datasets: [{
+                data: [red, yellow, green],
+                backgroundColor: [
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(25, 135, 84, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(25, 135, 84, 1)'
+                ],
+                borderWidth: 2
+            }]
+        };
+    }
+}
+
+// ============================================================================
+// PROGRESS CHART (Goal Completion)
+// ============================================================================
+
+class ProgressChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'bar'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: (value) => value + '%'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Create progress chart data
+     */
+    static createData(labels, values, targetValue = 100) {
+        return {
+            labels: labels,
+            datasets: [{
+                label: 'Completion %',
+                data: values,
+                backgroundColor: values.map(v => {
+                    if (v >= 90) return 'rgba(25, 135, 84, 0.8)';
+                    if (v >= 70) return 'rgba(255, 193, 7, 0.8)';
+                    return 'rgba(220, 53, 69, 0.8)';
+                }),
+                borderColor: values.map(v => {
+                    if (v >= 90) return 'rgba(25, 135, 84, 1)';
+                    if (v >= 70) return 'rgba(255, 193, 7, 1)';
+                    return 'rgba(220, 53, 69, 1)';
+                }),
+                borderWidth: 2,
+                borderRadius: 4
+            }]
+        };
+    }
+}
+
+// ============================================================================
+// TREND CHART (Line chart for trends over time)
+// ============================================================================
+
+class TrendChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'line'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.4
+                },
+                point: {
+                    radius: 4,
+                    hoverRadius: 6
+                }
+            }
+        };
+    }
+
+    /**
+     * Create trend chart data
+     */
+    static createData(labels, datasets) {
+        const colors = [
+            'rgba(13, 110, 253, 1)',
+            'rgba(25, 135, 84, 1)',
+            'rgba(255, 193, 7, 1)',
+            'rgba(220, 53, 69, 1)',
+            'rgba(13, 202, 240, 1)'
+        ];
+
+        return {
+            labels: labels,
+            datasets: datasets.map((ds, index) => ({
+                ...ds,
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length].replace('1)', '0.1)'),
+                borderWidth: 2,
+                fill: true
+            }))
+        };
+    }
+}
+
+// ============================================================================
+// GROUPED BAR CHART (for comparison)
+// ============================================================================
+
+class GroupedBarChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'bar'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Create grouped bar chart data
+     */
+    static createData(labels, datasets) {
+        const colors = [
+            'rgba(13, 110, 253, 0.8)',
+            'rgba(25, 135, 84, 0.8)',
+            'rgba(255, 193, 7, 0.8)',
+            'rgba(220, 53, 69, 0.8)',
+            'rgba(13, 202, 240, 0.8)'
+        ];
+
+        return {
+            labels: labels,
+            datasets: datasets.map((ds, index) => ({
+                ...ds,
+                backgroundColor: colors[index % colors.length],
+                borderColor: colors[index % colors.length].replace('0.8', '1'),
+                borderWidth: 2,
+                borderRadius: 4
+            }))
+        };
+    }
+}
+
+// ============================================================================
+// STACKED BAR CHART
+// ============================================================================
+
+class StackedBarChart extends GroupedBarChart {
+    getDefaultOptions() {
+        const options = super.getDefaultOptions();
+        options.scales.x.stacked = true;
+        options.scales.y.stacked = true;
+        return options;
+    }
+}
+
+// ============================================================================
+// PIE CHART
+// ============================================================================
+
+class PieChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'pie'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Create pie chart data
+     */
+    static createData(labels, values, colors = null) {
+        const defaultColors = [
+            'rgba(13, 110, 253, 0.8)',
+            'rgba(25, 135, 84, 0.8)',
+            'rgba(255, 193, 7, 0.8)',
+            'rgba(220, 53, 69, 0.8)',
+            'rgba(13, 202, 240, 0.8)',
+            'rgba(111, 66, 193, 0.8)'
+        ];
+
+        return {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors || defaultColors.slice(0, labels.length),
+                borderColor: (colors || defaultColors).map(c => c.replace('0.8', '1')).slice(0, labels.length),
+                borderWidth: 2
+            }]
+        };
+    }
+}
+
+// ============================================================================
+// DONUT CHART
+// ============================================================================
+
+class DonutChart extends PieChart {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'doughnut'
+        });
+    }
+
+    getDefaultOptions() {
+        const options = super.getDefaultOptions();
+        options.cutout = '60%';
+        return options;
+    }
+}
+
+// ============================================================================
+// RADAR CHART (for multi-dimensional comparison)
+// ============================================================================
+
+class RadarChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'radar'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    angleLines: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    pointLabels: {
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * Create radar chart data
+     */
+    static createData(labels, datasets) {
+        const colors = [
+            'rgba(13, 110, 253, 0.5)',
+            'rgba(25, 135, 84, 0.5)',
+            'rgba(255, 193, 7, 0.5)'
+        ];
+
+        return {
+            labels: labels,
+            datasets: datasets.map((ds, index) => ({
+                ...ds,
+                backgroundColor: colors[index % colors.length],
+                borderColor: colors[index % colors.length].replace('0.5', '1'),
+                borderWidth: 2,
+                pointBackgroundColor: colors[index % colors.length].replace('0.5', '1')
+            }))
+        };
+    }
+}
+
+// ============================================================================
+// GAUGE CHART (for single metric visualization)
+// ============================================================================
+
+class GaugeChart extends ChartComponent {
+    constructor(options = {}) {
+        super({
+            ...options,
+            type: 'doughnut'
+        });
+    }
+
+    getDefaultOptions() {
+        return {
+            ...super.getDefaultOptions(),
+            rotation: -90,
+            circumference: 180,
+            cutout: '75%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            }
+        };
+    }
+
+    /**
+     * Create gauge chart data
+     */
+    static createData(value, maxValue = 100) {
+        const remaining = maxValue - value;
+
+        // Determine color based on value
+        let color = 'rgba(220, 53, 69, 0.8)'; // Red
+        if (value >= 70) color = 'rgba(255, 193, 7, 0.8)'; // Yellow
+        if (value >= 90) color = 'rgba(25, 135, 84, 0.8)'; // Green
+
+        return {
+            labels: ['Value', 'Remaining'],
+            datasets: [{
+                data: [value, remaining],
+                backgroundColor: [color, 'rgba(0, 0, 0, 0.1)'],
+                borderColor: [color.replace('0.8', '1'), 'rgba(0, 0, 0, 0.2)'],
+                borderWidth: 2,
+                circumference: 180,
+                rotation: -90
+            }]
+        };
+    }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Create chart container HTML
+ */
+function createChartContainer(id, title, size = 'normal') {
+    const heights = {
+        'small': '200px',
+        'normal': '300px',
+        'large': '400px'
+    };
+
+    return `
+        <div class="chart-container mb-4">
+            <h6 class="chart-title">${title}</h6>
+            <div class="chart-wrapper" style="height: ${heights[size] || heights.normal}">
+                <canvas id="${id}"></canvas>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Initialize chart from data
+ */
+function initChart(type, canvasId, data, options = {}) {
+    const chartClasses = {
+        'bar': GroupedBarChart,
+        'line': TrendChart,
+        'pie': PieChart,
+        'doughnut': DonutChart,
+        'radar': RadarChart,
+        'trafficLight': TrafficLightChart,
+        'progress': ProgressChart,
+        'gauge': GaugeChart
+    };
+
+    const ChartClass = chartClasses[type] || ChartComponent;
+    const chart = new ChartClass({
+        canvasId,
+        data,
+        options
+    });
+
+    return chart.create();
+}
+
+/**
+ * Destroy chart by canvas ID
+ */
+function destroyChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+        const chart = Chart.getChart(canvasId);
+        if (chart) {
+            chart.destroy();
+        }
+    }
+}
+
+/**
+ * Destroy all charts
+ */
+function destroyAllCharts() {
+    Chart.helpers.each(Chart.instances, (chart) => {
+        chart.destroy();
+    });
+}
+
+/**
+ * Export chart as image
+ */
+function exportChartAsImage(canvasId, filename = 'chart.png') {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+}
+
+// ============================================================================
+// EXPORT ALL CHART CLASSES
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.ChartComponent = ChartComponent;
+    window.TrafficLightChart = TrafficLightChart;
+    window.ProgressChart = ProgressChart;
+    window.TrendChart = TrendChart;
+    window.GroupedBarChart = GroupedBarChart;
+    window.StackedBarChart = StackedBarChart;
+    window.PieChart = PieChart;
+    window.DonutChart = DonutChart;
+    window.RadarChart = RadarChart;
+    window.GaugeChart = GaugeChart;
+    window.createChartContainer = createChartContainer;
+    window.initChart = initChart;
+    window.destroyChart = destroyChart;
+    window.destroyAllCharts = destroyAllCharts;
+    window.exportChartAsImage = exportChartAsImage;
+}

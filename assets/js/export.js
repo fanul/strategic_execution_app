@@ -1,0 +1,767 @@
+/**
+ * Export Utilities for Strategic Execution Monitoring Application
+ * Provides enhanced export options: PDF, PowerPoint, Enhanced Excel
+ */
+
+// ============================================================================
+// PDF EXPORT
+// ============================================================================
+
+class PDFExporter {
+    constructor() {
+        this.jsPDF = window.jspdf;
+    }
+
+    /**
+     * Export data as PDF
+     * @param {Object} options - Export options
+     * @param {string} options.title - Document title
+     * @param {Array} options.headers - Table headers
+     * @param {Array} options.data - Table data (array of arrays or objects)
+     * @param {string} options.filename - Output filename (without extension)
+     * @param {Object} options.options - Additional jsPDF options
+     */
+    async exportTableToPDF(options = {}) {
+        const {
+            title = 'Report',
+            headers = [],
+            data = [],
+            filename = 'export',
+            options: jsPdfOptions = {}
+        } = options;
+
+        if (!this.jsPDF) {
+            console.warn('jsPDF library not loaded');
+            showErrorMessage('PDF export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const { jsPDF } = this.jsPDF;
+            const doc = new jsPDF(jsPdfOptions.orientation || 'portrait', jsPdfOptions.unit || 'pt', jsPdfOptions.format || 'a4');
+
+            // Document settings
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 40;
+            const usableWidth = pageWidth - (margin * 2);
+            const lineHeight = 20;
+
+            let yPosition = margin;
+
+            // Add title
+            doc.setFontSize(24);
+            doc.setFont('helvetica', 'bold');
+            doc.text(title, margin, yPosition);
+            yPosition += lineHeight * 2;
+
+            // Add timestamp
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Generated: ${DateUtils.formatDateTime(new Date())}`, margin, yPosition);
+            yPosition += lineHeight * 2;
+
+            // Process data
+            const tableData = this._prepareTableData(headers, data);
+            const columnWidths = this._calculateColumnWidths(tableData, usableWidth);
+
+            // Add table
+            yPosition = this._addTableToPDF(doc, tableData, columnWidths, margin, yPosition, pageHeight, margin);
+
+            // Save PDF
+            doc.save(`${filename}.pdf`);
+            showSuccessMessage(`PDF exported: ${filename}.pdf`);
+
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showErrorMessage('Failed to export PDF: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Export dashboard as PDF (including charts)
+     */
+    async exportDashboardToPDF(options = {}) {
+        const {
+            title = 'Dashboard Report',
+            elementId = 'main-content',
+            filename = 'dashboard'
+        } = options;
+
+        if (!this.jsPDF) {
+            showErrorMessage('PDF export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const { jsPDF } = this.jsPDF;
+            const doc = new jsPDF('p', 'pt', 'a4');
+            const element = document.getElementById(elementId);
+
+            if (!element) {
+                throw new Error('Element not found');
+            }
+
+            // Use html2canvas if available
+            if (window.html2canvas) {
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = doc.internal.pageSize.getWidth() - 80;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                doc.setFontSize(20);
+                doc.text(title, 40, 40);
+                doc.addImage(imgData, 'PNG', 40, 70, imgWidth, imgHeight);
+            }
+
+            doc.save(`${filename}.pdf`);
+            showSuccessMessage(`Dashboard exported: ${filename}.pdf`);
+
+        } catch (error) {
+            console.error('Dashboard PDF export error:', error);
+            showErrorMessage('Failed to export dashboard: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Prepare table data for PDF
+     * @private
+     */
+    _prepareTableData(headers, data) {
+        const tableData = [headers];
+
+        if (Array.isArray(data)) {
+            data.forEach(row => {
+                if (Array.isArray(row)) {
+                    tableData.push(row);
+                } else if (typeof row === 'object') {
+                    const values = headers.map(header =>
+                        row[header] !== undefined ? row[header] : ''
+                    );
+                    tableData.push(values);
+                }
+            });
+        }
+
+        return tableData;
+    }
+
+    /**
+     * Calculate column widths
+     * @private
+     */
+    _calculateColumnWidths(tableData, usableWidth) {
+        const numColumns = tableData[0].length;
+        const columnWidths = [];
+
+        for (let i = 0; i < numColumns; i++) {
+            columnWidths.push(usableWidth / numColumns);
+        }
+
+        return columnWidths;
+    }
+
+    /**
+     * Add table to PDF with pagination
+     * @private
+     */
+    _addTableToPDF(doc, tableData, columnWidths, x, y, pageHeight, margin) {
+        const rowHeight = 25;
+        let currentY = y;
+
+        tableData.forEach((row, rowIndex) => {
+            // Check for page break
+            if (currentY + rowHeight > pageHeight - margin) {
+                doc.addPage();
+                currentY = margin;
+            }
+
+            // Draw row background
+            if (rowIndex === 0) {
+                doc.setFillColor(13, 110, 253);
+                doc.rect(x, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+                doc.setTextColor(255, 255, 255);
+            } else {
+                doc.setFillColor(rowIndex % 2 === 0 ? 255 : 248, rowIndex % 2 === 0 ? 255 : 249, rowIndex % 2 === 0 ? 255 : 250);
+                doc.rect(x, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+                doc.setTextColor(0, 0, 0);
+            }
+
+            // Draw cells
+            let currentX = x;
+            row.forEach((cell, cellIndex) => {
+                // Cell border
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(currentX, currentY, columnWidths[cellIndex], rowHeight);
+
+                // Cell text (truncate if too long)
+                doc.setFontSize(rowIndex === 0 ? 12 : 10);
+                doc.setFont('helvetica', rowIndex === 0 ? 'bold' : 'normal');
+                const maxLength = Math.floor(columnWidths[cellIndex] / 6);
+                const text = String(cell || '').substring(0, maxLength);
+                doc.text(text, currentX + 5, currentY + rowHeight / 2 + 4);
+
+                currentX += columnWidths[cellIndex];
+            });
+
+            currentY += rowHeight;
+        });
+
+        return currentY;
+    }
+}
+
+// ============================================================================
+// POWERPOINT EXPORT
+// ============================================================================
+
+class PowerPointExporter {
+    constructor() {
+        this.PptxGenJS = window.PptxGenJS;
+    }
+
+    /**
+     * Export data as PowerPoint presentation
+     * @param {Object} options - Export options
+     * @param {string} options.title - Presentation title
+     * @param {Array} options.slides - Array of slide objects
+     * @param {string} options.filename - Output filename
+     */
+    async exportToPowerPoint(options = {}) {
+        const {
+            title = 'Report',
+            slides = [],
+            filename = 'export'
+        } = options;
+
+        if (!this.PptxGenJS) {
+            console.warn('PptxGenJS library not loaded');
+            showErrorMessage('PowerPoint export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const pptx = new this.PptxGenJS();
+
+            // Presentation metadata
+            pptx.title = title;
+            pptx.author = 'Strategic Execution Monitoring';
+            pptx.subject = title;
+            pptx.company = 'Strategic Execution Monitoring';
+
+            // Title slide
+            this._addTitleSlide(pptx, title);
+
+            // Content slides
+            slides.forEach(slide => {
+                this._addContentSlide(pptx, slide);
+            });
+
+            // Save presentation
+            await pptx.writeFile({ fileName: `${filename}.pptx` });
+            showSuccessMessage(`PowerPoint exported: ${filename}.pptx`);
+
+        } catch (error) {
+            console.error('PowerPoint export error:', error);
+            showErrorMessage('Failed to export PowerPoint: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Export dashboard summary as PowerPoint
+     */
+    async exportDashboardToPowerPoint(options = {}) {
+        const {
+            title = 'Executive Dashboard',
+            stats = [],
+            charts = [],
+            filename = 'dashboard-summary'
+        } = options;
+
+        if (!this.PptxGenJS) {
+            showErrorMessage('PowerPoint export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const pptx = new this.PptxGenJS();
+            pptx.title = title;
+            pptx.author = 'Strategic Execution Monitoring';
+
+            // Title slide
+            this._addTitleSlide(pptx, title);
+
+            // Statistics slide
+            if (stats.length > 0) {
+                this._addStatsSlide(pptx, stats);
+            }
+
+            // Chart slides
+            for (const chart of charts) {
+                await this._addChartSlide(pptx, chart);
+            }
+
+            await pptx.writeFile({ fileName: `${filename}.pptx` });
+            showSuccessMessage(`Dashboard exported to PowerPoint: ${filename}.pptx`);
+
+        } catch (error) {
+            console.error('Dashboard PowerPoint export error:', error);
+            showErrorMessage('Failed to export: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Add title slide
+     * @private
+     */
+    _addTitleSlide(pptx, title) {
+        const slide = pptx.addSlide();
+
+        // Background
+        slide.background = { color: '0D6efd' };
+
+        // Title
+        slide.addText(title, {
+            x: 0.5,
+            y: 2.5,
+            w: 9,
+            h: 1.5,
+            fontSize: 44,
+            bold: true,
+            color: 'FFFFFF',
+            align: 'center',
+            valign: 'middle'
+        });
+
+        // Subtitle
+        slide.addText('Strategic Execution Monitoring', {
+            x: 0.5,
+            y: 4,
+            w: 9,
+            h: 0.75,
+            fontSize: 24,
+            color: 'FFFFFF',
+            align: 'center',
+            valign: 'middle'
+        });
+
+        // Date
+        slide.addText(DateUtils.formatDate(new Date()), {
+            x: 0.5,
+            y: 5,
+            w: 9,
+            h: 0.5,
+            fontSize: 14,
+            color: 'FFFFFF',
+            align: 'center'
+        });
+    }
+
+    /**
+     * Add content slide with table
+     * @private
+     */
+    _addContentSlide(pptx, slideConfig) {
+        const slide = pptx.addSlide();
+
+        // Slide title
+        if (slideConfig.title) {
+            slide.addText(slideConfig.title, {
+                x: 0.5,
+                y: 0.5,
+                w: 9,
+                fontSize: 32,
+                bold: true,
+                color: '000000'
+            });
+        }
+
+        // Table
+        if (slideConfig.table) {
+            const { headers, data } = slideConfig.table;
+            const tableData = [headers, ...data];
+
+            slide.addTable(tableData, {
+                x: 0.5,
+                y: 1.5,
+                w: 9,
+                border: { pt: 1, color: 'CCCCCC' },
+                fill: { color: 'F8F9FA' },
+                fontSize: 14,
+                align: 'left',
+                valign: 'middle',
+                colW: headers.map(() => 9 / headers.length)
+            });
+        }
+
+        // Bullet points
+        if (slideConfig.bullets) {
+            let yPosition = 1.5;
+            slideConfig.bullets.forEach(bullet => {
+                slide.addText(bullet, {
+                    x: 0.75,
+                    y: yPosition,
+                    w: 8.5,
+                    h: 0.5,
+                    fontSize: 18,
+                    bullet: true
+                });
+                yPosition += 0.6;
+            });
+        }
+    }
+
+    /**
+     * Add statistics slide
+     * @private
+     */
+    _addStatsSlide(pptx, stats) {
+        const slide = pptx.addSlide();
+
+        slide.addText('Key Statistics', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            fontSize: 32,
+            bold: true
+        });
+
+        const cols = Math.min(stats.length, 3);
+        const colWidth = 9 / cols;
+        const statWidth = colWidth - 0.5;
+
+        stats.forEach((stat, index) => {
+            const row = Math.floor(index / cols);
+            const col = index % cols;
+
+            slide.addText([
+                { text: String(stat.value), options: { fontSize: 48, bold: true, color: '0D6efd' } },
+                { text: `\n${stat.label}`, options: { fontSize: 18, color: '666666' } }
+            ], {
+                x: 0.5 + (col * colWidth),
+                y: 1.5 + (row * 2),
+                w: statWidth,
+                h: 1.5,
+                align: 'center',
+                valign: 'middle'
+            });
+        });
+    }
+
+    /**
+     * Add chart slide
+     * @private
+     */
+    async _addChartSlide(pptx, chartConfig) {
+        const slide = pptx.addSlide();
+
+        // Slide title
+        slide.addText(chartConfig.title || 'Chart', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            fontSize: 28,
+            bold: true
+        });
+
+        // Add chart from canvas if available
+        if (chartConfig.canvasId) {
+            const canvas = document.getElementById(chartConfig.canvasId);
+            if (canvas) {
+                const imgData = canvas.toDataURL('image/png');
+                slide.addImage({ data: imgData, x: 1, y: 1.25, w: 8, h: 4.5 });
+            }
+        }
+    }
+}
+
+// ============================================================================
+// ENHANCED EXCEL EXPORT
+// ============================================================================
+
+class ExcelExporter {
+    constructor() {
+        this.XLSX = window.XLSX;
+    }
+
+    /**
+     * Export data to Excel with multiple sheets and formatting
+     * @param {Object} options - Export options
+     * @param {Array} options.sheets - Array of sheet objects { name, headers, data }
+     * @param {string} options.filename - Output filename
+     */
+    async exportToExcel(options = {}) {
+        const {
+            sheets = [],
+            filename = 'export'
+        } = options;
+
+        if (!this.XLSX) {
+            showErrorMessage('Excel export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const workbook = this.XLSX.utils.book_new();
+
+            sheets.forEach(sheet => {
+                const worksheetData = this._prepareWorksheetData(sheet.headers, sheet.data);
+                const worksheet = this.XLSX.utils.aoa_to_array(worksheetData);
+
+                // Set column widths
+                const colWidths = sheet.headers.map(h => ({ wch: Math.max(h.length, 15) }));
+                worksheet['!cols'] = colWidths;
+
+                // Freeze header row
+                worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+                this.XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name.substring(0, 31));
+            });
+
+            // Save workbook
+            this.XLSX.writeFile(workbook, `${filename}.xlsx`);
+            showSuccessMessage(`Excel exported: ${filename}.xlsx`);
+
+        } catch (error) {
+            console.error('Excel export error:', error);
+            showErrorMessage('Failed to export Excel: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Export with conditional formatting
+     */
+    async exportWithFormatting(options = {}) {
+        const {
+            headers = [],
+            data = [],
+            formatting = {},
+            filename = 'formatted-export'
+        } = options;
+
+        if (!this.XLSX) {
+            showErrorMessage('Excel export library not available');
+            return;
+        }
+
+        showLoadingOverlay();
+
+        try {
+            const worksheetData = this._prepareWorksheetData(headers, data);
+            const worksheet = this.XLSX.utils.aoa_to_array(worksheetData);
+
+            // Apply conditional formatting (mock - real implementation requires exceljs)
+            const ranges = formatting.ranges || [];
+
+            this.XLSX.utils.book_append_sheet(
+                this.XLSX.utils.book_new(),
+                worksheet,
+                'Data'
+            );
+
+            this.XLSX.writeFile(this.XLSX.utils.book_new(), `${filename}.xlsx`);
+            showSuccessMessage(`Formatted Excel exported: ${filename}.xlsx`);
+
+        } catch (error) {
+            console.error('Excel export error:', error);
+            showErrorMessage('Failed to export Excel: ' + error.message);
+        } finally {
+            hideLoadingOverlay();
+        }
+    }
+
+    /**
+     * Prepare worksheet data
+     * @private
+     */
+    _prepareWorksheetData(headers, data) {
+        const worksheetData = [headers];
+
+        if (Array.isArray(data)) {
+            data.forEach(row => {
+                if (Array.isArray(row)) {
+                    worksheetData.push(row);
+                } else if (typeof row === 'object') {
+                    const values = headers.map(header =>
+                        row[header] !== undefined ? row[header] : ''
+                    );
+                    worksheetData.push(values);
+                }
+            });
+        }
+
+        return worksheetData;
+    }
+}
+
+// ============================================================================
+// EXPORT MANAGER (Unified Interface)
+// ============================================================================
+
+class ExportManager {
+    constructor() {
+        this.pdfExporter = new PDFExporter();
+        this.pptxExporter = new PowerPointExporter();
+        this.excelExporter = new ExcelExporter();
+    }
+
+    /**
+     * Export based on format
+     */
+    async export(format, options = {}) {
+        switch (format.toLowerCase()) {
+            case 'pdf':
+                await this.pdfExporter.exportTableToPDF(options);
+                break;
+            case 'dashboard-pdf':
+                await this.pdfExporter.exportDashboardToPDF(options);
+                break;
+            case 'pptx':
+            case 'powerpoint':
+            case 'ppt':
+                await this.pptxExporter.exportToPowerPoint(options);
+                break;
+            case 'dashboard-pptx':
+                await this.pptxExporter.exportDashboardToPowerPoint(options);
+                break;
+            case 'excel':
+            case 'xlsx':
+                await this.excelExporter.exportToExcel(options);
+                break;
+            case 'csv':
+                this.exportToCSV(options);
+                break;
+            default:
+                showErrorMessage(`Unsupported export format: ${format}`);
+        }
+    }
+
+    /**
+     * Quick export to CSV
+     */
+    exportToCSV(options = {}) {
+        const {
+            headers = [],
+            data = [],
+            filename = 'export'
+        } = options;
+
+        let csv = headers.join(',') + '\n';
+
+        data.forEach(row => {
+            if (Array.isArray(row)) {
+                csv += row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',') + '\n';
+            } else if (typeof row === 'object') {
+                const values = headers.map(header =>
+                    `"${String(row[header] || '').replace(/"/g, '""')}"`
+                );
+                csv += values.join(',') + '\n';
+            }
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Show export modal
+     */
+    showExportModal(data, headers, title) {
+        const modalHtml = `
+            <div class="modal fade" id="exportModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Export Data</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Select Format:</label>
+                                <select class="form-select" id="export-format">
+                                    <option value="excel">Excel (.xlsx)</option>
+                                    <option value="csv">CSV (.csv)</option>
+                                    <option value="pdf">PDF (.pdf)</option>
+                                    <option value="powerpoint">PowerPoint (.pptx)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Filename:</label>
+                                <input type="text" class="form-control" id="export-filename" value="${title || 'export'}">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="exportManager._doExport('${encodeURIComponent(JSON.stringify({data, headers, title}))}')">
+                                <i class="bi bi-download me-1"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal
+        const existingModal = document.getElementById('exportModal');
+        if (existingModal) existingModal.remove();
+
+        // Add and show modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        new bootstrap.Modal(document.getElementById('exportModal')).show();
+    }
+
+    async _doExport(encodedData) {
+        const options = JSON.parse(decodeURIComponent(encodedData));
+        const format = document.getElementById('export-format').value;
+        const filename = document.getElementById('export-filename').value;
+
+        await this.export(format, {
+            ...options,
+            filename: filename || 'export'
+        });
+
+        bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    }
+}
+
+// ============================================================================
+// EXPORT
+// ============================================================================
+
+if (typeof window !== 'undefined') {
+    window.PDFExporter = PDFExporter;
+    window.PowerPointExporter = PowerPointExporter;
+    window.ExcelExporter = ExcelExporter;
+    window.ExportManager = ExportManager;
+    window.exportManager = new ExportManager();
+}
