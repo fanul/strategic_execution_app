@@ -42,7 +42,11 @@ function showModal(type, id = null, parentId = null) {
         } else if (type === 'affair') {
             dropdownPromise = loadWorkUnitsForAffairDropdown();
         } else if (type === 'position') {
-            dropdownPromise = loadWorkUnitsForPositionDropdown();
+            // Load both work units and users for position
+            dropdownPromise = Promise.all([
+                loadWorkUnitsForPositionDropdown(),
+                loadUsersForPositionDropdown()
+            ]);
         } else {
             dropdownPromise = Promise.resolve();
         }
@@ -87,6 +91,7 @@ function showModal(type, id = null, parentId = null) {
             loadWorkUnitsForAffairDropdown(parentId);
         } else if (type === 'position') {
             loadWorkUnitsForPositionDropdown(parentId);
+            loadUsersForPositionDropdown(); // Load users dropdown for new position
         }
     }
 }
@@ -159,6 +164,7 @@ async function loadItemData(type, id) {
         }
         if (type === 'position') {
             select2Fields['work_unit_id'] = 'position_work_unit_id_select';
+            select2Fields['user_id'] = 'position_user_id_select'; // Add user_id field for position
         }
 
         // Populate all non-Select2 fields first
@@ -361,6 +367,58 @@ async function loadWorkUnitsForPositionDropdown(preselectedValue = null) {
     }
 
     debugLog('MODAL', '=== loadWorkUnitsForPositionDropdown COMPLETE ===');
+}
+
+// Load Users into Select2 dropdown (for Position modal - user assignment)
+async function loadUsersForPositionDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadUsersForPositionDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('users/list');
+        debugLog('MODAL', 'Users API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#position_user_id_select');
+            const modal = $('#positionModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">Unassigned</option>');
+
+            result.data.forEach(u => {
+                select.append('<option value="' + u.user_id + '">' + u.full_name + ' (' + u.username + ')</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select User',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected user:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' users into position dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load users: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading users: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadUsersForPositionDropdown COMPLETE ===');
 }
 
 // Track script loading

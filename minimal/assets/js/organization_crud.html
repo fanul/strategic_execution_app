@@ -240,6 +240,7 @@ async function savePosition() {
     const nameEl = document.getElementById('position_name');
     const levelEl = document.getElementById('position_level');
     const workUnitEl = document.getElementById('position_work_unit_id_select');
+    const userEl = document.getElementById('position_user_id_select');
 
     // Defensive checks
     if (!codeEl || !nameEl || !levelEl || !workUnitEl) {
@@ -253,7 +254,8 @@ async function savePosition() {
         position_code: codeEl.value,
         position_name: nameEl.value,
         position_level: levelEl.value,
-        work_unit_id: workUnitEl.value
+        work_unit_id: workUnitEl.value,
+        user_id: userEl ? userEl.value : null // Include user assignment
     };
 
     const formData = { id: id };
