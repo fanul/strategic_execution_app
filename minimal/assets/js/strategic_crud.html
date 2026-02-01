@@ -1,0 +1,530 @@
+<script>
+// ============================================================================
+// STRATEGIC CRUD - Strategic Planning Operations
+// ============================================================================
+
+debugLog('STRATEGIC_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('STRATEGIC_CRUD', '║  STRATEGIC CRUD SCRIPT LOADING                      ║');
+debugLog('STRATEGIC_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const StrategicManager = (function() {
+    'use strict';
+
+    let currentPeriodId = null;
+    let periodsData = [];
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('STRATEGIC_CRUD', '=== init START ===');
+        loadPeriods();
+        debugLog('STRATEGIC_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load all periods
+     */
+    async function loadPeriods() {
+        debugLog('STRATEGIC_CRUD', 'Loading periods...');
+
+        try {
+            const result = await apiCall('strategic/periods/list');
+
+            if (result.success && result.data) {
+                periodsData = result.data;
+                populatePeriodDropdown();
+
+                // Load active period
+                const activePeriod = periodsData.find(p => p.is_active);
+                if (activePeriod) {
+                    currentPeriodId = activePeriod.period_id;
+                    loadPeriod(currentPeriodId);
+                }
+
+                debugLog('STRATEGIC_CRUD', 'OK Loaded', periodsData.length, 'periods');
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading periods:', error);
+            const selector = document.getElementById('periodSelector');
+            if (selector) {
+                selector.innerHTML = '<option value="">Error loading periods</option>';
+            }
+        }
+    }
+
+    /**
+     * Populate period dropdown
+     */
+    function populatePeriodDropdown() {
+        const selector = document.getElementById('periodSelector');
+        if (!selector) return;
+
+        selector.innerHTML = '<option value="">Select Period</option>';
+        periodsData.forEach(period => {
+            const option = document.createElement('option');
+            option.value = period.period_id;
+            option.textContent = `${period.year} ${period.period_name}`;
+            if (period.is_active) {
+                option.textContent += ' (Active)';
+            }
+            selector.appendChild(option);
+        });
+
+        if (currentPeriodId) {
+            selector.value = currentPeriodId;
+        }
+    }
+
+    /**
+     * Load a specific period
+     */
+    async function loadPeriod(periodId) {
+        if (!periodId) return;
+
+        debugLog('STRATEGIC_CRUD', 'Loading period:', periodId);
+        currentPeriodId = periodId;
+
+        // Load all period data in parallel
+        await Promise.all([
+            loadVision(),
+            loadMissions(),
+            loadInitiatives(),
+            loadGoals(),
+            loadImpactCenters()
+        ]);
+
+        debugLog('STRATEGIC_CRUD', 'OK Period data loaded');
+    }
+
+    /**
+     * Load vision
+     */
+    async function loadVision() {
+        debugLog('STRATEGIC_CRUD', 'Loading vision...');
+
+        const container = document.getElementById('visionContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/visions/get-by-period', { periodId: currentPeriodId });
+
+            if (result.success && result.data) {
+                container.innerHTML = `
+                    <div class="vision-display">
+                        <h4 class="text-primary">${result.data.vision_statement}</h4>
+                        ${result.data.description ? `<p class="mt-3 text-muted">${result.data.description}</p>` : ''}
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                Status: <span class="badge bg-${result.data.is_approved ? 'success' : 'warning'}">
+                                    ${result.data.is_approved ? 'Approved' : 'Draft'}
+                                </span>
+                            </small>
+                        </div>
+                    </div>
+                `;
+                debugLog('STRATEGIC_CRUD', 'OK Vision loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-lightbulb fs-1"></i>
+                        <p class="mt-3">No vision statement set for this period</p>
+                        <button class="btn btn-primary" onclick="showModal('vision')">Create Vision</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading vision:', error);
+        }
+    }
+
+    /**
+     * Load missions
+     */
+    async function loadMissions() {
+        debugLog('STRATEGIC_CRUD', 'Loading missions...');
+
+        const container = document.getElementById('missionContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/missions/list-by-period', { periodId: currentPeriodId });
+
+            if (result.success && result.data && result.data.length > 0) {
+                renderMissions(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Loaded', result.data.length, 'missions');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-flag fs-1"></i>
+                        <p class="mt-3">No mission statements for this period</p>
+                        <button class="btn btn-primary" onclick="showModal('mission')">Add Mission</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading missions:', error);
+        }
+    }
+
+    /**
+     * Render missions
+     */
+    function renderMissions(missions) {
+        const container = document.getElementById('missionContent');
+        if (!container) return;
+
+        const html = missions.map((mission, index) => `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title">
+                                <span class="badge bg-primary me-2">${mission.mission_order || index + 1}</span>
+                                ${mission.mission_statement}
+                            </h6>
+                            ${mission.year ? `<small class="text-muted">Year: ${mission.year}</small>` : ''}
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('mission', '${mission.mission_id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteItem('mission', '${mission.mission_id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Load initiatives
+     */
+    async function loadInitiatives() {
+        debugLog('STRATEGIC_CRUD', 'Loading initiatives...');
+
+        const container = document.getElementById('initiativesContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/initiatives/list-by-period', { periodId: currentPeriodId });
+
+            if (result.success && result.data && result.data.length > 0) {
+                renderInitiatives(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Loaded', result.data.length, 'initiatives');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-rocket fs-1"></i>
+                        <p class="mt-3">No strategic initiatives for this period</p>
+                        <button class="btn btn-primary" onclick="showModal('initiative')">Add Initiative</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading initiatives:', error);
+        }
+    }
+
+    /**
+     * Render initiatives
+     */
+    function renderInitiatives(initiatives) {
+        const container = document.getElementById('initiativesContent');
+        if (!container) return;
+
+        const html = initiatives.map(initiative => {
+            const statusClass = {
+                'not_started': 'secondary',
+                'in_progress': 'primary',
+                'completed': 'success',
+                'on_hold': 'warning'
+            }[initiative.status] || 'secondary';
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">${initiative.initiative_name}</h6>
+                                <p class="card-text text-muted small">${initiative.description || ''}</p>
+                                <div class="d-flex gap-3 mb-2">
+                                    <small><strong>Theme:</strong> ${initiative.theme || 'N/A'}</small>
+                                    <small><strong>Year:</strong> ${initiative.target_year || 'N/A'}</small>
+                                    <small><strong>Budget:</strong> ${initiative.budget || 'N/A'}</small>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-${initiative.progress_percentage >= 75 ? 'success' : initiative.progress_percentage >= 50 ? 'primary' : 'warning'}"
+                                         style="width: ${initiative.progress_percentage || 0}%"></div>
+                                </div>
+                            </div>
+                            <div class="ms-3">
+                                <span class="badge bg-${statusClass}">${initiative.status.replace('_', ' ').toUpperCase()}</span>
+                                <div class="btn-group btn-group-sm mt-2">
+                                    <button class="btn btn-outline-primary" onclick="showModal('initiative', '${initiative.initiative_id}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteItem('initiative', '${initiative.initiative_id}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Load goals
+     */
+    async function loadGoals() {
+        debugLog('STRATEGIC_CRUD', 'Loading goals...');
+
+        const container = document.getElementById('goalsContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/goals/list-by-period', { periodId: currentPeriodId });
+
+            if (result.success && result.data && result.data.length > 0) {
+                renderGoals(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Loaded', result.data.length, 'goals');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-bullseye fs-1"></i>
+                        <p class="mt-3">No organizational goals for this period</p>
+                        <button class="btn btn-primary" onclick="showModal('goal')">Add Goal</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading goals:', error);
+        }
+    }
+
+    /**
+     * Render goals
+     */
+    function renderGoals(goals) {
+        const container = document.getElementById('goalsContent');
+        if (!container) return;
+
+        const html = goals.map(goal => {
+            const statusClass = {
+                'not_achieved': 'danger',
+                'partially_achieved': 'warning',
+                'achieved': 'success'
+            }[goal.achievement_status] || 'secondary';
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title">${goal.goal_name}</h6>
+                                <p class="card-text text-muted small">${goal.description || ''}</p>
+                                <div class="d-flex gap-3">
+                                    <small><strong>Impact Center:</strong> ${goal.impact_center_name || 'N/A'}</small>
+                                    <small><strong>Type:</strong> ${goal.goal_type || 'N/A'}</small>
+                                </div>
+                            </div>
+                            <div class="ms-3 text-end">
+                                <span class="badge bg-${statusClass}">${goal.achievement_status.replace('_', ' ').toUpperCase()}</span>
+                                <div class="btn-group btn-group-sm mt-2">
+                                    <button class="btn btn-outline-primary" onclick="showModal('goal', '${goal.goal_id}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteItem('goal', '${goal.goal_id}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Load impact centers
+     */
+    async function loadImpactCenters() {
+        debugLog('STRATEGIC_CRUD', 'Loading impact centers...');
+
+        const container = document.getElementById('impactCentersContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('impact-centers/list-by-period', { periodId: currentPeriodId });
+
+            if (result.success && result.data && result.data.length > 0) {
+                renderImpactCenters(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Loaded', result.data.length, 'impact centers');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-hdd-network fs-1"></i>
+                        <p class="mt-3">No impact centers for this period</p>
+                        <button class="btn btn-primary" onclick="showModal('impact-center')">Add Impact Center</button>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading impact centers:', error);
+        }
+    }
+
+    /**
+     * Render impact centers
+     */
+    function renderImpactCenters(centers) {
+        const container = document.getElementById('impactCentersContent');
+        if (!container) return;
+
+        const html = centers.map(center => {
+            const completionColor = center.completion_percentage >= 90 ? 'success' :
+                                  center.completion_percentage >= 70 ? 'primary' :
+                                  center.completion_percentage >= 50 ? 'warning' : 'danger';
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="card-title mb-0">${center.impact_center_name}</h6>
+                            <span class="badge bg-${completionColor}">${center.completion_percentage}% Complete</span>
+                        </div>
+                        <p class="card-text text-muted small">${center.description || ''}</p>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-${completionColor}" style="width: ${center.completion_percentage}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Responsible: ${center.responsible_unit || 'N/A'}</small>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="showModal('impact-center', '${center.impact_center_id}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-info" onclick="StrategicManager.viewImpactCenterProgress('${center.impact_center_id}')">
+                                    <i class="bi bi-list-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Activate selected period
+     */
+    async function activatePeriod() {
+        const selector = document.getElementById('periodSelector');
+        if (!selector || !selector.value) {
+            showToast('Please select a period first', 'warning');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to activate this period? This will deactivate the current active period.')) {
+            return;
+        }
+
+        debugLog('STRATEGIC_CRUD', 'Activating period:', selector.value);
+
+        try {
+            const result = await apiCall('strategic/periods/activate', { periodId: selector.value });
+
+            if (result.success) {
+                showToast('Period activated successfully', 'success');
+                loadPeriods();
+            } else {
+                showToast('Failed to activate period: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION activating period:', error);
+            showToast('Error activating period', 'error');
+        }
+    }
+
+    /**
+     * View impact center progress details
+     */
+    async function viewImpactCenterProgress(impactCenterId) {
+        debugLog('STRATEGIC_CRUD', 'Viewing impact center progress:', impactCenterId);
+
+        try {
+            const result = await apiCall('impact-centers/get', { id: impactCenterId });
+
+            if (result.success && result.data) {
+                const center = result.data;
+                // Show modal with progress details
+                const html = `
+                    <h5>${center.impact_center_name}</h5>
+                    <p>${center.description || ''}</p>
+                    <h6>Monthly Progress</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Target</th>
+                                <th>Actual</th>
+                                <th>Completion %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${center.monthly_progress ? center.monthly_progress.map(p => `
+                                <tr>
+                                    <td>${p.month}</td>
+                                    <td>${p.target || '-'}</td>
+                                    <td>${p.actual || '-'}</td>
+                                    <td>${p.completion_percentage || 0}%</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4">No progress data available</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
+
+                showModal('Impact Center Progress', html);
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading impact center:', error);
+        }
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadPeriod: loadPeriod,
+        activatePeriod: activatePeriod,
+        viewImpactCenterProgress: viewImpactCenterProgress
+    };
+})();
+
+// Auto-initialize
+window.StrategicManager = StrategicManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we're on the strategic plan page
+    if (document.getElementById('strategic-plan-view')) {
+        StrategicManager.init();
+    }
+});
+
+debugLog('STRATEGIC_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('strategic_crud.html');
+}
+</script>
