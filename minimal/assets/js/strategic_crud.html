@@ -504,12 +504,450 @@ const StrategicManager = (function() {
         }
     }
 
+    /**
+     * Refresh hierarchy tree diagram
+     */
+    async function refreshHierarchyTree() {
+        debugLog('STRATEGIC_CRUD', 'Loading hierarchy tree...');
+
+        const container = document.getElementById('hierarchyTreeContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/hierarchy-tree', { periodId: currentPeriodId });
+
+            if (result.success && result.data) {
+                renderHierarchyTree(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Hierarchy tree loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <p>No hierarchy data available for this period</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading hierarchy tree:', error);
+            container.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <p>Error loading hierarchy tree</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render hierarchy tree (D3 tree diagram)
+     */
+    function renderHierarchyTree(data) {
+        const container = document.getElementById('hierarchyTreeContent');
+        if (!container) return;
+
+        // Clear previous content
+        container.innerHTML = '';
+
+        // Create SVG container
+        const svgWidth = container.clientWidth || 800;
+        const svgHeight = 600;
+
+        const svg = d3.select('#hierarchyTreeContent')
+            .append('svg')
+            .attr('width', svgWidth)
+            .attr('height', svgHeight);
+
+        // Create tree layout
+        const root = d3.hierarchy(data);
+        const treeLayout = d3.tree().size([svgHeight - 100, svgWidth - 200]);
+
+        const treeData = treeLayout(root);
+
+        // Draw links
+        svg.selectAll('.link')
+            .data(treeData.links())
+            .enter().append('path')
+            .attr('class', 'link')
+            .attr('d', d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => x => svgHeight / 2)
+            )
+            .style('fill', 'none')
+            .style('stroke', '#ccc')
+            .style('stroke-width', '2px');
+
+        // Draw nodes
+        const node = svg.selectAll('.node')
+            .data(treeData.descendants())
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.y},${d.x})`);
+
+        // Node rectangles
+        node.append('rect')
+            .attr('width', 180)
+            .attr('height', 40)
+            .attr('x', -90)
+            .attr('y', -20)
+            .style('fill', d => {
+                if (d.depth === 0) return '#0d6efd'; // Vision - blue
+                if (d.depth === 1) return '#198754'; // Mission - green
+                if (d.depth === 2) return '#ffc107'; // Initiative - yellow
+                if (d.depth === 3) return '#dc3545'; // Goal - red
+                return '#6c757d';
+            })
+            .style('stroke', '#fff')
+            .style('stroke-width', '2px')
+            .style('cursor', 'pointer')
+            .on('click', (event, d) => {
+                event.stopPropagation();
+                StrategicManager.showNodeDetails(d);
+            });
+
+        // Node labels
+        node.append('text')
+            .attr('dy', 5)
+            .style('text-anchor', 'middle')
+            .style('fill', 'white')
+            .style('font-size', '12px')
+            .text(d => d.data.name.length > 20 ? d.data.name.substring(0, 17) + '...' : d.data.name);
+    }
+
+    /**
+     * Refresh strategy map (balanced scorecard)
+     */
+    async function refreshStrategyMap() {
+        debugLog('STRATEGIC_CRUD', 'Loading strategy map...');
+
+        const container = document.getElementById('strategyMapContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/strategy-map', { periodId: currentPeriodId });
+
+            if (result.success && result.data) {
+                renderStrategyMap(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Strategy map loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <p>No strategy map data available for this period</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading strategy map:', error);
+            container.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <p>Error loading strategy map</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render strategy map (quadrant chart)
+     */
+    function renderStrategyMap(data) {
+        const container = document.getElementById('strategyMapContent');
+        if (!container) return;
+
+        const perspectives = data.perspectives || ['financial', 'customer', 'internal_process', 'learning_growth'];
+        const containerWidth = container.clientWidth || 800;
+
+        let html = '<div class="strategy-map-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+
+        perspectives.forEach(persp => {
+            const items = data[persp] || [];
+            html += `
+                <div class="strategy-quadrant">
+                    <h6 class="text-center mb-3 text-uppercase">${persp.replace('_', ' ')}</h6>
+                    <div class="list-group">
+            `;
+
+            items.forEach(item => {
+                const pct = item.progress_percentage || 0;
+                const color = pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger';
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>${item.name}</small>
+                            <span class="badge bg-${color}">${pct}%</span>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar bg-${color}" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (items.length === 0) {
+                html += `<div class="list-group-item text-muted"><small>No items for this perspective</small></div>`;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Refresh relationships diagram
+     */
+    async function refreshRelationships() {
+        debugLog('STRATEGIC_CRUD', 'Loading relationships diagram...');
+
+        const container = document.getElementById('relationshipsContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/relationships', { periodId: currentPeriodId });
+
+            if (result.success && result.data) {
+                renderRelationshipsDiagram(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Relationships diagram loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <p>No relationship data available for this period</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading relationships:', error);
+            container.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <p>Error loading relationships</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render relationships diagram (D3 force directed graph)
+     */
+    function renderRelationshipsDiagram(data) {
+        const container = document.getElementById('relationshipsContent');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        const svgWidth = container.clientWidth || 800;
+        const svgHeight = 500;
+
+        const svg = d3.select('#relationshipsContent')
+            .append('svg')
+            .attr('width', svgWidth)
+            .attr('height', svgHeight);
+
+        const simulation = d3.forceSimulation(data.nodes)
+            .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(svgWidth / 2, svgHeight / 2));
+
+        // Draw links
+        const link = svg.append('g')
+            .selectAll('line')
+            .data(data.links)
+            .enter().append('line')
+            .attr('stroke', '#999')
+            .attr('stroke-opacity', 0.6)
+            .attr('stroke-width', 2);
+
+        // Draw nodes
+        const node = svg.append('g')
+            .selectAll('circle')
+            .data(data.nodes)
+            .enter().append('circle')
+            .attr('r', 20)
+            .attr('fill', d => {
+                if (d.type === 'vision') return '#0d6efd';
+                if (d.type === 'mission') return '#198754';
+                if (d.type === 'initiative') return '#ffc107';
+                if (d.type === 'goal') return '#dc3545';
+                return '#6c757d';
+            })
+            .attr('stroke', '#fff')
+            .attr('stroke-width', '2px')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended)
+            )
+            .on('click', (event, d) => {
+                event.stopPropagation();
+                alert(`${d.name} (${d.type})`);
+            });
+
+        // Add labels
+        const labels = svg.append('g')
+            .selectAll('text')
+            .data(data.nodes)
+            .enter().append('text')
+            .text(d => d.name.length > 15 ? d.name.substring(0, 12) + '...' : d.name)
+            .attr('font-size', '12px')
+            .attr('text-anchor', 'middle')
+            .attr('dy', 4)
+            .style('pointer-events', 'none');
+
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+
+            labels
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+        });
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+    }
+
+    /**
+     * Refresh strategic dashboard
+     */
+    async function refreshStrategicDashboard() {
+        debugLog('STRATEGIC_CRUD', 'Loading strategic dashboard...');
+
+        const container = document.getElementById('strategicDashboardContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('strategic/dashboard', { periodId: currentPeriodId });
+
+            if (result.success && result.data) {
+                renderStrategicDashboard(result.data);
+                debugLog('STRATEGIC_CRUD', 'OK Strategic dashboard loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <p>No strategic dashboard data available</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('STRATEGIC_CRUD', 'EXCEPTION loading strategic dashboard:', error);
+        }
+    }
+
+    /**
+     * Render strategic dashboard
+     */
+    function renderStrategicDashboard(data) {
+        const container = document.getElementById('strategicDashboardContent');
+        if (!container) return;
+
+        let html = '<div class="row">';
+
+        // Summary cards
+        html += `
+            <div class="col-md-3 mb-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h3>${data.total_initiatives || 0}</h3>
+                        <small>Total Initiatives</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h3>${data.on_track || 0}</h3>
+                        <small>On Track</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h3>${data.at_risk || 0}</h3>
+                        <small>At Risk</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h3>${data.total_goals || 0}</h3>
+                        <small>Total Goals</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        html += '</div><div class="row"><div class="col-md-12">';
+
+        // Progress by perspective
+        html += '<h6 class="mt-4">Achievement by Perspective</h6><div class="row">';
+        (data.by_perspective || []).forEach(persp => {
+            html += `
+                <div class="col-md-3 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="text-center">${persp.perspective}</h6>
+                            <h3 class="text-center">${persp.achievement_percentage || 0}%</h3>
+                            <div class="progress mt-2">
+                                <div class="progress-bar bg-${persp.achievement_percentage >= 90 ? 'success' : persp.achievement_percentage >= 70 ? 'warning' : 'danger'}"
+                                     style="width: ${persp.achievement_percentage || 0}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div></div></div>';
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Show node details (for hierarchy tree)
+     */
+    function showNodeDetails(nodeData) {
+        const html = `
+            <h6>${nodeData.data.name}</h6>
+            <p><strong>Type:</strong> ${nodeData.data.type}</p>
+            <p><strong>Description:</strong> ${nodeData.data.description || 'N/A'}</p>
+            ${nodeData.data.progress_percentage ? `<p><strong>Progress:</strong> ${nodeData.data.progress_percentage}%</p>` : ''}
+        `;
+        showModal('Details', html);
+    }
+
     // Public API
     return {
         init: init,
         loadPeriod: loadPeriod,
         activatePeriod: activatePeriod,
-        viewImpactCenterProgress: viewImpactCenterProgress
+        viewImpactCenterProgress: viewImpactCenterProgress,
+        refreshHierarchyTree: refreshHierarchyTree,
+        refreshStrategyMap: refreshStrategyMap,
+        refreshRelationships: refreshRelationships,
+        refreshStrategicDashboard: refreshStrategicDashboard
     };
 })();
 
