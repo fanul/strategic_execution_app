@@ -1,0 +1,417 @@
+<script>
+// ============================================================================
+// USERS CRUD - User Management Operations
+// ============================================================================
+
+debugLog('USERS_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('USERS_CRUD', '║  USERS CRUD SCRIPT LOADING                         ║');
+debugLog('USERS_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const UserManager = (function() {
+    'use strict';
+
+    let usersTable = null;
+    let usersData = [];
+    let rolesData = [];
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('USERS_CRUD', '=== init START ===');
+        loadRoles();
+        loadUsers();
+        setupEventListeners();
+        debugLog('USERS_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load users from server
+     */
+    async function loadUsers() {
+        debugLog('USERS_CRUD', '=== loadUsers START ===');
+
+        try {
+            const result = await apiCall('users/list');
+
+            if (result.success && result.data) {
+                usersData = result.data;
+                debugLog('USERS_CRUD', 'OK Loaded', usersData.length, 'users');
+                renderUsersTable();
+            } else {
+                showToast('Failed to load users: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+            showToast('Error loading users', 'error');
+        }
+    }
+
+    /**
+     * Load roles for dropdown
+     */
+    async function loadRoles() {
+        debugLog('USERS_CRUD', '=== loadRoles START ===');
+
+        try {
+            const result = await apiCall('roles/list');
+
+            if (result.success && result.data) {
+                rolesData = result.data;
+                populateRoleDropdowns();
+                debugLog('USERS_CRUD', 'OK Loaded', rolesData.length, 'roles');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION loading roles:', error);
+        }
+    }
+
+    /**
+     * Populate role dropdowns
+     */
+    function populateRoleDropdowns() {
+        const filterDropdown = document.getElementById('userRoleFilter');
+        if (!filterDropdown) return;
+
+        // Save current selection
+        const currentValue = filterDropdown.value;
+
+        // Clear and populate
+        filterDropdown.innerHTML = '<option value="">All Roles</option>';
+        rolesData.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.role_id;
+            option.textContent = role.role_name;
+            filterDropdown.appendChild(option);
+        });
+
+        // Restore selection
+        filterDropdown.value = currentValue;
+    }
+
+    /**
+     * Render users table
+     */
+    function renderUsersTable() {
+        debugLog('USERS_CRUD', '=== renderUsersTable START ===');
+
+        if (usersTable) {
+            usersTable.destroy();
+            usersTable = null;
+        }
+
+        const tableEl = document.getElementById('usersTable');
+        if (!tableEl) {
+            debugLog('USERS_CRUD', 'FAIL: usersTable element not found');
+            return;
+        }
+
+        usersTable = $('#usersTable').DataTable({
+            data: usersData,
+            columns: [
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <input type="checkbox" class="user-checkbox" value="${row.user_id}" onchange="UserManager.updateBulkActions()">
+                    `,
+                    orderable: false
+                },
+                { data: 'username' },
+                {
+                    data: 'full_name',
+                    render: (data, type, row) => `
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-sm bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center">
+                                ${data.charAt(0).toUpperCase()}
+                            </div>
+                            <span>${data}</span>
+                        </div>
+                    `
+                },
+                { data: 'email' },
+                {
+                    data: 'role_name',
+                    render: (data) => `<span class="badge bg-info">${data}</span>`
+                },
+                {
+                    data: 'is_active',
+                    render: (data) => data ?
+                        '<span class="badge bg-success">Active</span>' :
+                        '<span class="badge bg-secondary">Inactive</span>'
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => {
+                        const from = row.active_from ? new Date(row.active_from).toLocaleDateString() : 'N/A';
+                        const until = row.active_until ? new Date(row.active_until).toLocaleDateString() : 'Unlimited';
+                        return `${from} - ${until}`;
+                    }
+                },
+                {
+                    data: 'last_login',
+                    render: (data) => data ? new Date(data).toLocaleString() : 'Never'
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('user', '${row.user_id}')" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-info" onclick="UserManager.viewDetails('${row.user_id}')" title="View">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteItem('user', '${row.user_id}')" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[1, 'asc']],
+            pageLength: 25,
+            language: {
+                emptyTable: 'No users found'
+            }
+        });
+
+        debugLog('USERS_CRUD', 'OK Users table rendered');
+    }
+
+    /**
+     * Setup event listeners
+     */
+    function setupEventListeners() {
+        // Search
+        const searchInput = document.getElementById('userSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(function() {
+                filterUsers();
+            }, 300));
+        }
+
+        // Filters
+        const roleFilter = document.getElementById('userRoleFilter');
+        const statusFilter = document.getElementById('userStatusFilter');
+
+        if (roleFilter) roleFilter.addEventListener('change', filterUsers);
+        if (statusFilter) statusFilter.addEventListener('change', filterUsers);
+    }
+
+    /**
+     * Filter users
+     */
+    function filterUsers() {
+        const search = document.getElementById('userSearch').value.toLowerCase();
+        const roleId = document.getElementById('userRoleFilter').value;
+        const status = document.getElementById('userStatusFilter').value;
+
+        let filtered = usersData.filter(user => {
+            const matchSearch = !search ||
+                user.username.toLowerCase().includes(search) ||
+                user.full_name.toLowerCase().includes(search) ||
+                user.email.toLowerCase().includes(search);
+
+            const matchRole = !roleId || user.role_id === roleId;
+            const matchStatus = !status ||
+                (status === 'active' && user.is_active) ||
+                (status === 'inactive' && !user.is_active);
+
+            return matchSearch && matchRole && matchStatus;
+        });
+
+        usersTable.clear();
+        usersTable.rows.add(filtered);
+        usersTable.draw();
+
+        debugLog('USERS_CRUD', 'Filtered to', filtered.length, 'users');
+    }
+
+    /**
+     * Update bulk actions visibility
+     */
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+        const count = checkboxes.length;
+        const bulkCard = document.getElementById('bulkActionsCard');
+        const countEl = document.getElementById('selectedCount');
+
+        if (count > 0) {
+            bulkCard.style.display = 'block';
+            countEl.textContent = count;
+        } else {
+            bulkCard.style.display = 'none';
+        }
+    }
+
+    /**
+     * Toggle select all
+     */
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAllUsers');
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        updateBulkActions();
+    }
+
+    /**
+     * Bulk activate users
+     */
+    async function bulkActivate() {
+        const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+        const userIds = Array.from(checkboxes).map(cb => cb.value);
+
+        debugLog('USERS_CRUD', 'Bulk activate', userIds.length, 'users');
+
+        try {
+            const result = await apiCall('users/bulk-activate', { userIds: userIds });
+
+            if (result.success) {
+                showToast(`Activated ${userIds.length} users successfully`, 'success');
+                loadUsers();
+            } else {
+                showToast('Failed to activate users: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+            showToast('Error activating users', 'error');
+        }
+
+        document.getElementById('bulkActionsCard').style.display = 'none';
+        document.getElementById('selectAllUsers').checked = false;
+    }
+
+    /**
+     * Bulk deactivate users
+     */
+    async function bulkDeactivate() {
+        const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+        const userIds = Array.from(checkboxes).map(cb => cb.value);
+
+        if (!confirm(`Are you sure you want to deactivate ${userIds.length} users?`)) {
+            return;
+        }
+
+        debugLog('USERS_CRUD', 'Bulk deactivate', userIds.length, 'users');
+
+        try {
+            const result = await apiCall('users/bulk-deactivate', { userIds: userIds });
+
+            if (result.success) {
+                showToast(`Deactivated ${userIds.length} users successfully`, 'success');
+                loadUsers();
+            } else {
+                showToast('Failed to deactivate users: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+            showToast('Error deactivating users', 'error');
+        }
+
+        document.getElementById('bulkActionsCard').style.display = 'none';
+        document.getElementById('selectAllUsers').checked = false;
+    }
+
+    /**
+     * Bulk delete users
+     */
+    async function bulkDelete() {
+        const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+        const userIds = Array.from(checkboxes).map(cb => cb.value);
+
+        if (!confirm(`Are you sure you want to DELETE ${userIds.length} users? This action cannot be undone.`)) {
+            return;
+        }
+
+        debugLog('USERS_CRUD', 'Bulk delete', userIds.length, 'users');
+
+        try {
+            const result = await apiCall('users/bulk-delete', { userIds: userIds });
+
+            if (result.success) {
+                showToast(`Deleted ${userIds.length} users successfully`, 'success');
+                loadUsers();
+            } else {
+                showToast('Failed to delete users: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+            showToast('Error deleting users', 'error');
+        }
+
+        document.getElementById('bulkActionsCard').style.display = 'none';
+        document.getElementById('selectAllUsers').checked = false;
+    }
+
+    /**
+     * View user details
+     */
+    async function viewDetails(userId) {
+        debugLog('USERS_CRUD', 'Viewing details for user:', userId);
+
+        try {
+            const result = await apiCall('users/get', { id: userId });
+
+            if (result.success && result.data) {
+                const user = result.data;
+                const details = `
+                    <h5>${user.full_name}</h5>
+                    <p><strong>Username:</strong> ${user.username}</p>
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>Role:</strong> ${user.role_name}</p>
+                    <p><strong>Status:</strong> ${user.is_active ? 'Active' : 'Inactive'}</p>
+                    <p><strong>Active Period:</strong> ${user.active_from || 'N/A'} to ${user.active_until || 'Unlimited'}</p>
+                    <p><strong>Last Login:</strong> ${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</p>
+                `;
+                showModal('User Details', details);
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+        }
+    }
+
+    /**
+     * Debounce utility
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadUsers: loadUsers,
+        updateBulkActions: updateBulkActions,
+        toggleSelectAll: toggleSelectAll,
+        bulkActivate: bulkActivate,
+        bulkDeactivate: bulkDeactivate,
+        bulkDelete: bulkDelete,
+        viewDetails: viewDetails
+    };
+})();
+
+// Auto-initialize
+window.UserManager = UserManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we're on the users page
+    if (document.getElementById('users-view')) {
+        UserManager.init();
+    }
+});
+
+debugLog('USERS_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('users_crud.html');
+}
+</script>

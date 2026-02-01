@@ -1,4 +1,178 @@
 <div id="dashboard-view" class="view-section active">
-    <h2>Dashboard</h2>
-    <p>Welcome to the Strategic Execution Monitoring Application.</p>
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h2 class="card-title mb-2">Welcome to Strategic Execution Monitoring</h2>
+                    <p class="card-text mb-0">Track your organization's strategic goals, KPIs, and performance in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Overall Progress</h6>
+                            <h3 class="mb-0" id="overallProgress">--%</h3>
+                        </div>
+                        <i class="bi bi-graph-up-arrow fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Active KPIs</h6>
+                            <h3 class="mb-0" id="activeKPIs">--</h3>
+                        </div>
+                        <i class="bi bi-speedometer2 fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">OKRs On Track</h6>
+                            <h3 class="mb-0" id="okrsOnTrack">--</h3>
+                        </div>
+                        <i class="bi bi-flag fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">At Risk</h6>
+                            <h3 class="mb-0" id="atRiskCount">--</h3>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- KPI Performance Chart -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>KPI Performance by Perspective</strong>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="DashboardManager.refreshKPIChart()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <canvas id="kpiPerformanceChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goal Progress Chart -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Organizational Goals Progress</strong>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="DashboardManager.refreshGoalChart()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <canvas id="goalProgressChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities & Deadlines -->
+    <div class="row mb-4">
+        <!-- Recent Activities -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong><i class="bi bi-clock-history me-2"></i>Recent Activities</strong>
+                </div>
+                <div class="card-body">
+                    <div id="recentActivities">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <p class="mt-2">Loading activities...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong><i class="bi bi-calendar-event me-2"></i>Upcoming Deadlines</strong>
+                </div>
+                <div class="card-body">
+                    <div id="upcomingDeadlines">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <p class="mt-2">Loading deadlines...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Rankings -->
+    <div class="row">
+        <!-- Top Performing Work Units -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <strong><i class="bi bi-trophy me-2"></i>Top Performing Work Units</strong>
+                </div>
+                <div class="card-body">
+                    <div id="topWorkUnits">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <p class="mt-2">Loading rankings...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impact Centers Status -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <strong><i class="bi bi-bullseye me-2"></i>Impact Centers Status</strong>
+                </div>
+                <div class="card-body">
+                    <div id="impactCentersStatus">
+                        <div class="text-center text-muted">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <p class="mt-2">Loading status...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script src="assets/js/dashboard_widgets.html"></script>

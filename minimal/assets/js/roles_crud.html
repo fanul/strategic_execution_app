@@ -1,0 +1,348 @@
+<script>
+// ============================================================================
+// ROLES CRUD - Role Management Operations
+// ============================================================================
+
+debugLog('ROLES_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('ROLES_CRUD', '║  ROLES CRUD SCRIPT LOADING                         ║');
+debugLog('ROLES_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const RoleManager = (function() {
+    'use strict';
+
+    let rolesTable = null;
+    let rolesData = [];
+
+    // Role templates with predefined permissions
+    const ROLE_TEMPLATES = {
+        super_admin: {
+            role_name: 'Super Administrator',
+            role_code: 'SUPER_ADMIN',
+            description: 'Full system access with all permissions',
+            permissions: {
+                users: { create: true, read: true, update: true, delete: true },
+                roles: { create: true, read: true, update: true, delete: true },
+                organization: { create: true, read: true, update: true, delete: true },
+                strategic: { create: true, read: true, update: true, delete: true },
+                kpi: { create: true, read: true, update: true, delete: true },
+                okr: { create: true, read: true, update: true, delete: true },
+                programs: { create: true, read: true, update: true, delete: true },
+                reports: { create: true, read: true, update: true, delete: true },
+                settings: { create: true, read: true, update: true, delete: true }
+            },
+            is_system_role: true
+        },
+        admin: {
+            role_name: 'Administrator',
+            role_code: 'ADMIN',
+            description: 'Administrative access with most permissions',
+            permissions: {
+                users: { create: true, read: true, update: true, delete: false },
+                roles: { create: false, read: true, update: false, delete: false },
+                organization: { create: true, read: true, update: true, delete: true },
+                strategic: { create: true, read: true, update: true, delete: true },
+                kpi: { create: true, read: true, update: true, delete: true },
+                okr: { create: true, read: true, update: true, delete: true },
+                programs: { create: true, read: true, update: true, delete: true },
+                reports: { create: true, read: true, update: true, delete: true },
+                settings: { create: true, read: true, update: true, delete: false }
+            },
+            is_system_role: true
+        },
+        manager: {
+            role_name: 'Manager',
+            role_code: 'MANAGER',
+            description: 'Can view and edit strategic plans and KPIs',
+            permissions: {
+                users: { create: false, read: true, update: false, delete: false },
+                roles: { create: false, read: false, update: false, delete: false },
+                organization: { create: false, read: true, update: false, delete: false },
+                strategic: { create: true, read: true, update: true, delete: false },
+                kpi: { create: true, read: true, update: true, delete: false },
+                okr: { create: true, read: true, update: true, delete: false },
+                programs: { create: true, read: true, update: true, delete: false },
+                reports: { create: true, read: true, update: true, delete: false },
+                settings: { create: false, read: true, update: false, delete: false }
+            },
+            is_system_role: false
+        },
+        user: {
+            role_name: 'Standard User',
+            role_code: 'USER',
+            description: 'Can view data and manage own OKRs',
+            permissions: {
+                users: { create: false, read: false, update: false, delete: false },
+                roles: { create: false, read: false, update: false, delete: false },
+                organization: { create: false, read: true, update: false, delete: false },
+                strategic: { create: false, read: true, update: false, delete: false },
+                kpi: { create: false, read: true, update: false, delete: false },
+                okr: { create: true, read: true, update: true, delete: false },
+                programs: { create: false, read: true, update: false, delete: false },
+                reports: { create: false, read: true, update: false, delete: false },
+                settings: { create: false, read: false, update: false, delete: false }
+            },
+            is_system_role: false
+        },
+        viewer: {
+            role_name: 'Viewer',
+            role_code: 'VIEWER',
+            description: 'Read-only access to most data',
+            permissions: {
+                users: { create: false, read: false, update: false, delete: false },
+                roles: { create: false, read: false, update: false, delete: false },
+                organization: { create: false, read: true, update: false, delete: false },
+                strategic: { create: false, read: true, update: false, delete: false },
+                kpi: { create: false, read: true, update: false, delete: false },
+                okr: { create: false, read: true, update: false, delete: false },
+                programs: { create: false, read: true, update: false, delete: false },
+                reports: { create: false, read: true, update: false, delete: false },
+                settings: { create: false, read: false, update: false, delete: false }
+            },
+            is_system_role: false
+        }
+    };
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('ROLES_CRUD', '=== init START ===');
+        loadRoles();
+        debugLog('ROLES_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load roles from server
+     */
+    async function loadRoles() {
+        debugLog('ROLES_CRUD', '=== loadRoles START ===');
+
+        try {
+            const result = await apiCall('roles/list');
+
+            if (result.success && result.data) {
+                rolesData = result.data;
+                debugLog('ROLES_CRUD', 'OK Loaded', rolesData.length, 'roles');
+                renderRolesTable();
+            } else {
+                showToast('Failed to load roles: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('ROLES_CRUD', 'EXCEPTION:', error);
+            showToast('Error loading roles', 'error');
+        }
+    }
+
+    /**
+     * Render roles table
+     */
+    function renderRolesTable() {
+        debugLog('ROLES_CRUD', '=== renderRolesTable START ===');
+
+        if (rolesTable) {
+            rolesTable.destroy();
+            rolesTable = null;
+        }
+
+        const tableEl = document.getElementById('rolesTable');
+        if (!tableEl) {
+            debugLog('ROLES_CRUD', 'FAIL: rolesTable element not found');
+            return;
+        }
+
+        rolesTable = $('#rolesTable').DataTable({
+            data: rolesData,
+            columns: [
+                {
+                    data: 'role_name',
+                    render: (data, type, row) => `
+                        <strong>${data}</strong>
+                    `
+                },
+                {
+                    data: 'role_code',
+                    render: (data) => `<code>${data}</code>`
+                },
+                { data: 'description' },
+                {
+                    data: 'users_count',
+                    render: (data) => `<span class="badge bg-primary">${data || 0} users</span>`
+                },
+                {
+                    data: 'is_system_role',
+                    render: (data) => data ?
+                        '<span class="badge bg-warning">System</span>' :
+                        '<span class="badge bg-secondary">Custom</span>'
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('role', '${row.role_id}')" ${row.is_system_role ? 'disabled' : ''} title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-info" onclick="RoleManager.viewPermissions('${row.role_id}')" title="View Permissions">
+                                <i class="bi bi-shield-check"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="RoleManager.cloneRole('${row.role_id}')" title="Clone">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteItem('role', '${row.role_id}')" ${row.is_system_role ? 'disabled' : ''} title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[1, 'asc']],
+            pageLength: 25,
+            language: {
+                emptyTable: 'No roles found'
+            }
+        });
+
+        debugLog('ROLES_CRUD', 'OK Roles table rendered');
+    }
+
+    /**
+     * Create role from template
+     */
+    async function createFromTemplate(templateKey) {
+        const template = ROLE_TEMPLATES[templateKey];
+        if (!template) {
+            showToast('Invalid template', 'error');
+            return;
+        }
+
+        debugLog('ROLES_CRUD', 'Creating role from template:', templateKey);
+
+        try {
+            const result = await apiCall('roles/create', template);
+
+            if (result.success) {
+                showToast(`Role "${template.role_name}" created successfully`, 'success');
+                loadRoles();
+            } else {
+                showToast('Failed to create role: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('ROLES_CRUD', 'EXCEPTION:', error);
+            showToast('Error creating role', 'error');
+        }
+    }
+
+    /**
+     * View role permissions
+     */
+    async function viewPermissions(roleId) {
+        debugLog('ROLES_CRUD', 'Viewing permissions for role:', roleId);
+
+        try {
+            const result = await apiCall('roles/get', { id: roleId });
+
+            if (result.success && result.data) {
+                const role = result.data;
+                const permissions = JSON.parse(role.permissions || '{}');
+
+                let html = `
+                    <h5>${role.role_name} Permissions</h5>
+                    <p class="text-muted">${role.description}</p>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Module</th>
+                                <th>Create</th>
+                                <th>Read</th>
+                                <th>Update</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                const modules = Object.keys(permissions);
+                modules.forEach(module => {
+                    const perms = permissions[module];
+                    html += `
+                        <tr>
+                            <td><strong>${module.charAt(0).toUpperCase() + module.slice(1)}</strong></td>
+                            <td>${perms.create ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-danger"></i>'}</td>
+                            <td>${perms.read ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-danger"></i>'}</td>
+                            <td>${perms.update ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-danger"></i>'}</td>
+                            <td>${perms.delete ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-danger"></i>'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+
+                showModal('Role Permissions', html);
+            }
+        } catch (error) {
+            debugLog('ROLES_CRUD', 'EXCEPTION:', error);
+        }
+    }
+
+    /**
+     * Clone role
+     */
+    async function cloneRole(roleId) {
+        debugLog('ROLES_CRUD', 'Cloning role:', roleId);
+
+        try {
+            const result = await apiCall('roles/get', { id: roleId });
+
+            if (result.success && result.data) {
+                const original = result.data;
+                const clone = {
+                    role_name: original.role_name + ' (Copy)',
+                    role_code: original.role_code + '_COPY',
+                    description: original.description + ' (Cloned)',
+                    permissions: original.permissions,
+                    is_system_role: false
+                };
+
+                const createResult = await apiCall('roles/create', clone);
+
+                if (createResult.success) {
+                    showToast('Role cloned successfully', 'success');
+                    loadRoles();
+                } else {
+                    showToast('Failed to clone role: ' + createResult.message, 'error');
+                }
+            }
+        } catch (error) {
+            debugLog('ROLES_CRUD', 'EXCEPTION:', error);
+            showToast('Error cloning role', 'error');
+        }
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadRoles: loadRoles,
+        createFromTemplate: createFromTemplate,
+        viewPermissions: viewPermissions,
+        cloneRole: cloneRole
+    };
+})();
+
+// Auto-initialize
+window.RoleManager = RoleManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we're on the roles page
+    if (document.getElementById('roles-view')) {
+        RoleManager.init();
+    }
+});
+
+debugLog('ROLES_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('roles_crud.html');
+}
+</script>
