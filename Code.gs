@@ -12,7 +12,10 @@
  */
 function renderTemplate(filename, data) {
   try {
-    const template = HtmlService.createTemplateFromFile(filename);
+    // Automatically add 'minimal/' prefix if not already present
+    const templateName = filename.indexOf('minimal/') === 0 ? filename : 'minimal/' + filename;
+
+    const template = HtmlService.createTemplateFromFile(templateName);
     // Copy all data properties to template
     if (data) {
       Object.keys(data).forEach(function(key) {
