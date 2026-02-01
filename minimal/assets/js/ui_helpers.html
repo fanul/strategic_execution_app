@@ -67,8 +67,22 @@ function debugFindSpinners() {
 // Show Toast
 function showToast(message, type = 'info') {
     const toastEl = document.getElementById('liveToast');
-    document.getElementById('toastTitle').textContent = type.charAt(0).toUpperCase() + type.slice(1);
-    document.getElementById('toastMessage').textContent = message;
+    if (!toastEl) {
+        debugLog('UI', 'FAIL: Toast element not found');
+        return;
+    }
+
+    const toastTitle = document.getElementById('toastTitle');
+    const toastMessage = document.getElementById('toastMessage');
+
+    if (!toastTitle || !toastMessage) {
+        debugLog('UI', 'FAIL: Toast title or message element not found');
+        return;
+    }
+
+    toastTitle.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    toastMessage.textContent = message;
+
     const toast = new bootstrap.Toast(toastEl);
     toast.show();
 }

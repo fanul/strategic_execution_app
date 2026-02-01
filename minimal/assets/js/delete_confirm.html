@@ -4,6 +4,9 @@
 // Handles delete operations with children checking and cascade/reassign options
 // ============================================================================
 
+// Prevent duplicate event handlers
+let deleteConfirmHandlersSetup = false;
+
 // Store current delete operation context
 let deleteContext = {
     type: null,
@@ -317,29 +320,48 @@ async function showDeleteWithChildren(type, itemName, children, id) {
 }
 
 // Handle delete option change
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'deleteOption') {
-        const reassignSection = document.getElementById('reassignSection');
-        if (e.target.value === 'reassign') {
-            reassignSection.style.display = 'block';
-            deleteContext.mode = 'reassign';
-        } else {
-            reassignSection.style.display = 'none';
-            deleteContext.mode = 'cascade';
-        }
+function setupDeleteConfirmHandlers() {
+    if (deleteConfirmHandlersSetup) {
+        debugLog('DELETE_CONFIRM', 'Handlers already setup, skipping');
+        return;
     }
-});
 
-// Clean up Select2 when delete modal is closed
-document.addEventListener('hidden.bs.modal', function(e) {
-    if (e.target.id === 'deleteConfirmModal') {
-        const reassignSelect = document.getElementById('reassignTarget');
-        if (typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
-            $(reassignSelect).select2('destroy');
-            debugLog('DELETE', 'Select2 destroyed on modal close');
+    document.addEventListener('change', function deleteOptionHandler(e) {
+        if (e.target.name === 'deleteOption') {
+            const reassignSection = document.getElementById('reassignSection');
+            if (!reassignSection) return;
+
+            if (e.target.value === 'reassign') {
+                reassignSection.style.display = 'block';
+                deleteContext.mode = 'reassign';
+            } else {
+                reassignSection.style.display = 'none';
+                deleteContext.mode = 'cascade';
+            }
         }
-    }
-});
+    });
+
+    // Clean up Select2 when delete modal is closed
+    document.addEventListener('hidden.bs.modal', function modalCloseHandler(e) {
+        if (e.target.id === 'deleteConfirmModal') {
+            const reassignSelect = document.getElementById('reassignTarget');
+            if (reassignSelect && typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
+                $(reassignSelect).select2('destroy');
+                debugLog('DELETE_CONFIRM', 'Select2 destroyed on modal close');
+            }
+        }
+    });
+
+    deleteConfirmHandlersSetup = true;
+    debugLog('DELETE_CONFIRM', 'Delete confirm handlers setup complete');
+}
+
+// Setup handlers when script loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupDeleteConfirmHandlers);
+} else {
+    setupDeleteConfirmHandlers();
+}
 
 // Execute the delete operation
 async function executeDelete() {

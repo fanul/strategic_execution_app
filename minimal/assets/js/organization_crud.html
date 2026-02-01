@@ -4,16 +4,32 @@
 // This file contains CRUD operations specific to the Organization page
 // ============================================================================
 
+// Prevent duplicate event handlers
+let organizationCrudHandlersSetup = false;
+
 // Save Directorate
 async function saveDirectorate() {
     debugLog('CRUD', '=== saveDirectorate START ===');
 
+    // Get form elements
+    const idEl = document.getElementById('directorate_id');
+    const codeEl = document.getElementById('directorate_code');
+    const nameEl = document.getElementById('directorate_name');
+    const descEl = document.getElementById('description');
+
+    // Defensive checks
+    if (!codeEl || !nameEl || !descEl) {
+        debugLog('CRUD', 'FAIL: Required form elements not found');
+        showToast('Form not properly initialized. Please try again.', 'error');
+        return;
+    }
+
     // Get form values
-    const id = document.getElementById('directorate_id').value;
+    const id = idEl ? idEl.value : '';
     const data = {
-        directorate_code: document.getElementById('directorate_code').value,
-        directorate_name: document.getElementById('directorate_name').value,
-        description: document.getElementById('description').value
+        directorate_code: codeEl.value,
+        directorate_name: nameEl.value,
+        description: descEl.value
     };
 
     const formData = { id: id };
@@ -60,7 +76,7 @@ async function saveDirectorate() {
         debugLog('CRUD', 'OK Directorates table refreshed');
 
         // Reload diagram if active
-        if (currentView === 'diagram' && typeof OrgDiagram !== 'undefined') {
+        if (ViewToggle.getCurrentView() === 'diagram' && typeof OrgDiagram !== 'undefined') {
             debugLog('CRUD', 'Reloading diagram after directorate save');
             await OrgDiagram.reload();
         }
@@ -76,11 +92,24 @@ async function saveDirectorate() {
 async function saveWorkUnit() {
     debugLog('CRUD', '=== saveWorkUnit START ===');
 
-    const id = document.getElementById('work_unit_id').value;
+    // Get form elements
+    const idEl = document.getElementById('work_unit_id');
+    const codeEl = document.getElementById('work_unit_code');
+    const nameEl = document.getElementById('work_unit_name');
+    const directorateEl = document.getElementById('directorate_id_select');
+
+    // Defensive checks
+    if (!codeEl || !nameEl || !directorateEl) {
+        debugLog('CRUD', 'FAIL: Required form elements not found');
+        showToast('Form not properly initialized. Please try again.', 'error');
+        return;
+    }
+
+    const id = idEl ? idEl.value : '';
     const data = {
-        work_unit_code: document.getElementById('work_unit_code').value,
-        work_unit_name: document.getElementById('work_unit_name').value,
-        directorate_id: document.getElementById('directorate_id_select').value
+        work_unit_code: codeEl.value,
+        work_unit_name: nameEl.value,
+        directorate_id: directorateEl.value
     };
 
     const formData = { id: id };
@@ -118,7 +147,7 @@ async function saveWorkUnit() {
         debugLog('CRUD', 'OK Work Units table refreshed');
 
         // Reload diagram if active
-        if (currentView === 'diagram' && typeof OrgDiagram !== 'undefined') {
+        if (ViewToggle.getCurrentView() === 'diagram' && typeof OrgDiagram !== 'undefined') {
             debugLog('CRUD', 'Reloading diagram after work unit save');
             await OrgDiagram.reload();
         }
@@ -134,11 +163,24 @@ async function saveWorkUnit() {
 async function saveAffair() {
     debugLog('CRUD', '=== saveAffair START ===');
 
-    const id = document.getElementById('affair_id').value;
+    // Get form elements
+    const idEl = document.getElementById('affair_id');
+    const codeEl = document.getElementById('affair_code');
+    const nameEl = document.getElementById('affair_name');
+    const workUnitEl = document.getElementById('work_unit_id_select');
+
+    // Defensive checks
+    if (!codeEl || !nameEl || !workUnitEl) {
+        debugLog('CRUD', 'FAIL: Required form elements not found');
+        showToast('Form not properly initialized. Please try again.', 'error');
+        return;
+    }
+
+    const id = idEl ? idEl.value : '';
     const data = {
-        affair_code: document.getElementById('affair_code').value,
-        affair_name: document.getElementById('affair_name').value,
-        work_unit_id: document.getElementById('work_unit_id_select').value
+        affair_code: codeEl.value,
+        affair_name: nameEl.value,
+        work_unit_id: workUnitEl.value
     };
 
     const formData = { id: id };
@@ -176,7 +218,7 @@ async function saveAffair() {
         debugLog('CRUD', 'OK Affairs table refreshed');
 
         // Reload diagram if active
-        if (currentView === 'diagram' && typeof OrgDiagram !== 'undefined') {
+        if (ViewToggle.getCurrentView() === 'diagram' && typeof OrgDiagram !== 'undefined') {
             debugLog('CRUD', 'Reloading diagram after affair save');
             await OrgDiagram.reload();
         }
@@ -192,12 +234,26 @@ async function saveAffair() {
 async function savePosition() {
     debugLog('CRUD', '=== savePosition START ===');
 
-    const id = document.getElementById('position_id').value;
+    // Get form elements
+    const idEl = document.getElementById('position_id');
+    const codeEl = document.getElementById('position_code');
+    const nameEl = document.getElementById('position_name');
+    const levelEl = document.getElementById('position_level');
+    const workUnitEl = document.getElementById('position_work_unit_id_select');
+
+    // Defensive checks
+    if (!codeEl || !nameEl || !levelEl || !workUnitEl) {
+        debugLog('CRUD', 'FAIL: Required form elements not found');
+        showToast('Form not properly initialized. Please try again.', 'error');
+        return;
+    }
+
+    const id = idEl ? idEl.value : '';
     const data = {
-        position_code: document.getElementById('position_code').value,
-        position_name: document.getElementById('position_name').value,
-        position_level: document.getElementById('position_level').value,
-        work_unit_id: document.getElementById('position_work_unit_id_select').value
+        position_code: codeEl.value,
+        position_name: nameEl.value,
+        position_level: levelEl.value,
+        work_unit_id: workUnitEl.value
     };
 
     const formData = { id: id };
@@ -235,7 +291,7 @@ async function savePosition() {
         debugLog('CRUD', 'OK Positions table refreshed');
 
         // Reload diagram if active
-        if (currentView === 'diagram' && typeof OrgDiagram !== 'undefined') {
+        if (ViewToggle.getCurrentView() === 'diagram' && typeof OrgDiagram !== 'undefined') {
             debugLog('CRUD', 'Reloading diagram after position save');
             await OrgDiagram.reload();
         }
@@ -565,31 +621,50 @@ async function showDeleteWithChildren(type, itemName, children, id) {
 }
 
 // Handle delete option change
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'deleteOption') {
-        const reassignSection = document.getElementById('reassignSection');
-        if (e.target.value === 'reassign') {
-            reassignSection.style.display = 'block';
-            deleteContext.mode = 'reassign';
-        } else {
-            reassignSection.style.display = 'none';
-            deleteContext.mode = 'cascade';
-        }
+function setupDeleteOptionHandlers() {
+    if (organizationCrudHandlersSetup) {
+        debugLog('DELETE', 'Handlers already setup, skipping');
+        return;
     }
-});
 
-// Hide loading overlay when delete modal is closed (cancel or X button)
-document.addEventListener('hidden.bs.modal', function(e) {
-    if (e.target.id === 'deleteConfirmModal') {
-        // Clean up Select2
-        const reassignSelect = document.getElementById('reassignTarget');
-        if (typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
-            $(reassignSelect).select2('destroy');
-            debugLog('DELETE', 'Select2 destroyed on modal close');
+    document.addEventListener('change', function deleteOptionHandler(e) {
+        if (e.target.name === 'deleteOption') {
+            const reassignSection = document.getElementById('reassignSection');
+            if (!reassignSection) return;
+
+            if (e.target.value === 'reassign') {
+                reassignSection.style.display = 'block';
+                deleteContext.mode = 'reassign';
+            } else {
+                reassignSection.style.display = 'none';
+                deleteContext.mode = 'cascade';
+            }
         }
-        hideDeleteLoading('modalClosed');
-    }
-});
+    });
+
+    // Hide loading overlay when delete modal is closed (cancel or X button)
+    document.addEventListener('hidden.bs.modal', function modalCloseHandler(e) {
+        if (e.target.id === 'deleteConfirmModal') {
+            // Clean up Select2
+            const reassignSelect = document.getElementById('reassignTarget');
+            if (reassignSelect && typeof $ !== 'undefined' && $(reassignSelect).data('select2')) {
+                $(reassignSelect).select2('destroy');
+                debugLog('DELETE', 'Select2 destroyed on modal close');
+            }
+            hideDeleteLoading('modalClosed');
+        }
+    });
+
+    organizationCrudHandlersSetup = true;
+    debugLog('DELETE', 'Delete option handlers setup complete');
+}
+
+// Setup handlers when script loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupDeleteOptionHandlers);
+} else {
+    setupDeleteOptionHandlers();
+}
 
 // Execute the delete operation
 window.executeDelete = async function() {

@@ -1,0 +1,372 @@
+<script>
+// ============================================================================
+// AUTH - Authentication and Session Management
+// ============================================================================
+
+debugLog('AUTH', '╔════════════════════════════════════════════════════╗');
+debugLog('AUTH', '║  AUTHENTICATION SCRIPT LOADING                      ║');
+debugLog('AUTH', '╚════════════════════════════════════════════════════╝');
+
+// Initialize the Auth module
+const Auth = (function() {
+    'use strict';
+
+    // Private state
+    let sessionToken = null;
+    let currentUser = null;
+    let sessionCheckInterval = null;
+
+    // Session storage keys
+    const STORAGE_KEYS = {
+        SESSION_TOKEN: 'auth_session_token',
+        REMEMBER_ME: 'auth_remember_me',
+        LAST_LOGIN: 'auth_last_login'
+    };
+
+    /**
+     * Initialize authentication
+     */
+    function init() {
+        debugLog('AUTH', '=== init START ===');
+
+        // Check for existing session
+        const storedToken = localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN);
+        if (storedToken) {
+            debugLog('AUTH', 'Found stored session token, validating...');
+            validateAndRestoreSession(storedToken);
+        }
+
+        // Setup session timeout check
+        setupSessionMonitor();
+
+        debugLog('AUTH', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Handle login form submission
+     */
+    async function handleLogin(event) {
+        event.preventDefault();
+
+        debugLog('AUTH', '=== handleLogin START ===');
+
+        const form = event.target;
+        const username = form.username.value.trim();
+        const password = form.password.value;
+        const rememberMe = form.rememberMe.checked;
+
+        // Validate inputs
+        if (!username || !password) {
+            showLoginError('Please enter both username and password');
+            return;
+        }
+
+        // Show loading state
+        setLoginButtonLoading(true);
+        hideLoginError();
+        hideLoginSuccess();
+
+        try {
+            // Call login API
+            const response = await apiCall('auth/login', {
+                usernameOrEmail: username,
+                password: password
+            });
+
+            if (response.success && response.data) {
+                debugLog('AUTH', 'OK Login successful');
+
+                // Store session token
+                sessionToken = response.data.sessionToken;
+                currentUser = response.data.user;
+
+                if (rememberMe) {
+                    localStorage.setItem(STORAGE_KEYS.SESSION_TOKEN, sessionToken);
+                    localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, 'true');
+                } else {
+                    sessionStorage.setItem(STORAGE_KEYS.SESSION_TOKEN, sessionToken);
+                }
+
+                // Store last login time
+                localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, new Date().toISOString());
+
+                // Show success message
+                showLoginSuccess('Login successful! Redirecting...');
+
+                // Redirect to dashboard after short delay
+                setTimeout(() => {
+                    window.location.href = '?page=dashboard';
+                }, 1000);
+
+            } else {
+                debugLog('AUTH', 'FAIL Login failed:', response.message);
+                showLoginError(response.message || 'Login failed. Please try again.');
+            }
+
+        } catch (error) {
+            debugLog('AUTH', 'EXCEPTION during login:', error);
+            showLoginError('An error occurred during login. Please try again.');
+        } finally {
+            setLoginButtonLoading(false);
+        }
+    }
+
+    /**
+     * Handle logout
+     */
+    async function logout() {
+        debugLog('AUTH', '=== logout START ===');
+
+        try {
+            // Call logout API
+            if (sessionToken) {
+                await apiCall('auth/logout', { sessionToken: sessionToken });
+            }
+
+            // Clear local storage
+            localStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
+            sessionStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
+            localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+
+            // Clear state
+            sessionToken = null;
+            currentUser = null;
+
+            debugLog('AUTH', 'OK Logout successful');
+
+            // Redirect to login
+            window.location.href = '?page=login';
+
+        } catch (error) {
+            debugLog('AUTH', 'EXCEPTION during logout:', error);
+            // Even if API call fails, clear local session
+            sessionToken = null;
+            currentUser = null;
+            localStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
+            window.location.href = '?page=login';
+        }
+    }
+
+    /**
+     * Validate and restore existing session
+     */
+    async function validateAndRestoreSession(token) {
+        try {
+            const response = await apiCall('auth/validate', { sessionToken: token });
+
+            if (response.success && response.data) {
+                sessionToken = token;
+                currentUser = response.data;
+                debugLog('AUTH', 'OK Session restored for user:', currentUser.username);
+                return true;
+            } else {
+                // Invalid token, clear it
+                localStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
+                sessionStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
+                debugLog('AUTH', 'FAIL Invalid session token, cleared');
+                return false;
+            }
+        } catch (error) {
+            debugLog('AUTH', 'EXCEPTION validating session:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Setup session timeout monitor
+     */
+    function setupSessionMonitor() {
+        // Check session validity every 5 minutes
+        if (sessionCheckInterval) {
+            clearInterval(sessionCheckInterval);
+        }
+
+        sessionCheckInterval = setInterval(() => {
+            if (sessionToken && currentUser) {
+                debugLog('AUTH', 'Session check: User still logged in');
+                // Optionally validate session with server
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    /**
+     * Get current user
+     */
+    function getCurrentUser() {
+        return currentUser;
+    }
+
+    /**
+     * Get session token
+     */
+    function getSessionToken() {
+        return sessionToken;
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+        return sessionToken !== null && currentUser !== null;
+    }
+
+    /**
+     * Check if user has permission
+     */
+    function hasPermission(module, action) {
+        if (!currentUser || !currentUser.role || !currentUser.role.permissions) {
+            return false;
+        }
+
+        const permissions = currentUser.role.permissions;
+        return permissions[module] && permissions[module][action] === true;
+    }
+
+    /**
+     * Show login error
+     */
+    function showLoginError(message) {
+        const errorEl = document.getElementById('loginError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('d-none');
+        }
+    }
+
+    /**
+     * Hide login error
+     */
+    function hideLoginError() {
+        const errorEl = document.getElementById('loginError');
+        if (errorEl) {
+            errorEl.classList.add('d-none');
+        }
+    }
+
+    /**
+     * Show login success
+     */
+    function showLoginSuccess(message) {
+        const successEl = document.getElementById('loginSuccess');
+        if (successEl) {
+            successEl.textContent = message;
+            successEl.classList.remove('d-none');
+        }
+    }
+
+    /**
+     * Hide login success
+     */
+    function hideLoginSuccess() {
+        const successEl = document.getElementById('loginSuccess');
+        if (successEl) {
+            successEl.classList.add('d-none');
+        }
+    }
+
+    /**
+     * Set login button loading state
+     */
+    function setLoginButtonLoading(isLoading) {
+        const btn = document.getElementById('loginBtn');
+        if (!btn) return;
+
+        const spinner = btn.querySelector('.spinner-border');
+        const text = btn.querySelector('.btn-text');
+
+        if (isLoading) {
+            btn.disabled = true;
+            if (spinner) spinner.classList.remove('d-none');
+            if (text) text.textContent = 'Signing In...';
+        } else {
+            btn.disabled = false;
+            if (spinner) spinner.classList.add('d-none');
+            if (text) text.textContent = 'Sign In';
+        }
+    }
+
+    /**
+     * Handle forgot password
+     */
+    async function handleForgotPassword(event) {
+        event.preventDefault();
+        // TODO: Implement forgot password flow
+        debugLog('AUTH', 'Forgot password not yet implemented');
+    }
+
+    /**
+     * Toggle password visibility
+     */
+    function togglePasswordVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(inputId + '-toggle-icon');
+
+        if (!input) return;
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+    }
+
+    /**
+     * Destroy auth module (cleanup)
+     */
+    function destroy() {
+        if (sessionCheckInterval) {
+            clearInterval(sessionCheckInterval);
+            sessionCheckInterval = null;
+        }
+        debugLog('AUTH', 'Auth module destroyed');
+    }
+
+    // Public API
+    return {
+        init: init,
+        handleLogin: handleLogin,
+        logout: logout,
+        getCurrentUser: getCurrentUser,
+        getSessionToken: getSessionToken,
+        isAuthenticated: isAuthenticated,
+        hasPermission: hasPermission,
+        handleForgotPassword: handleForgotPassword,
+        togglePasswordVisibility: togglePasswordVisibility,
+        destroy: destroy
+    };
+})();
+
+// Make functions globally available for onclick handlers
+window.handleLogin = Auth.handleLogin;
+window.logout = Auth.logout;
+window.handleForgotPassword = Auth.handleForgotPassword;
+window.togglePasswordVisibility = Auth.togglePasswordVisibility;
+
+// Auto-initialize on page load
+window.addEventListener('DOMContentLoaded', function() {
+    debugLog('AUTH', 'Auth script loaded, waiting for DOMContentLoaded');
+    Auth.init();
+});
+
+// Log initialization complete
+debugLog('AUTH', '═══════════════════════════════════════════════════');
+debugLog('AUTH', 'SCRIPT LOADING COMPLETE');
+debugLog('AUTH', 'Verifying global functions:');
+debugLog('AUTH', '  - typeof window.handleLogin: ' + typeof window.handleLogin);
+debugLog('AUTH', '  - typeof window.logout: ' + typeof window.logout);
+debugLog('AUTH', '  - typeof window.togglePasswordVisibility: ' + typeof window.togglePasswordVisibility);
+debugLog('AUTH', '═══════════════════════════════════════════════════');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('auth.html');
+}
+</script>

@@ -18,7 +18,13 @@ function navigateToPage(pageName) {
         .then(async response => {
             if (response.success) {
                 // Update main content
-                document.getElementById('main-content').innerHTML = response.data.content;
+                const mainContent = document.getElementById('main-content');
+                if (!mainContent) {
+                    showToast('Critical error: Main content container not found', 'error');
+                    debugLog('AJAX', 'FAIL: main-content element not found');
+                    return;
+                }
+                mainContent.innerHTML = response.data.content;
 
                 // Update modals container
                 const modalContainer = document.getElementById('page-modals');
@@ -80,43 +86,55 @@ function executeScripts(scriptHTML) {
         return;
     }
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = scriptHTML;
+    try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = scriptHTML;
 
-    const scripts = tempDiv.querySelectorAll('script');
-    debugLog('AJAX', 'Found ' + scripts.length + ' script tags to execute');
+        const scripts = tempDiv.querySelectorAll('script');
+        debugLog('AJAX', 'Found ' + scripts.length + ' script tags to execute');
 
-    // Execute scripts using direct injection (GAS compatible)
-    // In GAS environment, script.onload events are unreliable, so we inject synchronously
-    scripts.forEach((oldScript, index) => {
-        debugLog('AJAX', 'Executing script ' + (index + 1) + ' of ' + scripts.length);
+        // Execute scripts using direct injection (GAS compatible)
+        // In GAS environment, script.onload events are unreliable, so we inject synchronously
+        scripts.forEach((oldScript, index) => {
+            debugLog('AJAX', 'Executing script ' + (index + 1) + ' of ' + scripts.length);
 
-        // Create new script element
-        const newScript = document.createElement('script');
+            try {
+                // Create new script element
+                const newScript = document.createElement('script');
 
-        // Copy all attributes
-        Array.from(oldScript.attributes).forEach(attr => {
-            newScript.setAttribute(attr.name, attr.value);
+                // Copy all attributes
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+
+                // Set script content directly
+                newScript.textContent = oldScript.textContent;
+
+                // Log script content preview
+                const scriptPreview = oldScript.textContent.substring(0, 100).replace(/\n/g, ' ');
+                debugLog('AJAX', 'Script ' + (index + 1) + ' preview: ' + scriptPreview + '...');
+
+                // Inject script - will execute immediately in GAS environment
+                document.body.appendChild(newScript);
+
+                debugLog('AJAX', 'OK Script ' + (index + 1) + ' executed');
+            } catch (scriptError) {
+                debugLog('AJAX', 'FAIL Error executing script ' + (index + 1) + ':', scriptError);
+                // Continue with remaining scripts even if one fails
+            }
         });
 
-        // Set script content directly
-        newScript.textContent = oldScript.textContent;
+        debugLog('AJAX', '=== executeScripts COMPLETE ===');
+        debugLog('AJAX', 'Verifying loaded functions:');
+        debugLog('AJAX', '  - typeof switchView: ' + typeof switchView);
+        debugLog('AJAX', '  - typeof OrgDiagram: ' + typeof OrgDiagram);
+        debugLog('AJAX', '  - typeof OrganizationManager: ' + typeof OrganizationManager);
 
-        // Log script content preview
-        const scriptPreview = oldScript.textContent.substring(0, 100).replace(/\n/g, ' ');
-        debugLog('AJAX', 'Script ' + (index + 1) + ' preview: ' + scriptPreview + '...');
-
-        // Inject script - will execute immediately in GAS environment
-        document.body.appendChild(newScript);
-
-        debugLog('AJAX', 'Script ' + (index + 1) + ' executed');
-    });
-
-    debugLog('AJAX', '=== executeScripts COMPLETE ===');
-    debugLog('AJAX', 'Verifying loaded functions:');
-    debugLog('AJAX', '  - typeof switchView: ' + typeof switchView);
-    debugLog('AJAX', '  - typeof OrgDiagram: ' + typeof OrgDiagram);
-    debugLog('AJAX', '  - typeof OrganizationManager: ' + typeof OrganizationManager);
+    } catch (error) {
+        debugLog('AJAX', 'EXCEPTION Fatal error in executeScripts:', error);
+        showToast('Error loading page scripts. Some features may not work properly.', 'warning');
+        throw error; // Re-throw so caller can handle it
+    }
 }
 
 // Initialize page-specific functionality
