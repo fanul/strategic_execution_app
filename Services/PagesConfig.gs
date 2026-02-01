@@ -105,8 +105,8 @@ var PagesConfig = {
         swot: {
             title: 'SWOT Analysis',
             template: 'minimal/pages/swot.html',
-            scripts: [],
-            modals: ''
+            scripts: ['assets/js/swot_crud.html'],
+            modals: 'layout/modals/swot_modals.html'
         },
 
         notifications: {

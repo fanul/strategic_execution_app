@@ -5,52 +5,150 @@
             <h2 class="mb-1">SWOT Analysis</h2>
             <p class="text-muted mb-0">Strategic Strengths, Weaknesses, Opportunities, and Threats analysis</p>
         </div>
-        <button class="btn btn-primary" onclick="alert('SWOT Analysis feature coming soon! Full implementation will include: Matrix editor, goal linking, impact scoring, and export capabilities.')">
-            <i class="bi bi-plus-circle me-2"></i>New SWOT
-        </button>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="SWOTManager.exportSWOT()">
+                <i class="bi bi-download me-2"></i>Export
+            </button>
+        </div>
     </div>
 
-    <!-- SWOT Matrix Placeholder -->
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-diagram-3-fill fs-1 text-muted"></i>
-            <h4 class="mt-3">SWOT Analysis Module</h4>
-            <p class="text-muted">This feature is currently being implemented. The complete SWOT module will include:</p>
-            <div class="row mt-4">
+    <!-- Goal Selection -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
                 <div class="col-md-6">
-                    <div class="card bg-success bg-opacity-10 mb-3">
-                        <div class="card-body">
-                            <h5>Strengths</h5>
-                            <p class="small text-muted">Internal positive factors</p>
-                        </div>
-                    </div>
+                    <label for="swotGoalSelect" class="form-label">Select Organizational Goal</label>
+                    <select id="swotGoalSelect" class="form-select">
+                        <option value="">-- Select Goal --</option>
+                    </select>
                 </div>
                 <div class="col-md-6">
-                    <div class="card bg-danger bg-opacity-10 mb-3">
-                        <div class="card-body">
-                            <h5>Weaknesses</h5>
-                            <p class="small text-muted">Internal negative factors</p>
-                        </div>
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Select a goal to view and manage its SWOT analysis
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Analysis -->
+    <div class="card mb-4" id="swotImpactAnalysis">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Impact Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="text-center text-muted py-3">
+                <small>Select a goal to view impact analysis</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- SWOT Matrix -->
+    <div class="row mb-4">
+        <!-- Strengths -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-success">
+                <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Strengths</h5>
+                        <small class="text-muted">Internal positive factors</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-success" id="strengthCount">0</span>
+                        <button class="btn btn-sm btn-success ms-2" onclick="SWOTManager.showAddModal('strength')">
+                            <i class="bi bi-plus"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card bg-info bg-opacity-10 mb-3">
-                        <div class="card-body">
-                            <h5>Opportunities</h5>
-                            <p class="small text-muted">External positive factors</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card bg-warning bg-opacity-10 mb-3">
-                        <div class="card-body">
-                            <h5>Threats</h5>
-                            <p class="small text-muted">External negative factors</p>
-                        </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotStrength">
+                    <div class="text-center text-muted py-3">
+                        <small>No strengths added</small>
                     </div>
                 </div>
             </div>
-            <p class="mt-4"><strong>Note:</strong> Backend SWOTController.gs already exists. Frontend implementation is in progress.</p>
+        </div>
+
+        <!-- Weaknesses -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-danger">
+                <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0"><i class="bi bi-dash-circle me-2"></i>Weaknesses</h5>
+                        <small class="text-muted">Internal negative factors</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-danger" id="weaknessCount">0</span>
+                        <button class="btn btn-sm btn-danger ms-2" onclick="SWOTManager.showAddModal('weakness')">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotWeakness">
+                    <div class="text-center text-muted py-3">
+                        <small>No weaknesses added</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Opportunities -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-info">
+                <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Opportunities</h5>
+                        <small class="text-muted">External positive factors</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-info" id="opportunityCount">0</span>
+                        <button class="btn btn-sm btn-info ms-2" onclick="SWOTManager.showAddModal('opportunity')">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotOpportunity">
+                    <div class="text-center text-muted py-3">
+                        <small>No opportunities added</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Threats -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-warning">
+                <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Threats</h5>
+                        <small class="text-muted">External negative factors</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-warning" id="threatCount">0</span>
+                        <button class="btn btn-sm btn-warning ms-2" onclick="SWOTManager.showAddModal('threat')">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotThreat">
+                    <div class="text-center text-muted py-3">
+                        <small>No threats added</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOWS Strategic Analysis -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>TOWS Strategic Analysis</h5>
+            <small class="text-muted">Automatically generated strategies based on SWOT combinations</small>
+        </div>
+        <div class="card-body" id="towsStrategiesContent">
+            <div class="text-center text-muted py-3">
+                <small>Select a goal and add SWOT items to generate strategies</small>
+            </div>
         </div>
     </div>
 </div>

@@ -1,0 +1,522 @@
+<script>
+// ============================================================================
+// SWOT ANALYSIS CRUD - SWOT Management Operations
+// ============================================================================
+
+debugLog('SWOT_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('SWOT_CRUD', '║  SWOT CRUD SCRIPT LOADING                          ║');
+debugLog('SWOT_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const SWOTManager = (function() {
+    'use strict';
+
+    let swotData = {
+        matrix: { strength: [], weakness: [], opportunity: [], threat: [] },
+        strategies: [],
+        impactAnalysis: null
+    };
+    let selectedGoalId = null;
+    let goalsList = [];
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('SWOT_CRUD', '=== init START ===');
+        loadGoals();
+        setupEventListeners();
+        debugLog('SWOT_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Setup event listeners
+     */
+    function setupEventListeners() {
+        const goalSelect = document.getElementById('swotGoalSelect');
+        if (goalSelect) {
+            goalSelect.addEventListener('change', function() {
+                selectedGoalId = this.value;
+                if (selectedGoalId) {
+                    loadSWOTMatrix(selectedGoalId);
+                }
+            });
+        }
+    }
+
+    /**
+     * Load goals for dropdown
+     */
+    async function loadGoals() {
+        debugLog('SWOT_CRUD', 'Loading goals...');
+
+        try {
+            const result = await apiCall('strategic/goals');
+
+            if (result.success && result.data) {
+                goalsList = Array.isArray(result.data) ? result.data : [result.data];
+                renderGoalOptions();
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION loading goals:', error);
+        }
+    }
+
+    /**
+     * Render goal options
+     */
+    function renderGoalOptions() {
+        const select = document.getElementById('swotGoalSelect');
+        if (!select) return;
+
+        const html = '<option value="">-- Select Goal --</option>' +
+            goalsList.map(goal =>
+                `<option value="${goal.goal_id}">${goal.goal_code || ''} - ${goal.title}</option>`
+            ).join('');
+
+        select.innerHTML = html;
+    }
+
+    /**
+     * Load SWOT matrix for selected goal
+     */
+    async function loadSWOTMatrix(goalId) {
+        debugLog('SWOT_CRUD', 'Loading SWOT matrix for goal:', goalId);
+
+        showLoading();
+
+        try {
+            const result = await apiCall('swot/matrix', { goal_id: goalId });
+
+            if (result.success && result.data) {
+                swotData.matrix = result.data.matrix;
+                swotData.strategies = result.data.strategies || [];
+                renderMatrix();
+                renderTOWSStrategies();
+                loadImpactAnalysis(goalId);
+            } else {
+                renderMatrix();
+                renderTOWSStrategies();
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION loading matrix:', error);
+            showToast('Error loading SWOT matrix', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Load impact analysis
+     */
+    async function loadImpactAnalysis(goalId) {
+        try {
+            const result = await apiCall('swot/impact', { goal_id: goalId });
+
+            if (result.success && result.data) {
+                swotData.impactAnalysis = result.data;
+                renderImpactAnalysis();
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION loading impact analysis:', error);
+        }
+    }
+
+    /**
+     * Render SWOT matrix
+     */
+    function renderMatrix() {
+        const containers = {
+            strength: document.getElementById('swotStrength'),
+            weakness: document.getElementById('swotWeakness'),
+            opportunity: document.getElementById('swotOpportunity'),
+            threat: document.getElementById('swotThreat')
+        };
+
+        Object.keys(containers).forEach(category => {
+            const container = containers[category];
+            if (!container) return;
+
+            const items = swotData.matrix[category] || [];
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <small>No items</small>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="card mb-2 border-0 shadow-sm">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">${item.title || 'Untitled'}</h6>
+                                <p class="small text-muted mb-1">${item.description || ''}</p>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-${getImpactBadgeColor(item.impact_level)}">${item.impact_level || 'MEDIUM'}</span>
+                                    ${item.linked_goal_id ? `<span class="badge bg-info">Linked</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="SWOTManager.editItem('${item.analysis_id}')" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="SWOTManager.deleteItem('${item.analysis_id}')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        });
+
+        // Update counts
+        updateCategoryCounts();
+    }
+
+    /**
+     * Get impact badge color
+     */
+    function getImpactBadgeColor(level) {
+        return {
+            'HIGH': 'danger',
+            'MEDIUM': 'warning',
+            'LOW': 'success'
+        }[level] || 'secondary';
+    }
+
+    /**
+     * Update category counts
+     */
+    function updateCategoryCounts() {
+        const categories = ['strength', 'weakness', 'opportunity', 'threat'];
+
+        categories.forEach(category => {
+            const countBadge = document.getElementById(`${category}Count`);
+            if (countBadge) {
+                const count = (swotData.matrix[category] || []).length;
+                countBadge.textContent = count;
+            }
+        });
+    }
+
+    /**
+     * Render TOWS strategies
+     */
+    function renderTOWSStrategies() {
+        const container = document.getElementById('towsStrategiesContent');
+        if (!container) return;
+
+        if (!swotData.strategies || swotData.strategies.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <small>Add items to all categories to generate TOWS strategies</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Group by strategy type
+        const grouped = {
+            'SO': swotData.strategies.filter(s => s.type === 'SO'),
+            'WO': swotData.strategies.filter(s => s.type === 'WO'),
+            'ST': swotData.strategies.filter(s => s.type === 'ST'),
+            'WT': swotData.strategies.filter(s => s.type === 'WT')
+        };
+
+        const typeLabels = {
+            'SO': { label: 'SO Strategies', desc: 'Strength-Opportunity (Maxi-Maxi)', color: 'success' },
+            'WO': { label: 'WO Strategies', desc: 'Weakness-Opportunity (Mini-Maxi)', color: 'info' },
+            'ST': { label: 'ST Strategies', desc: 'Strength-Threat (Maxi-Mini)', color: 'warning' },
+            'WT': { label: 'WT Strategies', desc: 'Weakness-Threat (Mini-Mini)', color: 'danger' }
+        };
+
+        container.innerHTML = Object.keys(grouped).map(type => {
+            const strategies = grouped[type];
+            const info = typeLabels[type];
+
+            return `
+                <div class="card mb-3 border-${info.color}">
+                    <div class="card-header bg-${info.color} bg-opacity-10">
+                        <h6 class="mb-0">${info.label}</h6>
+                        <small class="text-muted">${info.desc}</small>
+                    </div>
+                    <div class="card-body">
+                        ${strategies.length === 0 ? '<p class="text-muted small mb-0">No strategies generated</p>' : ''}
+                        ${strategies.map(s => `<p class="small mb-1">• ${s.description}</p>`).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render impact analysis
+     */
+    function renderImpactAnalysis() {
+        const container = document.getElementById('swotImpactAnalysis');
+        if (!container || !swotData.impactAnalysis) return;
+
+        const analysis = swotData.impactAnalysis;
+
+        // Determine risk level
+        let riskLevel = 'Low';
+        let riskColor = 'success';
+        if (analysis.impactScore >= 2.5) {
+            riskLevel = 'High';
+            riskColor = 'danger';
+        } else if (analysis.impactScore >= 1.5) {
+            riskLevel = 'Medium';
+            riskColor = 'warning';
+        }
+
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-${riskColor}">${riskLevel} Impact</h5>
+                            <h2 class="display-4">${analysis.impactScore.toFixed(1)}</h2>
+                            <small class="text-muted">Overall Impact Score</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">Impact Distribution</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: ${(analysis.distribution.high / (analysis.distribution.high + analysis.distribution.medium + analysis.distribution.low || 1) * 100)}%">
+                                    High: ${analysis.distribution.high}
+                                </div>
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: ${(analysis.distribution.medium / (analysis.distribution.high + analysis.distribution.medium + analysis.distribution.low || 1) * 100)}%">
+                                    Medium: ${analysis.distribution.medium}
+                                </div>
+                                <div class="progress-bar bg-success" role="progressbar" style="width: ${(analysis.distribution.low / (analysis.distribution.high + analysis.distribution.medium + analysis.distribution.low || 1) * 100)}%">
+                                    Low: ${analysis.distribution.low}
+                                </div>
+                            </div>
+                            ${analysis.recommendations && analysis.recommendations.map(r => `
+                                <div class="alert alert-${r.type} alert-sm mb-0">
+                                    <small><i class="bi bi-info-circle me-1"></i>${r.message}</small>
+                                </div>
+                            `).join('') || ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Show add item modal
+     */
+    function showAddModal(category) {
+        if (!selectedGoalId) {
+            showToast('Please select a goal first', 'warning');
+            return;
+        }
+
+        const modal = document.getElementById('swotItemModal');
+        if (!modal) return;
+
+        // Set form title
+        const categoryLabels = {
+            'strength': 'Strength',
+            'weakness': 'Weakness',
+            'opportunity': 'Opportunity',
+            'threat': 'Threat'
+        };
+
+        document.getElementById('swotModalTitle').textContent = `Add ${categoryLabels[category]}`;
+        document.getElementById('swotItemCategory').value = category.toUpperCase();
+
+        // Reset form
+        document.getElementById('swotItemForm').reset();
+        document.getElementById('swotItemId').value = '';
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+
+    /**
+     * Edit item
+     */
+    function editItem(analysisId) {
+        // Find item in matrix
+        let item = null;
+        Object.keys(swotData.matrix).forEach(category => {
+            const found = swotData.matrix[category].find(i => i.analysis_id === analysisId);
+            if (found) item = found;
+        });
+
+        if (!item) {
+            showToast('Item not found', 'error');
+            return;
+        }
+
+        const modal = document.getElementById('swotItemModal');
+        if (!modal) return;
+
+        // Populate form
+        document.getElementById('swotModalTitle').textContent = 'Edit Analysis Item';
+        document.getElementById('swotItemId').value = item.analysis_id;
+        document.getElementById('swotItemTitle').value = item.title || '';
+        document.getElementById('swotItemDescription').value = item.description || '';
+        document.getElementById('swotItemCategory').value = item.analysis_category || 'STRENGTH';
+        document.getElementById('swotItemType').value = item.analysis_type || 'INTERNAL';
+        document.getElementById('swotItemImpact').value = item.impact_level || 'MEDIUM';
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+
+    /**
+     * Save item
+     */
+    async function saveItem() {
+        const form = document.getElementById('swotItemForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const analysisId = document.getElementById('swotItemId').value;
+        const data = {
+            goal_id: selectedGoalId,
+            title: document.getElementById('swotItemTitle').value,
+            description: document.getElementById('swotItemDescription').value,
+            analysis_category: document.getElementById('swotItemCategory').value,
+            analysis_type: document.getElementById('swotItemType').value,
+            impact_level: document.getElementById('swotItemImpact').value
+        };
+
+        showLoading();
+
+        try {
+            let result;
+            if (analysisId) {
+                result = await apiCall('swot/update', {
+                    analysis_id: analysisId,
+                    ...data
+                });
+            } else {
+                result = await apiCall('swot/create', data);
+            }
+
+            if (result.success) {
+                showToast(analysisId ? 'Item updated' : 'Item created', 'success');
+
+                // Close modal
+                const modalEl = document.getElementById('swotItemModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // Reload matrix
+                loadSWOTMatrix(selectedGoalId);
+            } else {
+                showToast(result.message || 'Operation failed', 'error');
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION saving item:', error);
+            showToast('Error saving item', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Delete item
+     */
+    async function deleteItem(analysisId) {
+        if (!confirm('Are you sure you want to delete this analysis item?')) {
+            return;
+        }
+
+        showLoading();
+
+        try {
+            const result = await apiCall('swot/delete', { analysis_id: analysisId });
+
+            if (result.success) {
+                showToast('Item deleted', 'success');
+                loadSWOTMatrix(selectedGoalId);
+            } else {
+                showToast(result.message || 'Delete failed', 'error');
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION deleting item:', error);
+            showToast('Error deleting item', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Export SWOT analysis
+     */
+    async function exportSWOT() {
+        if (!selectedGoalId) {
+            showToast('Please select a goal first', 'warning');
+            return;
+        }
+
+        try {
+            const result = await apiCall('export/swot', { goal_id: selectedGoalId });
+
+            if (result.success && result.data) {
+                // Download file
+                const link = document.createElement('a');
+                link.href = result.data.fileUrl;
+                link.download = result.data.fileName;
+                link.click();
+            }
+        } catch (error) {
+            debugLog('SWOT_CRUD', 'EXCEPTION exporting:', error);
+            showToast('Error exporting SWOT analysis', 'error');
+        }
+    }
+
+    /**
+     * Show/hide loading
+     */
+    function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.add('show');
+    }
+
+    function hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.remove('show');
+    }
+
+    // Public API
+    return {
+        init: init,
+        showAddModal: showAddModal,
+        editItem: editItem,
+        saveItem: saveItem,
+        deleteItem: deleteItem,
+        exportSWOT: exportSWOT
+    };
+})();
+
+// Auto-initialize
+window.SWOTManager = SWOTManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('swot-view')) {
+        SWOTManager.init();
+    }
+});
+
+debugLog('SWOT_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('swot_crud.html');
+}
+</script>

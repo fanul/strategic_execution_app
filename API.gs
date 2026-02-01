@@ -533,18 +533,47 @@ function doPost(e) {
       
       // ===== NOTIFICATIONS =====
       case 'notifications.get':
+      case 'notifications.my-notifications':
         requireAuth(sessionToken);
         response = NotificationService.getUserNotifications(getCurrentUser(sessionToken).user_id, data.unreadOnly);
         break;
-      
+
       case 'notifications.markAsRead':
+      case 'notifications.mark-read':
         requireAuth(sessionToken);
-        response = NotificationService.markAsRead(data.notificationId);
+        response = NotificationService.markAsRead(data.notification_id);
         break;
-      
+
       case 'notifications.markAllAsRead':
+      case 'notifications.mark-all-read':
         requireAuth(sessionToken);
         response = NotificationService.markAllAsRead(getCurrentUser(sessionToken).user_id);
+        break;
+
+      // ===== SWOT ANALYSIS =====
+      case 'swot.matrix':
+        requireAuth(sessionToken);
+        response = SWOTController.getMatrix(data.goal_id);
+        break;
+
+      case 'swot.create':
+        requirePermission(sessionToken, 'strategic_plan', 'create');
+        response = SWOTController.create(data, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'swot.update':
+        requirePermission(sessionToken, 'strategic_plan', 'update');
+        response = SWOTController.update(data.analysis_id, data, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'swot.delete':
+        requirePermission(sessionToken, 'strategic_plan', 'delete');
+        response = SWOTController.delete(data.analysis_id, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'swot.impact':
+        requireAuth(sessionToken);
+        response = SWOTController.getImpactAnalysis(data.goal_id);
         break;
       
       // ===== AUDIT/REVISIONS =====
