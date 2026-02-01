@@ -1,0 +1,208 @@
+<script>
+// ============================================================================
+// NOTIFICATIONS CRUD - Notification Management Operations
+// ============================================================================
+
+debugLog('NOTIFICATIONS_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('NOTIFICATIONS_CRUD', '║  NOTIFICATIONS CRUD SCRIPT LOADING                  ║');
+debugLog('NOTIFICATIONS_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const NotificationManager = (function() {
+    'use strict';
+
+    let notificationsData = [];
+    let currentFilter = 'all';
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('NOTIFICATIONS_CRUD', '=== init START ===');
+        loadNotifications();
+        debugLog('NOTIFICATIONS_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load notifications
+     */
+    async function loadNotifications() {
+        debugLog('NOTIFICATIONS_CRUD', 'Loading notifications...');
+
+        try {
+            const result = await apiCall('notifications/my-notifications');
+
+            if (result.success && result.data) {
+                notificationsData = Array.isArray(result.data) ? result.data : [result.data];
+                applyFilter(currentFilter);
+                debugLog('NOTIFICATIONS_CRUD', 'OK Loaded', notificationsData.length, 'notifications');
+            } else {
+                renderNotifications([]);
+            }
+        } catch (error) {
+            debugLog('NOTIFICATIONS_CRUD', 'EXCEPTION loading notifications:', error);
+            showToast('Error loading notifications', 'error');
+        }
+    }
+
+    /**
+     * Apply filter
+     */
+    function applyFilter(filter) {
+        currentFilter = filter;
+        let filtered = notificationsData;
+
+        if (filter === 'unread') {
+            filtered = notificationsData.filter(n => !n.is_read);
+        } else if (filter === 'high') {
+            filtered = notificationsData.filter(n => n.priority === 'HIGH');
+        }
+
+        renderNotifications(filtered);
+    }
+
+    /**
+     * Filter by type
+     */
+    function filterByType(type) {
+        applyFilter(type);
+
+        // Update active button
+        document.querySelectorAll('#notifications-view .btn-group button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+
+    /**
+     * Render notifications
+     */
+    function renderNotifications(data) {
+        const container = document.getElementById('notificationsContent');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-bell-slash fs-1"></i>
+                    <p class="mt-3">No notifications</p>
+                </div>
+            `;
+            return;
+        }
+
+        const html = data.map(notification => {
+            const priorityClass = {
+                'HIGH': 'border-danger',
+                'MEDIUM': 'border-warning',
+                'LOW': 'border-info'
+            }[notification.priority] || 'border-secondary';
+
+            const bgClass = notification.is_read ? 'bg-light' : 'bg-white';
+
+            return `
+                <div class="card mb-2 ${priorityClass} ${bgClass}" style="border-left: 4px solid;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">${notification.title}</h6>
+                                <p class="mb-2">${notification.message}</p>
+                                <small class="text-muted">${formatTimestamp(notification.created_at)}</small>
+                            </div>
+                            <div class="ms-3">
+                                ${!notification.is_read ? `
+                                    <button class="btn btn-sm btn-outline-primary" onclick="NotificationManager.markAsRead('${notification.notification_id}')">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                ` : '<span class="badge bg-success">Read</span>'}
+                            </div>
+                        </div>
+                        ${notification.link_url ? `
+                            <a href="${notification.link_url}" class="btn btn-sm btn-link">View Details →</a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Format timestamp
+     */
+    function formatTimestamp(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return diffMins + ' minutes ago';
+        if (diffHours < 24) return diffHours + ' hours ago';
+        if (diffDays < 7) return diffDays + ' days ago';
+        return date.toLocaleDateString();
+    }
+
+    /**
+     * Mark notification as read
+     */
+    async function markAsRead(notificationId) {
+        try {
+            const result = await apiCall('notifications/mark-read', { notification_id: notificationId });
+
+            if (result.success) {
+                loadNotifications();
+            }
+        } catch (error) {
+            debugLog('NOTIFICATIONS_CRUD', 'EXCEPTION marking as read:', error);
+        }
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    async function markAllAsRead() {
+        if (!confirm('Mark all notifications as read?')) {
+            return;
+        }
+
+        try {
+            const result = await apiCall('notifications/mark-all-read');
+
+            if (result.success) {
+                showToast('All notifications marked as read', 'success');
+                loadNotifications();
+            }
+        } catch (error) {
+            debugLog('NOTIFICATIONS_CRUD', 'EXCEPTION marking all as read:', error);
+            showToast('Error marking all as read', 'error');
+        }
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadNotifications: loadNotifications,
+        filterByType: filterByType,
+        markAsRead: markAsRead,
+        markAllAsRead: markAllAsRead
+    };
+})();
+
+// Auto-initialize
+window.NotificationManager = NotificationManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('notifications-view')) {
+        NotificationManager.init();
+    }
+});
+
+debugLog('NOTIFICATIONS_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('notifications_crud.html');
+}
+</script>

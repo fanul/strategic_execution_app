@@ -16,6 +16,9 @@ var PagesConfig = {
         'roles',
         'programs',
         'reports',
+        'audit-trail',
+        'swot',
+        'notifications',
         'settings'
     ],
 
@@ -90,6 +93,27 @@ var PagesConfig = {
             template: 'minimal/pages/reports.html',
             scripts: [], // Loaded dynamically
             modals: '' // Uses reports_crud.html inline
+        },
+
+        'audit-trail': {
+            title: 'Audit Trail',
+            template: 'minimal/pages/audit-trail.html',
+            scripts: [], // Loaded dynamically
+            modals: '' // Uses audit_crud.html inline
+        },
+
+        swot: {
+            title: 'SWOT Analysis',
+            template: 'minimal/pages/swot.html',
+            scripts: [], // Loaded dynamically
+            modals: '' // Uses swot_crud.html inline (to be created)
+        },
+
+        notifications: {
+            title: 'Notifications',
+            template: 'minimal/pages/notifications.html',
+            scripts: [], // Loaded dynamically
+            modals: '' // Uses notifications_crud.html inline
         },
 
         settings: {

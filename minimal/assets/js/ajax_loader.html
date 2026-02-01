@@ -157,6 +157,18 @@ function initPage(pageName) {
                 window.ProgramManager.init();
             }
             break;
+        case 'audit-trail':
+            if (typeof window.AuditManager !== 'undefined') {
+                window.AuditManager.init();
+            }
+            break;
+        case 'swot':
+            break;
+        case 'notifications':
+            if (typeof window.NotificationManager !== 'undefined') {
+                window.NotificationManager.init();
+            }
+            break;
         case 'reports':
             if (typeof window.ReportManager !== 'undefined') {
                 window.ReportManager.init();
