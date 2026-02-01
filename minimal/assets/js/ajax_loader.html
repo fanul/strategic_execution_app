@@ -152,6 +152,11 @@ function initPage(pageName) {
                 window.OKRManager.init();
             }
             break;
+        case 'programs':
+            if (typeof window.ProgramManager !== 'undefined') {
+                window.ProgramManager.init();
+            }
+            break;
         case 'settings':
             if (typeof loadSettings === 'function') {
                 loadSettings();
@@ -162,7 +167,6 @@ function initPage(pageName) {
         case 'kpi':
         case 'users':
         case 'roles':
-        case 'programs':
             // Add initialization for these pages when needed
             break;
     }

@@ -80,6 +80,9 @@ function doGet(e) {
       case 'okrs':
         template.pageModals = renderTemplate('minimal/layout/modals/okr_modals.html', dataTemplate);
         break;
+      case 'programs':
+        template.pageModals = renderTemplate('minimal/layout/modals/program_modals.html', dataTemplate);
+        break;
       default:
         template.pageModals = ''; // No modals for other pages yet
         break;
