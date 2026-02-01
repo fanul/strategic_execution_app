@@ -24,8 +24,8 @@ function navigateToPage(pageName) {
                 const modalContainer = document.getElementById('page-modals');
                 if (modalContainer) modalContainer.innerHTML = response.data.modals;
 
-                // Execute page scripts sequentially (await for full loading)
-                await executeScripts(response.data.scripts);
+                // Execute page scripts (synchronous for GAS compatibility)
+                executeScripts(response.data.scripts);
 
                 // Update URL
                 const url = new URL(window.location.href);
@@ -71,7 +71,7 @@ function hideViewLoading() {
 }
 
 // Execute scripts dynamically with proper sequencing
-async function executeScripts(scriptHTML) {
+function executeScripts(scriptHTML) {
     debugLog('AJAX', '=== executeScripts START ===');
     debugLog('AJAX', 'Script HTML length:', scriptHTML ? scriptHTML.length : 0);
 
@@ -84,43 +84,39 @@ async function executeScripts(scriptHTML) {
     tempDiv.innerHTML = scriptHTML;
 
     const scripts = tempDiv.querySelectorAll('script');
-    debugLog('AJAX', 'Found ' + scripts.length + ' script tags to execute sequentially');
+    debugLog('AJAX', 'Found ' + scripts.length + ' script tags to execute');
 
-    // Execute scripts sequentially with proper onload waiting
-    for (let index = 0; index < scripts.length; index++) {
-        const oldScript = scripts[index];
-        debugLog('AJAX', 'Loading script ' + (index + 1) + ' of ' + scripts.length);
+    // Execute scripts using direct injection (GAS compatible)
+    // In GAS environment, script.onload events are unreliable, so we inject synchronously
+    scripts.forEach((oldScript, index) => {
+        debugLog('AJAX', 'Executing script ' + (index + 1) + ' of ' + scripts.length);
 
-        // Create a promise that resolves when script is loaded
-        await new Promise((resolve, reject) => {
-            const newScript = document.createElement('script');
-            Array.from(oldScript.attributes).forEach(attr => {
-                newScript.setAttribute(attr.name, attr.value);
-            });
-            newScript.textContent = oldScript.textContent;
+        // Create new script element
+        const newScript = document.createElement('script');
 
-            // Log script content preview
-            const scriptPreview = oldScript.textContent.substring(0, 100).replace(/\n/g, ' ');
-            debugLog('AJAX', 'Script ' + (index + 1) + ' preview: ' + scriptPreview + '...');
-
-            // Set up onload to ensure script is fully parsed before continuing
-            newScript.onload = () => {
-                debugLog('AJAX', 'Script ' + (index + 1) + ' loaded and parsed');
-                resolve();
-            };
-
-            newScript.onerror = (error) => {
-                debugLog('AJAX', 'FAIL Script ' + (index + 1) + ' failed to load:', error);
-                reject(error);
-            };
-
-            document.body.appendChild(newScript);
+        // Copy all attributes
+        Array.from(oldScript.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value);
         });
-    }
+
+        // Set script content directly
+        newScript.textContent = oldScript.textContent;
+
+        // Log script content preview
+        const scriptPreview = oldScript.textContent.substring(0, 100).replace(/\n/g, ' ');
+        debugLog('AJAX', 'Script ' + (index + 1) + ' preview: ' + scriptPreview + '...');
+
+        // Inject script - will execute immediately in GAS environment
+        document.body.appendChild(newScript);
+
+        debugLog('AJAX', 'Script ' + (index + 1) + ' executed');
+    });
 
     debugLog('AJAX', '=== executeScripts COMPLETE ===');
-    debugLog('AJAX', 'Checking if switchView exists:', typeof switchView);
-    debugLog('AJAX', 'Checking if OrgDiagram exists:', typeof OrgDiagram);
+    debugLog('AJAX', 'Verifying loaded functions:');
+    debugLog('AJAX', '  - typeof switchView: ' + typeof switchView);
+    debugLog('AJAX', '  - typeof OrgDiagram: ' + typeof OrgDiagram);
+    debugLog('AJAX', '  - typeof OrganizationManager: ' + typeof OrganizationManager);
 }
 
 // Initialize page-specific functionality

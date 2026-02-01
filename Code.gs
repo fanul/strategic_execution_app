@@ -67,7 +67,7 @@ function doGet(e) {
 
     // Layout templates
     template.toasts = renderTemplate('minimal/layout/toasts.html', dataTemplate);
-    template.modals = renderTemplate('minimal/layout/modals.html', dataTemplate);
+    template.modals = ''; // Global modals removed - using page-specific modals instead
 
     // Page-specific content
     template.pageContent = renderTemplate(`minimal/pages/${pageName}.html`, dataTemplate);

@@ -152,6 +152,25 @@ function refreshCurrentView() {
 }
 
 /**
+ * Toggle legend visibility (minimize/maximize)
+ */
+function toggleLegend() {
+    const body = document.getElementById('diagram-legend-body');
+    const icon = document.getElementById('legend-toggle-icon');
+    if (body) {
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            if (icon) icon.className = 'bi bi-chevron-up';
+            debugLog('VIEW', 'Legend expanded');
+        } else {
+            body.style.display = 'none';
+            if (icon) icon.className = 'bi bi-chevron-down';
+            debugLog('VIEW', 'Legend collapsed');
+        }
+    }
+}
+
+/**
  * Auto-load saved view on page initialization
  */
 function initializeView() {

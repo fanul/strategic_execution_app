@@ -1,29 +1,30 @@
-<div id="org-context-menu" class="org-context-menu">
-    <div class="org-context-menu-item" data-action="view">
-        <i class="bi bi-eye"></i> View Details
-    </div>
-    <div class="org-context-menu-item" data-action="edit">
-        <i class="bi bi-pencil"></i> Edit
-    </div>
-    <div class="org-context-menu-item" data-action="add-child">
-        <i class="bi bi-plus-lg"></i> Add Child
-    </div>
-    <div class="org-context-menu-item" data-action="delete">
-        <i class="bi bi-trash"></i> Delete
-    </div>
-</div>
-
 <script>
 // Context menu for organization diagram nodes
 let contextMenuTargetNode = null;
+let contextMenuHandlersSetup = false; // Flag to prevent duplicate handlers
 
 function showContextMenu(event, node) {
     event.preventDefault();
     event.stopPropagation();
 
+    debugLog('CONTEXT_MENU', 'Showing context menu for node:', node.type, node.id);
+
+    // Store target node FIRST
     contextMenuTargetNode = node;
 
+    // Hide any existing context menus display only (don't clear target)
     const menu = document.getElementById('org-context-menu');
+    if (menu) {
+        menu.style.display = 'none';
+    }
+    // Also remove any canvas context menus
+    document.querySelectorAll('.canvas-context-menu').forEach(m => m.remove());
+
+    if (!menu) {
+        debugLog('CONTEXT_MENU', 'FAIL: org-context-menu element not found in DOM');
+        return;
+    }
+
     const addChildItem = menu.querySelector('[data-action="add-child"]');
 
     // Hide "Add Child" for positions (leaf nodes)
@@ -37,7 +38,7 @@ function showContextMenu(event, node) {
     menu.style.left = event.pageX + 'px';
     menu.style.top = event.pageY + 'px';
 
-    debugLog('CONTEXT_MENU', 'Show context menu for:', node.type, node.id);
+    debugLog('CONTEXT_MENU', 'Context menu displayed at:', event.pageX, event.pageY);
 }
 
 function hideContextMenu() {
@@ -45,54 +46,79 @@ function hideContextMenu() {
     if (menu) {
         menu.style.display = 'none';
     }
-    contextMenuTargetNode = null;
+    // Only clear target when explicitly hiding (not when showing new menu)
+    // contextMenuTargetNode = null; // REMOVED - don't clear here
 }
 
-// Handle context menu item clicks
+// Handle clicking elsewhere - close all context menus
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.org-context-menu')) {
+    if (!e.target.closest('.org-context-menu') && !e.target.closest('.canvas-context-menu')) {
         hideContextMenu();
+        contextMenuTargetNode = null; // Clear target when clicking outside
+        // Also remove any canvas context menus
+        document.querySelectorAll('.canvas-context-menu').forEach(m => m.remove());
     }
 });
 
-document.querySelectorAll('.org-context-menu-item').forEach(item => {
-    item.addEventListener('click', function() {
-        const action = this.dataset.action;
-        const node = contextMenuTargetNode;
+// Setup context menu item handlers
+function setupContextMenuHandlers() {
+    // Prevent duplicate handlers
+    if (contextMenuHandlersSetup) {
+        debugLog('CONTEXT_MENU', 'Handlers already setup, skipping');
+        return;
+    }
 
-        if (!node) {
-            debugLog('CONTEXT_MENU', 'No target node for action:', action);
-            return;
-        }
+    document.querySelectorAll('.org-context-menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const node = contextMenuTargetNode;
 
-        debugLog('CONTEXT_MENU', 'Action clicked:', action, 'for:', node.type, node.id);
+            if (!node) {
+                debugLog('CONTEXT_MENU', 'FAIL: No target node for action:', action);
+                hideContextMenu();
+                return;
+            }
 
-        switch (action) {
-            case 'view':
-                // Show node details - could open a modal with full details
-                showToast(`${node.code || node.name} (${node.type})`, 'info');
-                break;
+            debugLog('CONTEXT_MENU', 'Action clicked:', action, 'for node:', node.type, node.id);
 
-            case 'edit':
-                // Open existing edit modal
-                showModal(node.type, node.id);
-                break;
+            switch (action) {
+                case 'view':
+                    showToast(`${node.code || node.name} (${node.type})`, 'info');
+                    break;
 
-            case 'add-child':
-                // Show add modal with pre-filled parent
-                const childType = getChildType(node.type);
-                showModal(childType, null, node.id);
-                break;
+                case 'edit':
+                    if (typeof showModal === 'function') {
+                        showModal(node.type, node.id);
+                    } else {
+                        showToast('Edit function not available', 'error');
+                    }
+                    break;
 
-            case 'delete':
-                // Use existing delete function
-                deleteItem(node.type, node.id);
-                break;
-        }
+                case 'add-child':
+                    const childType = getChildType(node.type);
+                    if (childType && typeof showModal === 'function') {
+                        showModal(childType, null, node.id);
+                    } else {
+                        showToast('Cannot add child to this node type', 'error');
+                    }
+                    break;
 
-        hideContextMenu();
+                case 'delete':
+                    if (typeof deleteItem === 'function') {
+                        deleteItem(node.type, node.id);
+                    } else {
+                        showToast('Delete function not available', 'error');
+                    }
+                    break;
+            }
+
+            hideContextMenu();
+            contextMenuTargetNode = null; // Clear target after action
+        });
     });
-});
+    contextMenuHandlersSetup = true;
+    debugLog('CONTEXT_MENU', 'Context menu handlers setup complete');
+}
 
 // Helper function to get child type based on parent type
 function getChildType(parentType) {
@@ -104,8 +130,16 @@ function getChildType(parentType) {
     return childTypeMap[parentType] || null;
 }
 
+// Setup handlers when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupContextMenuHandlers);
+} else {
+    setupContextMenuHandlers();
+}
+
 // Log that the script loaded
 console.log('[ORG_DIAGRAM_CONTEXT_MENU] Context menu component loaded');
+debugLog('CONTEXT_MENU', 'Context menu script initialized');
 
 // Track script loading
 if (window.scriptLoadTracker) {

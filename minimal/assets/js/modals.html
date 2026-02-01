@@ -1,7 +1,7 @@
 <script>
 // Modal management functions
-function showModal(type, id = null) {
-    debugLog('MODAL', '=== showModal START === type=' + type + ', id=' + (id || 'new'));
+function showModal(type, id = null, parentId = null) {
+    debugLog('MODAL', '=== showModal START === type=' + type + ', id=' + (id || 'new') + ', parentId=' + (parentId || 'none'));
 
     const modalId = type + 'Modal';
     const modalEl = document.getElementById(modalId);
@@ -46,6 +46,14 @@ function showModal(type, id = null) {
             return loadItemData(type, id);
         }).then(() => {
             debugLog('MODAL', 'OK Modal shown with data');
+        }).catch((error) => {
+            debugLog('MODAL', 'FAIL Error loading modal data:', error);
+            // Hide loading overlay on error
+            const loadingEl = document.getElementById(modalId + 'Loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
+            showToast('Error loading item data: ' + error.message, 'error');
         });
     } else {
         debugLog('MODAL', 'Preparing form for new item...');
@@ -53,17 +61,47 @@ function showModal(type, id = null) {
         document.querySelector('#' + modalId + ' .modal-title').textContent = 'Add ' + type.charAt(0).toUpperCase() + type.slice(1);
         modal.show();
         debugLog('MODAL', 'OK Modal shown (new mode)');
+
+        // Pre-select parent if provided
+        if (parentId) {
+            debugLog('MODAL', 'Pre-selecting parent:', parentId);
+            preselectParentDropdown(type, parentId);
+        }
     }
 
     // Load dropdown data for new item mode (if not already loaded)
     if (!id) {
         if (type === 'work-unit') {
-            loadDirectoratesDropdown();
+            loadDirectoratesDropdown(parentId);
         } else if (type === 'affair') {
-            loadWorkUnitsForAffairDropdown();
+            loadWorkUnitsForAffairDropdown(parentId);
         } else if (type === 'position') {
-            loadWorkUnitsForPositionDropdown();
+            loadWorkUnitsForPositionDropdown(parentId);
         }
+    }
+}
+
+// Pre-select parent in dropdown
+function preselectParentDropdown(type, parentId) {
+    debugLog('MODAL', 'Pre-selecting parent for type:', type, 'parentId:', parentId);
+
+    let dropdownId;
+    if (type === 'work-unit') {
+        dropdownId = 'directorate_id';
+    } else if (type === 'affair') {
+        dropdownId = 'work_unit_id';
+    } else if (type === 'position') {
+        dropdownId = 'affair_id';
+    } else {
+        return;
+    }
+
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+        dropdown.value = parentId;
+        debugLog('MODAL', 'OK Parent pre-selected:', dropdownId, '=', parentId);
+    } else {
+        debugLog('MODAL', 'FAIL Parent dropdown not found:', dropdownId);
     }
 }
 
@@ -160,8 +198,8 @@ async function editItem(type, id) {
 }
 
 // Load Directorates into Select2 dropdown (for Work Unit modal)
-async function loadDirectoratesDropdown() {
-    debugLog('MODAL', '=== loadDirectoratesDropdown START ===');
+async function loadDirectoratesDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadDirectoratesDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
 
     try {
         const result = await apiCall('directorates/list');
@@ -194,6 +232,12 @@ async function loadDirectoratesDropdown() {
                 dropdownParent: modal
             });
 
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected directorate:', preselectedValue);
+            }
+
             debugLog('MODAL', 'OK Loaded ' + result.data.length + ' directorates into dropdown and initialized Select2');
         } else {
             debugLog('MODAL', 'FAIL Failed to load directorates: ' + (result.message || 'Unknown error'));
@@ -206,8 +250,8 @@ async function loadDirectoratesDropdown() {
 }
 
 // Load Work Units into Select2 dropdown (for Affair modal)
-async function loadWorkUnitsForAffairDropdown() {
-    debugLog('MODAL', '=== loadWorkUnitsForAffairDropdown START ===');
+async function loadWorkUnitsForAffairDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadWorkUnitsForAffairDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
 
     try {
         const result = await apiCall('work-units/list');
@@ -240,6 +284,12 @@ async function loadWorkUnitsForAffairDropdown() {
                 dropdownParent: modal
             });
 
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected work unit:', preselectedValue);
+            }
+
             debugLog('MODAL', 'OK Loaded ' + result.data.length + ' work units into affair dropdown and initialized Select2');
         } else {
             debugLog('MODAL', 'FAIL Failed to load work units: ' + (result.message || 'Unknown error'));
@@ -252,8 +302,8 @@ async function loadWorkUnitsForAffairDropdown() {
 }
 
 // Load Work Units into Select2 dropdown (for Position modal)
-async function loadWorkUnitsForPositionDropdown() {
-    debugLog('MODAL', '=== loadWorkUnitsForPositionDropdown START ===');
+async function loadWorkUnitsForPositionDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadWorkUnitsForPositionDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
 
     try {
         const result = await apiCall('work-units/list');
@@ -285,6 +335,12 @@ async function loadWorkUnitsForPositionDropdown() {
                 allowClear: true,
                 dropdownParent: modal
             });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected work unit:', preselectedValue);
+            }
 
             debugLog('MODAL', 'OK Loaded ' + result.data.length + ' work units into position dropdown and initialized Select2');
         } else {
