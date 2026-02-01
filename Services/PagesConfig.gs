@@ -27,7 +27,7 @@ var PagesConfig = {
         dashboard: {
             title: 'Dashboard',
             template: 'minimal/pages/dashboard.html',
-            scripts: ['minimal/assets/js/dashboard_widgets.html'],
+            scripts: ['assets/js/dashboard_widgets.html'],
             modals: ''
         },
 
@@ -35,70 +35,70 @@ var PagesConfig = {
             title: 'Organization',
             template: 'minimal/pages/organization.html',
             scripts: [
-                'minimal/assets/js/organization_datatables.html',
-                'minimal/assets/js/organization_crud.html',
-                'minimal/assets/js/view-toggle.html',
-                'minimal/assets/js/org-diagram-controls.html',
-                'minimal/assets/js/org-diagram-tooltip.html',
-                'minimal/assets/js/org-diagram-context-menu.html',
-                'minimal/assets/js/org-diagram.html'
+                'assets/js/organization_datatables.html',
+                'assets/js/organization_crud.html',
+                'assets/js/view-toggle.html',
+                'assets/js/org-diagram-controls.html',
+                'assets/js/org-diagram-tooltip.html',
+                'assets/js/org-diagram-context-menu.html',
+                'assets/js/org-diagram.html'
             ],
-            modals: 'minimal/layout/modals/organization_modals.html'
+            modals: 'layout/modals/organization_modals.html'
         },
 
         'strategic-plan': {
             title: 'Strategic Planning',
             template: 'minimal/pages/strategic-plan.html',
-            scripts: ['minimal/assets/js/strategic_crud.html'],
+            scripts: ['assets/js/strategic_crud.html'],
             modals: ''
         },
 
         kpi: {
             title: 'KPI Management',
             template: 'minimal/pages/kpi.html',
-            scripts: ['minimal/assets/js/kpi_crud.html'],
+            scripts: ['assets/js/kpi_crud.html'],
             modals: ''
         },
 
         okrs: {
             title: 'OKR Management',
             template: 'minimal/pages/okrs.html',
-            scripts: ['minimal/assets/js/okr_crud.html'],
-            modals: 'minimal/layout/modals/okr_modals.html'
+            scripts: ['assets/js/okr_crud.html'],
+            modals: 'layout/modals/okr_modals.html'
         },
 
         users: {
             title: 'User Management',
             template: 'minimal/pages/users.html',
-            scripts: ['minimal/assets/js/users_crud.html'],
+            scripts: ['assets/js/users_crud.html'],
             modals: ''
         },
 
         roles: {
             title: 'Role Management',
             template: 'minimal/pages/roles.html',
-            scripts: ['minimal/assets/js/roles_crud.html'],
+            scripts: ['assets/js/roles_crud.html'],
             modals: ''
         },
 
         programs: {
             title: 'Program Management',
             template: 'minimal/pages/programs.html',
-            scripts: ['minimal/assets/js/programs_crud.html'],
-            modals: 'minimal/layout/modals/program_modals.html'
+            scripts: ['assets/js/programs_crud.html'],
+            modals: 'layout/modals/program_modals.html'
         },
 
         reports: {
             title: 'Reports & Analytics',
             template: 'minimal/pages/reports.html',
-            scripts: ['minimal/assets/js/reports_crud.html'],
+            scripts: ['assets/js/reports_crud.html'],
             modals: ''
         },
 
         'audit-trail': {
             title: 'Audit Trail',
             template: 'minimal/pages/audit-trail.html',
-            scripts: ['minimal/assets/js/audit_crud.html'],
+            scripts: ['assets/js/audit_crud.html'],
             modals: ''
         },
 
@@ -112,14 +112,14 @@ var PagesConfig = {
         notifications: {
             title: 'Notifications',
             template: 'minimal/pages/notifications.html',
-            scripts: ['minimal/assets/js/notifications_crud.html'],
+            scripts: ['assets/js/notifications_crud.html'],
             modals: ''
         },
 
         settings: {
             title: 'Settings',
             template: 'minimal/pages/settings.html',
-            scripts: ['minimal/assets/js/settings_manager.html'],
+            scripts: ['assets/js/settings_manager.html'],
             modals: ''
         }
     },

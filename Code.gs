@@ -125,7 +125,7 @@ function serveStaticFile(path) {
 
     // If not in fileMap, check if it's an assets/js or assets file
     if (!fileName && path.indexOf('/assets/') === 0) {
-      fileName = path.substring(1); // Remove leading slash
+      fileName = path.substring(1);
     }
 
     if (!fileName) {
