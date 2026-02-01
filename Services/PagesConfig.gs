@@ -7,6 +7,7 @@
 var PagesConfig = {
     // Valid page names (for security validation)
     validPages: [
+        'login',
         'dashboard',
         'organization',
         'strategic-plan',
@@ -24,6 +25,13 @@ var PagesConfig = {
 
     // Page configurations
     pages: {
+        login: {
+            title: 'Sign In',
+            template: 'minimal/pages/login.html',
+            scripts: ['assets/js/auth.html'],
+            modals: ''
+        },
+
         dashboard: {
             title: 'Dashboard',
             template: 'minimal/pages/dashboard.html',
