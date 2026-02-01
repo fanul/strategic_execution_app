@@ -27,8 +27,8 @@ var PagesConfig = {
         dashboard: {
             title: 'Dashboard',
             template: 'minimal/pages/dashboard.html',
-            scripts: [], // Scripts loaded dynamically via AJAX
-            modals: '' // No modals needed
+            scripts: ['minimal/assets/js/dashboard_widgets.html'],
+            modals: ''
         },
 
         organization: {
@@ -49,77 +49,77 @@ var PagesConfig = {
         'strategic-plan': {
             title: 'Strategic Planning',
             template: 'minimal/pages/strategic-plan.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // No modals - uses strategic_crud.html inline
+            scripts: ['minimal/assets/js/strategic_crud.html'],
+            modals: ''
         },
 
         kpi: {
             title: 'KPI Management',
             template: 'minimal/pages/kpi.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses kpi_crud.html inline
+            scripts: ['minimal/assets/js/kpi_crud.html'],
+            modals: ''
         },
 
         okrs: {
             title: 'OKR Management',
             template: 'minimal/pages/okrs.html',
-            scripts: [], // Loaded dynamically
+            scripts: ['minimal/assets/js/okr_crud.html'],
             modals: 'minimal/layout/modals/okr_modals.html'
         },
 
         users: {
             title: 'User Management',
             template: 'minimal/pages/users.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses users_crud.html inline
+            scripts: ['minimal/assets/js/users_crud.html'],
+            modals: ''
         },
 
         roles: {
             title: 'Role Management',
             template: 'minimal/pages/roles.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses roles_crud.html inline
+            scripts: ['minimal/assets/js/roles_crud.html'],
+            modals: ''
         },
 
         programs: {
             title: 'Program Management',
             template: 'minimal/pages/programs.html',
-            scripts: [], // Loaded dynamically
+            scripts: ['minimal/assets/js/programs_crud.html'],
             modals: 'minimal/layout/modals/program_modals.html'
         },
 
         reports: {
             title: 'Reports & Analytics',
             template: 'minimal/pages/reports.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses reports_crud.html inline
+            scripts: ['minimal/assets/js/reports_crud.html'],
+            modals: ''
         },
 
         'audit-trail': {
             title: 'Audit Trail',
             template: 'minimal/pages/audit-trail.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses audit_crud.html inline
+            scripts: ['minimal/assets/js/audit_crud.html'],
+            modals: ''
         },
 
         swot: {
             title: 'SWOT Analysis',
             template: 'minimal/pages/swot.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses swot_crud.html inline (to be created)
+            scripts: [],
+            modals: ''
         },
 
         notifications: {
             title: 'Notifications',
             template: 'minimal/pages/notifications.html',
-            scripts: [], // Loaded dynamically
-            modals: '' // Uses notifications_crud.html inline
+            scripts: ['minimal/assets/js/notifications_crud.html'],
+            modals: ''
         },
 
         settings: {
             title: 'Settings',
             template: 'minimal/pages/settings.html',
-            scripts: [], // Loaded dynamically
+            scripts: ['minimal/assets/js/settings_manager.html'],
             modals: ''
         }
     },

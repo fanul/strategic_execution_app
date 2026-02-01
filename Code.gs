@@ -121,7 +121,13 @@ function serveStaticFile(path) {
       '/service-worker.js': 'service-worker.js'
     };
 
-    const fileName = fileMap[path];
+    let fileName = fileMap[path];
+
+    // If not in fileMap, check if it's an assets/js or assets file
+    if (!fileName && path.indexOf('/assets/') === 0) {
+      fileName = path.substring(1); // Remove leading slash
+    }
+
     if (!fileName) {
       return HtmlService.createHtmlOutput('File not found: ' + path)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -142,7 +148,7 @@ function serveStaticFile(path) {
       return HtmlService.createHtmlOutput(blob.getContent())
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     } else {
-      // For HTML files, use template
+      // For HTML files (including assets/js/*.html files), use template
       return HtmlService.createTemplateFromFile(fileName)
         .evaluate()
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
