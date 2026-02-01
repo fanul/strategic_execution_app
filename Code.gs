@@ -42,7 +42,7 @@ function doGet(e) {
     const pageName = e && e.parameter && e.parameter.page ? e.parameter.page : 'dashboard';
 
     // Validate page name (security)
-    const validPages = ['dashboard', 'organization', 'strategic-plan', 'kpi', 'settings'];
+    const validPages = ['dashboard', 'organization', 'strategic-plan', 'kpi', 'okrs', 'users', 'roles', 'programs', 'settings'];
     if (!validPages.includes(pageName)) {
       return HtmlService.createHtmlOutput('Invalid page: ' + pageName)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -76,6 +76,9 @@ function doGet(e) {
     switch (pageName) {
       case 'organization':
         template.pageModals = renderTemplate('minimal/layout/modals/organization_modals.html', dataTemplate);
+        break;
+      case 'okrs':
+        template.pageModals = renderTemplate('minimal/layout/modals/okr_modals.html', dataTemplate);
         break;
       default:
         template.pageModals = ''; // No modals for other pages yet

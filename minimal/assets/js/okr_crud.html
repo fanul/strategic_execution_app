@@ -1,0 +1,740 @@
+<script>
+// ============================================================================
+// OKR CRUD - OKR Management Operations
+// ============================================================================
+
+debugLog('OKR_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('OKR_CRUD', '║  OKR CRUD SCRIPT LOADING                             ║');
+debugLog('OKR_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const OKRManager = (function() {
+    'use strict';
+
+    let okrHistoryTable = null;
+    let myOKRsData = [];
+    let currentWeek = null;
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('OKR_CRUD', '=== init START ===');
+        setCurrentWeek();
+        loadWeekOKRs();
+        initHistoryTable();
+        setupTabHandlers();
+        debugLog('OKR_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Setup tab handlers for DataTable refresh
+     */
+    function setupTabHandlers() {
+        const tabButtons = document.querySelectorAll('#okrTabs button[data-bs-toggle="tab"]');
+        tabButtons.forEach(button => {
+            button.addEventListener('shown.bs.tab', () => {
+                if (okrHistoryTable) {
+                    okrHistoryTable.columns.adjust();
+                }
+            });
+        });
+    }
+
+    /**
+     * Set current week in selector
+     */
+    function setCurrentWeek() {
+        const today = new Date();
+        currentWeek = getISOWeek(today);
+
+        const weekSelector = document.getElementById('okrWeekSelector');
+        if (weekSelector) {
+            weekSelector.value = currentWeek;
+        }
+
+        debugLog('OKR_CRUD', 'Current week set to:', currentWeek);
+    }
+
+    /**
+     * Get ISO week string from date
+     */
+    function getISOWeek(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return d.getFullYear() + '-W' + (weekNo < 10 ? '0' + weekNo : weekNo);
+    }
+
+    /**
+     * Initialize history DataTable
+     */
+    function initHistoryTable() {
+        const tableEl = document.getElementById('okrHistoryTable');
+        if (!tableEl) return;
+
+        if (okrHistoryTable) {
+            okrHistoryTable.destroy();
+        }
+
+        okrHistoryTable = $('#okrHistoryTable').DataTable({
+            columns: [
+                { data: 'week_number' },
+                { data: 'objective_text' },
+                {
+                    data: null,
+                    render: (data, type, row) => {
+                        let krCount = 0;
+                        for (let i = 1; i <= 3; i++) {
+                            if (row[`key_result_${i}`]) krCount++;
+                        }
+                        return `<span class="badge bg-primary">${krCount} Key Results</span>`;
+                    }
+                },
+                {
+                    data: 'overall_progress',
+                    render: (data) => {
+                        const pct = parseFloat(data) || 0;
+                        const color = pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger';
+                        return `
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1" style="height: 20px;">
+                                    <div class="progress-bar bg-${color}" style="width: ${pct}%">${pct.toFixed(0)}%</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                },
+                {
+                    data: 'status',
+                    render: (data) => {
+                        const statusConfig = {
+                            'DRAFT': { class: 'secondary', icon: 'pencil' },
+                            'SUBMITTED': { class: 'info', icon: 'send' },
+                            'APPROVED': { class: 'success', icon: 'check-circle' },
+                            'REJECTED': { class: 'danger', icon: 'x-circle' }
+                        };
+                        const config = statusConfig[data] || { class: 'secondary', icon: 'question-circle' };
+                        return `<span class="badge bg-${config.class}"><i class="bi bi-${config.icon} me-1"></i>${data}</span>`;
+                    }
+                },
+                { data: 'submitted_by_name' },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('okr', '${row.okr_id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            ${row.status === 'SUBMITTED' ? `
+                                <button class="btn btn-outline-success" onclick="OKRManager.openReviewModal('${row.okr_id}')">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[0, 'desc']],
+            pageLength: 25,
+            language: {
+                emptyTable: 'No OKR history found. Create your first OKR to get started.'
+            }
+        });
+
+        debugLog('OKR_CRUD', 'OK History table initialized');
+    }
+
+    /**
+     * Load current week OKRs
+     */
+    async function loadWeekOKRs() {
+        const weekSelector = document.getElementById('okrWeekSelector');
+        if (!weekSelector) return;
+
+        currentWeek = weekSelector.value;
+        debugLog('OKR_CRUD', 'Loading OKRs for week:', currentWeek);
+
+        try {
+            const result = await apiCall('okr/my-okrs', { week: currentWeek });
+
+            if (result.success && result.data) {
+                myOKRsData = Array.isArray(result.data) ? result.data : [result.data];
+                renderMyOKRs(myOKRsData);
+                updateWeekProgress(myOKRsData);
+                debugLog('OKR_CRUD', 'OK Loaded', myOKRsData.length, 'OKRs');
+            } else {
+                renderMyOKRs([]);
+                updateWeekProgress([]);
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading OKRs:', error);
+            showToast('Error loading OKRs', 'error');
+        }
+    }
+
+    /**
+     * Render my OKRs
+     */
+    function renderMyOKRs(data) {
+        const container = document.getElementById('myOKRsContent');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-person fs-1"></i>
+                    <p class="mt-3">No OKRs for this week. Click "New OKR" to create one.</p>
+                    <button class="btn btn-primary" onclick="showModal('okr')">Create OKR</button>
+                </div>
+            `;
+            return;
+        }
+
+        const html = data.map(okr => {
+            const statusConfig = {
+                'DRAFT': { class: 'secondary', icon: 'pencil' },
+                'SUBMITTED': { class: 'info', icon: 'send' },
+                'APPROVED': { class: 'success', icon: 'check-circle' },
+                'REJECTED': { class: 'danger', icon: 'x-circle' }
+            };
+            const config = statusConfig[okr.status] || statusConfig['DRAFT'];
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${okr.objective_text}</h6>
+                            <span class="badge bg-${config.class}"><i class="bi bi-${config.icon} me-1"></i>${okr.status}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="text-muted small mb-3">Key Results:</h6>
+                        ${renderKeyResults(okr)}
+
+                        ${okr.challenges ? `
+                            <div class="mt-3 small">
+                                <strong><i class="bi bi-exclamation-triangle me-1"></i>Challenges:</strong>
+                                <p class="text-muted mb-0">${okr.challenges}</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="mt-3 border-top pt-2">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="showModal('okr', '${okr.okr_id}')">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </button>
+                                ${okr.status === 'DRAFT' ? `
+                                    <button class="btn btn-outline-success" onclick="OKRManager.submitOKR('${okr.okr_id}')">
+                                        <i class="bi bi-send me-1"></i>Submit
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Render key results with progress bars
+     */
+    function renderKeyResults(okr) {
+        let html = '';
+        for (let i = 1; i <= 3; i++) {
+            const krText = okr[`key_result_${i}`];
+            const krProgress = parseFloat(okr[`key_result_${i}_progress`]) || 0;
+
+            if (krText) {
+                const color = krProgress >= 90 ? 'success' : krProgress >= 70 ? 'warning' : 'danger';
+                html += `
+                    <div class="mb-2 small">
+                        <div class="d-flex justify-content-between">
+                            <span>${krText}</span>
+                            <span class="fw-bold">${krProgress.toFixed(0)}%</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-${color}" role="progressbar" style="width: ${krProgress}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        return html || '<p class="text-muted small">No key results defined</p>';
+    }
+
+    /**
+     * Update week progress
+     */
+    function updateWeekProgress(data) {
+        const progressEl = document.getElementById('okrWeekProgress');
+        const barEl = document.getElementById('okrWeekProgressBar');
+
+        if (!progressEl || !barEl) return;
+
+        if (!data || data.length === 0) {
+            progressEl.textContent = '0%';
+            barEl.style.width = '0%';
+            return;
+        }
+
+        const avgProgress = data.reduce((sum, okr) => sum + (parseFloat(okr.overall_progress) || 0), 0) / data.length;
+
+        progressEl.textContent = avgProgress.toFixed(0) + '%';
+        barEl.style.width = avgProgress + '%';
+
+        const color = avgProgress >= 90 ? 'success' : avgProgress >= 70 ? 'warning' : 'danger';
+        barEl.className = `progress-bar bg-${color}`;
+    }
+
+    /**
+     * Load team OKRs
+     */
+    async function loadTeamOKRs() {
+        debugLog('OKR_CRUD', 'Loading team OKRs for week:', currentWeek);
+
+        const container = document.getElementById('teamOKRsContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('okr/team-okrs', { week: currentWeek });
+
+            if (result.success && result.data) {
+                const teamOKRs = Array.isArray(result.data) ? result.data : [result.data];
+                renderTeamOKRs(teamOKRs);
+                debugLog('OKR_CRUD', 'OK Loaded', teamOKRs.length, 'team OKRs');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-people fs-1"></i>
+                        <p class="mt-3">No team OKRs for this week.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading team OKRs:', error);
+            showToast('Error loading team OKRs', 'error');
+        }
+    }
+
+    /**
+     * Render team OKRs grouped by user
+     */
+    function renderTeamOKRs(data) {
+        const container = document.getElementById('teamOKRsContent');
+        if (!container) return;
+
+        // Group by user
+        const byUser = {};
+        data.forEach(okr => {
+            const userId = okr.user_id || 'unknown';
+            if (!byUser[userId]) {
+                byUser[userId] = {
+                    user_id: userId,
+                    user_name: okr.submitted_by_name || 'Unknown User',
+                    okrs: []
+                };
+            }
+            byUser[userId].okrs.push(okr);
+        });
+
+        const html = Object.values(byUser).map(user => {
+            const avgProgress = user.okrs.reduce((sum, okr) => sum + (parseFloat(okr.overall_progress) || 0), 0) / user.okrs.length;
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-person me-2"></i>${user.user_name}</h6>
+                            <span class="badge bg-primary">${user.okrs.length} OKR${user.okrs.length > 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <small class="text-muted">Average Progress</small>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-primary" style="width: ${avgProgress}%">${avgProgress.toFixed(0)}%</div>
+                            </div>
+                        </div>
+                        <div class="list-group">
+                            ${user.okrs.map(okr => `
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>${okr.objective_text}</strong>
+                                        <span class="badge bg-info">${okr.overall_progress || 0}%</span>
+                                    </div>
+                                    ${renderKeyResults(okr)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html || `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1"></i>
+                <p class="mt-3">No team OKRs for this week.</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Load pending reviews
+     */
+    async function loadPendingReviews() {
+        debugLog('OKR_CRUD', 'Loading pending reviews for week:', currentWeek);
+
+        const container = document.getElementById('pendingReviewsContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('okr/pending-reviews', { week: currentWeek });
+
+            if (result.success && result.data) {
+                const pendingOKRs = Array.isArray(result.data) ? result.data : [result.data];
+                renderPendingReviews(pendingOKRs);
+                debugLog('OKR_CRUD', 'OK Loaded', pendingOKRs.length, 'pending reviews');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-check-circle fs-1"></i>
+                        <p class="mt-3">No OKRs pending review.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading pending reviews:', error);
+            showToast('Error loading pending reviews', 'error');
+        }
+    }
+
+    /**
+     * Render pending reviews
+     */
+    function renderPendingReviews(data) {
+        const container = document.getElementById('pendingReviewsContent');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-check-circle fs-1"></i>
+                    <p class="mt-3">No OKRs pending review.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const html = data.map(okr => `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">${okr.objective_text}</h6>
+                        <span class="badge bg-info">${okr.status}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small"><i class="bi bi-person me-1"></i>Submitted by: ${okr.submitted_by_name || 'Team Member'}</p>
+                    ${renderKeyResults(okr)}
+                    <div class="mt-3 text-end">
+                        <button class="btn btn-primary" onclick="OKRManager.openReviewModal('${okr.okr_id}')">
+                            <i class="bi bi-check-circle me-1"></i>Review OKR
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Load OKR history
+     */
+    async function loadHistory() {
+        debugLog('OKR_CRUD', 'Loading OKR history...');
+
+        try {
+            const result = await apiCall('okr/history');
+
+            if (result.success && result.data) {
+                const historyData = Array.isArray(result.data) ? result.data : [result.data];
+
+                if (okrHistoryTable) {
+                    okrHistoryTable.clear();
+                    okrHistoryTable.rows.add(historyData);
+                    okrHistoryTable.draw();
+                }
+
+                debugLog('OKR_CRUD', 'OK Loaded', historyData.length, 'history records');
+            } else {
+                if (okrHistoryTable) {
+                    okrHistoryTable.clear();
+                    okrHistoryTable.draw();
+                }
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading history:', error);
+            showToast('Error loading OKR history', 'error');
+        }
+    }
+
+    /**
+     * Load OKR dashboard
+     */
+    async function loadDashboard() {
+        debugLog('OKR_CRUD', 'Loading OKR dashboard...');
+
+        const container = document.getElementById('okrDashboardContent');
+        if (!container) return;
+
+        try {
+            const result = await apiCall('okr/dashboard');
+
+            if (result.success && result.data) {
+                renderDashboard(result.data);
+                debugLog('OKR_CRUD', 'OK Dashboard loaded');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <p>No dashboard data available</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading dashboard:', error);
+            container.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <p>Error loading dashboard</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render OKR dashboard
+     */
+    function renderDashboard(data) {
+        const container = document.getElementById('okrDashboardContent');
+        if (!container) return;
+
+        let html = '<div class="row">';
+
+        // Summary cards
+        html += `
+            <div class="col-md-3 mb-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h3>${data.total_okrs || 0}</h3>
+                        <small>Total OKRs</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h3>${data.approved || 0}</h3>
+                        <small>Approved</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h3>${data.pending_review || 0}</h3>
+                        <small>Pending Review</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h3>${data.avg_progress || 0}%</h3>
+                        <small>Avg Progress</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        html += '</div><div class="row"><div class="col-md-12">';
+
+        // Weekly trend chart placeholder
+        html += `
+            <h6 class="mt-4">Weekly Progress Trend</h6>
+            <canvas id="okrTrendChart" height="100"></canvas>
+        `;
+
+        html += '</div></div>';
+
+        container.innerHTML = html;
+
+        // Initialize chart if Chart.js is available
+        if (typeof Chart !== 'undefined' && data.weekly_trend) {
+            new Chart(document.getElementById('okrTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: data.weekly_trend.map(w => w.week),
+                    datasets: [{
+                        label: 'Average Progress',
+                        data: data.weekly_trend.map(w => w.avg_progress),
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Submit OKR for review
+     */
+    async function submitOKR(okrId) {
+        if (!confirm('Are you sure you want to submit this OKR for review?')) {
+            return;
+        }
+
+        debugLog('OKR_CRUD', 'Submitting OKR:', okrId);
+
+        try {
+            const result = await apiCall('okr/submit', { okr_id: okrId });
+
+            if (result.success) {
+                showToast('OKR submitted successfully', 'success');
+                loadWeekOKRs();
+            } else {
+                showToast('Failed to submit OKR: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION submitting OKR:', error);
+            showToast('Error submitting OKR', 'error');
+        }
+    }
+
+    /**
+     * Open review modal
+     */
+    async function openReviewModal(okrId) {
+        debugLog('OKR_CRUD', 'Opening review modal for OKR:', okrId);
+
+        try {
+            const result = await apiCall('okr/get', { id: okrId });
+
+            if (result.success && result.data) {
+                const okr = result.data;
+
+                const html = `
+                    <div class="mb-3">
+                        <h6>${okr.objective_text}</h6>
+                        ${renderKeyResults(okr)}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Review Notes</label>
+                        <textarea class="form-control" id="reviewNotes" rows="3" placeholder="Provide feedback or reasons for rejection..."></textarea>
+                    </div>
+                    <input type="hidden" id="reviewOkrId" value="${okrId}">
+                `;
+
+                showModal('Review OKR', html, `
+                    <button type="button" class="btn btn-outline-danger" onclick="OKRManager.submitReview(false)">
+                        <i class="bi bi-x-circle me-1"></i>Request Changes
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="OKRManager.submitReview(true)">
+                        <i class="bi bi-check-circle me-1"></i>Approve
+                    </button>
+                `);
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION loading OKR for review:', error);
+            showToast('Error loading OKR', 'error');
+        }
+    }
+
+    /**
+     * Submit OKR review
+     */
+    async function submitReview(approved) {
+        const okrId = document.getElementById('reviewOkrId');
+        const notesEl = document.getElementById('reviewNotes');
+
+        if (!okrId) return;
+
+        if (!approved && (!notesEl || !notesEl.value.trim())) {
+            showToast('Notes are required when requesting changes', 'warning');
+            return;
+        }
+
+        debugLog('OKR_CRUD', 'Submitting review for OKR:', okrId.value, 'Approved:', approved);
+
+        try {
+            const result = await apiCall('okr/review', {
+                okr_id: okrId.value,
+                approved: approved,
+                review_notes: notesEl ? notesEl.value : ''
+            });
+
+            if (result.success) {
+                showToast(approved ? 'OKR approved' : 'Feedback sent', 'success');
+                // Close modal
+                const modalEl = document.querySelector('.modal.show');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+                // Refresh data
+                loadPendingReviews();
+                loadWeekOKRs();
+            } else {
+                showToast('Failed to submit review: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('OKR_CRUD', 'EXCEPTION submitting review:', error);
+            showToast('Error submitting review', 'error');
+        }
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadWeekOKRs: loadWeekOKRs,
+        loadTeamOKRs: loadTeamOKRs,
+        loadPendingReviews: loadPendingReviews,
+        loadHistory: loadHistory,
+        loadDashboard: loadDashboard,
+        submitOKR: submitOKR,
+        openReviewModal: openReviewModal,
+        submitReview: submitReview
+    };
+})();
+
+// Auto-initialize
+window.OKRManager = OKRManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('okrs-view')) {
+        OKRManager.init();
+    }
+});
+
+debugLog('OKR_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('okr_crud.html');
+}
+</script>

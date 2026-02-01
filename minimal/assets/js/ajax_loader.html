@@ -147,6 +147,11 @@ function initPage(pageName) {
                 window.OrganizationManager.initialize();
             }
             break;
+        case 'okrs':
+            if (typeof window.OKRManager !== 'undefined') {
+                window.OKRManager.init();
+            }
+            break;
         case 'settings':
             if (typeof loadSettings === 'function') {
                 loadSettings();
@@ -155,6 +160,9 @@ function initPage(pageName) {
         case 'dashboard':
         case 'strategic-plan':
         case 'kpi':
+        case 'users':
+        case 'roles':
+        case 'programs':
             // Add initialization for these pages when needed
             break;
     }

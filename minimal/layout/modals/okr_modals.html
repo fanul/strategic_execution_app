@@ -1,0 +1,175 @@
+<!-- OKR Modal -->
+<div class="modal fade" id="okrModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Weekly OKR</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="okrForm">
+                    <input type="hidden" name="okr_id" id="okr_id">
+
+                    <div class="mb-3">
+                        <label class="form-label">Week</label>
+                        <input type="week" class="form-control" name="week_number" id="okr_week_number" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Objective <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="objective_text" id="okr_objective_text" rows="2" required placeholder="What do you want to achieve this week?"></textarea>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-md-9">
+                            <label class="form-label fw-bold">Key Results</label>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <label class="form-label fw-bold">Progress %</label>
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" name="key_result_1" id="okr_key_result_1" placeholder="Key Result 1">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control" name="key_result_1_progress" id="okr_key_result_1_progress" min="0" max="100" value="0">
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" name="key_result_2" id="okr_key_result_2" placeholder="Key Result 2">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control" name="key_result_2_progress" id="okr_key_result_2_progress" min="0" max="100" value="0">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" name="key_result_3" id="okr_key_result_3" placeholder="Key Result 3">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control" name="key_result_3_progress" id="okr_key_result_3_progress" min="0" max="100" value="0">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Challenges / Blockers</label>
+                        <textarea class="form-control" name="challenges" id="okr_challenges" rows="2" placeholder="Any obstacles or challenges you're facing..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveOKR()">
+                    <i class="bi bi-check-circle me-1"></i>Save OKR
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load OKR data for editing
+async function loadItemData(type, id) {
+    debugLog('MODAL', 'Loading OKR data for ID:', id);
+
+    try {
+        const result = await apiCall('okr/get', { id: id });
+
+        if (result.success && result.data) {
+            const okr = result.data;
+
+            // Populate form fields
+            document.getElementById('okr_id').value = okr.okr_id || '';
+            document.getElementById('okr_week_number').value = okr.week_number || '';
+            document.getElementById('okr_objective_text').value = okr.objective_text || '';
+            document.getElementById('okr_key_result_1').value = okr.key_result_1 || '';
+            document.getElementById('okr_key_result_1_progress').value = okr.key_result_1_progress || 0;
+            document.getElementById('okr_key_result_2').value = okr.key_result_2 || '';
+            document.getElementById('okr_key_result_2_progress').value = okr.key_result_2_progress || 0;
+            document.getElementById('okr_key_result_3').value = okr.key_result_3 || '';
+            document.getElementById('okr_key_result_3_progress').value = okr.key_result_3_progress || 0;
+            document.getElementById('okr_challenges').value = okr.challenges || '';
+
+            debugLog('MODAL', 'OK OKR data loaded');
+        } else {
+            throw new Error(result.message || 'Failed to load OKR');
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION loading OKR:', error);
+        throw error;
+    } finally {
+        // Hide loading overlay
+        const loadingEl = document.getElementById('okrModalLoading');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+        }
+    }
+}
+
+// Clear OKR form
+function clearForm(type) {
+    if (type === 'okr') {
+        const form = document.getElementById('okrForm');
+        if (form) {
+            form.reset();
+            // Set current week
+            const weekSelector = document.getElementById('okrWeekSelector');
+            const weekInput = document.getElementById('okr_week_number');
+            if (weekSelector && weekInput) {
+                weekInput.value = weekSelector.value;
+            }
+        }
+        debugLog('MODAL', 'OK OKR form cleared');
+    }
+}
+
+// Save OKR
+async function saveOKR() {
+    const form = document.getElementById('okrForm');
+    if (!form) {
+        showToast('Form not found', 'error');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Validate required fields
+    if (!data.objective_text || !data.objective_text.trim()) {
+        showToast('Please enter an objective', 'warning');
+        return;
+    }
+
+    debugLog('MODAL', 'Saving OKR:', data);
+
+    try {
+        const result = await apiCall('okr/save', data);
+
+        if (result.success) {
+            showToast('OKR saved successfully', 'success');
+
+            // Close modal
+            const modalEl = document.getElementById('okrModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            // Refresh OKR list
+            if (typeof OKRManager !== 'undefined' && OKRManager.loadWeekOKRs) {
+                OKRManager.loadWeekOKRs();
+            }
+        } else {
+            showToast('Failed to save OKR: ' + result.message, 'error');
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION saving OKR:', error);
+        showToast('Error saving OKR', 'error');
+    }
+}
+</script>
