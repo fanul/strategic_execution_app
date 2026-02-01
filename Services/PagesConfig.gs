@@ -112,7 +112,7 @@ var PagesConfig = {
         notifications: {
             title: 'Notifications',
             template: 'minimal/pages/notifications.html',
-            scripts: ['assets/js/notifications_crud.html'],
+            scripts: ['assets/notifications_crud.html'],
             modals: ''
         },
 
