@@ -157,6 +157,11 @@ function initPage(pageName) {
                 window.ProgramManager.init();
             }
             break;
+        case 'reports':
+            if (typeof window.ReportManager !== 'undefined') {
+                window.ReportManager.init();
+            }
+            break;
         case 'settings':
             if (typeof loadSettings === 'function') {
                 loadSettings();

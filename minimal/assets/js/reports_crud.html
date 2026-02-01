@@ -1,0 +1,745 @@
+<script>
+// ============================================================================
+// REPORTS CRUD - Reports and Analytics Operations
+// ============================================================================
+
+debugLog('REPORTS_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('REPORTS_CRUD', '║  REPORTS CRUD SCRIPT LOADING                       ║');
+debugLog('REPORTS_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const ReportManager = (function() {
+    'use strict';
+
+    let currentReportData = null;
+    let scheduledReportsData = [];
+
+    // Report type definitions
+    const reportTypes = {
+        executive: [
+            { value: 'executive_summary', label: 'Executive Summary Dashboard' },
+            { value: 'strategic_overview', label: 'Strategic Overview' },
+            { value: 'period_comparison', label: 'Period Comparison' }
+        ],
+        kpi: [
+            { value: 'kpi_scorecard', label: 'KPI Scorecard' },
+            { value: 'kpi_trend', label: 'KPI Trend Analysis' },
+            { value: 'kpi_by_unit', label: 'KPI by Work Unit' },
+            { value: 'kpi_by_perspective', label: 'KPI by Perspective' }
+        ],
+        okr: [
+            { value: 'okr_summary', label: 'OKR Summary' },
+            { value: 'okr_team_performance', label: 'Team OKR Performance' },
+            { value: 'okr_weekly_trend', label: 'Weekly OKR Trend' }
+        ],
+        performance: [
+            { value: 'goal_progress', label: 'Goal Progress Report' },
+            { value: 'initiative_tracking', label: 'Initiative Tracking' },
+            { value: 'impact_center_status', label: 'Impact Center Status' }
+        ],
+        budget: [
+            { value: 'budget_utilization', label: 'Budget Utilization' },
+            { value: 'program_budget', label: 'Program Budget Analysis' },
+            { value: 'activity_costs', label: 'Activity Cost Report' }
+        ]
+    };
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('REPORTS_CRUD', '=== init START ===');
+        loadScheduledReports();
+        debugLog('REPORTS_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load report types based on category
+     */
+    function loadReportTypes() {
+        const category = document.getElementById('reportCategory').value;
+        const typeSelect = document.getElementById('reportType');
+        const filtersCard = document.getElementById('reportFiltersCard');
+
+        if (!category) {
+            typeSelect.innerHTML = '<option value="">Select category first</option>';
+            typeSelect.disabled = true;
+            filtersCard.style.display = 'none';
+            return;
+        }
+
+        const types = reportTypes[category] || [];
+        typeSelect.innerHTML = '<option value="">Select report type</option>';
+        types.forEach(type => {
+            typeSelect.innerHTML += `<option value="${type.value}">${type.label}</option>`;
+        });
+        typeSelect.disabled = false;
+
+        // Load filters
+        loadReportFilters(category);
+
+        debugLog('REPORTS_CRUD', 'OK Loaded', types.length, 'report types for category:', category);
+    }
+
+    /**
+     * Load report filters based on category
+     */
+    function loadReportFilters(category) {
+        const filtersContainer = document.getElementById('reportFilters');
+        const filtersCard = document.getElementById('reportFiltersCard');
+
+        if (!filtersContainer) return;
+
+        let html = '';
+
+        // Common filters for all reports
+        html += `
+            <div class="col-md-3">
+                <label class="form-label">Period</label>
+                <select class="form-select" id="filterPeriod">
+                    <option value="">All Periods</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Work Unit</label>
+                <select class="form-select" id="filterWorkUnit">
+                    <option value="">All Work Units</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date Range</label>
+                <input type="date" class="form-control" id="filterStartDate">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To Date</label>
+                <input type="date" class="form-control" id="filterEndDate">
+            </div>
+        `;
+
+        // Category-specific filters
+        if (category === 'kpi') {
+            html += `
+                <div class="col-md-4">
+                    <label class="form-label">Perspective</label>
+                    <select class="form-select" id="filterPerspective">
+                        <option value="">All Perspectives</option>
+                        <option value="financial">Financial</option>
+                        <option value="customer">Customer</option>
+                        <option value="internal_process">Internal Process</option>
+                        <option value="learning_growth">Learning & Growth</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="on_track">On Track</option>
+                        <option value="at_risk">At Risk</option>
+                        <option value="off_track">Off Track</option>
+                    </select>
+                </div>
+            `;
+        } else if (category === 'okr') {
+            html += `
+                <div class="col-md-4">
+                    <label class="form-label">Week</label>
+                    <input type="week" class="form-control" id="filterWeek">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">User</label>
+                    <select class="form-select" id="filterUser">
+                        <option value="">All Users</option>
+                    </select>
+                </div>
+            `;
+        } else if (category === 'budget') {
+            html += `
+                <div class="col-md-4">
+                    <label class="form-label">Budget Threshold</label>
+                    <select class="form-select" id="filterBudgetThreshold">
+                        <option value="">All</option>
+                        <option value="under_50">Under 50% utilized</option>
+                        <option value="50_75">50-75% utilized</option>
+                        <option value="75_90">75-90% utilized</option>
+                        <option value="over_90">Over 90% utilized</option>
+                    </select>
+                </div>
+            `;
+        }
+
+        filtersContainer.innerHTML = html;
+        filtersCard.style.display = 'block';
+
+        // Load dropdown data
+        loadFilterDropdowns();
+    }
+
+    /**
+     * Load filter dropdown data
+     */
+    async function loadFilterDropdowns() {
+        try {
+            // Load periods
+            const periodsResult = await apiCall('strategic/periods/list');
+            if (periodsResult.success && periodsResult.data) {
+                const periodSelect = document.getElementById('filterPeriod');
+                if (periodSelect) {
+                    periodsResult.data.forEach(p => {
+                        periodSelect.innerHTML += `<option value="${p.period_id}">${p.year} - ${p.period_name}</option>`;
+                    });
+                }
+            }
+
+            // Load work units
+            const unitsResult = await apiCall('work-units/list');
+            if (unitsResult.success && unitsResult.data) {
+                const unitSelect = document.getElementById('filterWorkUnit');
+                if (unitSelect) {
+                    unitsResult.data.forEach(wu => {
+                        unitSelect.innerHTML += `<option value="${wu.work_unit_id}">${wu.work_unit_code} - ${wu.work_unit_name}</option>`;
+                    });
+                }
+            }
+
+            debugLog('REPORTS_CRUD', 'OK Filter dropdowns loaded');
+        } catch (error) {
+            debugLog('REPORTS_CRUD', 'EXCEPTION loading filter dropdowns:', error);
+        }
+    }
+
+    /**
+     * Generate report
+     */
+    async function generateReport() {
+        const category = document.getElementById('reportCategory').value;
+        const reportType = document.getElementById('reportType').value;
+
+        if (!category || !reportType) {
+            showToast('Please select report category and type', 'warning');
+            return;
+        }
+
+        debugLog('REPORTS_CRUD', 'Generating report:', category, '/', reportType);
+
+        // Collect filter values
+        const filters = collectFilters();
+
+        try {
+            const result = await apiCall('reports/generate', {
+                category: category,
+                type: reportType,
+                filters: filters
+            });
+
+            if (result.success && result.data) {
+                currentReportData = result.data;
+                renderReportPreview(result.data, category, reportType);
+
+                // Show preview card
+                document.getElementById('reportPreviewCard').style.display = 'block';
+
+                debugLog('REPORTS_CRUD', 'OK Report generated');
+            } else {
+                showToast('Failed to generate report: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('REPORTS_CRUD', 'EXCEPTION generating report:', error);
+            showToast('Error generating report', 'error');
+        }
+    }
+
+    /**
+     * Collect filter values
+     */
+    function collectFilters() {
+        const filters = {};
+
+        const periodEl = document.getElementById('filterPeriod');
+        const workUnitEl = document.getElementById('filterWorkUnit');
+        const startDateEl = document.getElementById('filterStartDate');
+        const endDateEl = document.getElementById('filterEndDate');
+        const perspectiveEl = document.getElementById('filterPerspective');
+        const statusEl = document.getElementById('filterStatus');
+        const weekEl = document.getElementById('filterWeek');
+        const userEl = document.getElementById('filterUser');
+
+        if (periodEl && periodEl.value) filters.period_id = periodEl.value;
+        if (workUnitEl && workUnitEl.value) filters.work_unit_id = workUnitEl.value;
+        if (startDateEl && startDateEl.value) filters.start_date = startDateEl.value;
+        if (endDateEl && endDateEl.value) filters.end_date = endDateEl.value;
+        if (perspectiveEl && perspectiveEl.value) filters.perspective = perspectiveEl.value;
+        if (statusEl && statusEl.value) filters.status = statusEl.value;
+        if (weekEl && weekEl.value) filters.week = weekEl.value;
+        if (userEl && userEl.value) filters.user_id = userEl.value;
+
+        return filters;
+    }
+
+    /**
+     * Render report preview
+     */
+    function renderReportPreview(data, category, reportType) {
+        const container = document.getElementById('reportPreviewContent');
+        if (!container) return;
+
+        const timestamp = new Date().toLocaleString();
+        let html = `
+            <div class="report-header mb-4">
+                <h4>${formatReportTitle(category, reportType)}</h4>
+                <p class="text-muted small">Generated: ${timestamp}</p>
+            </div>
+        `;
+
+        // Render based on category
+        if (category === 'executive') {
+            html += renderExecutiveReport(data);
+        } else if (category === 'kpi') {
+            html += renderKPIReport(data);
+        } else if (category === 'okr') {
+            html += renderOKRReport(data);
+        } else if (category === 'performance') {
+            html += renderPerformanceReport(data);
+        } else if (category === 'budget') {
+            html += renderBudgetReport(data);
+        } else {
+            html += '<p class="text-muted">Report data loaded successfully</p>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Format report title
+     */
+    function formatReportTitle(category, type) {
+        const categoryLabels = {
+            executive: 'Executive',
+            kpi: 'KPI',
+            okr: 'OKR',
+            performance: 'Performance',
+            budget: 'Budget'
+        };
+
+        const types = reportTypes[category] || [];
+        const typeObj = types.find(t => t.value === type);
+        const typeLabel = typeObj ? typeObj.label : type;
+
+        return `${categoryLabels[category]}: ${typeLabel}`;
+    }
+
+    /**
+     * Render executive report
+     */
+    function renderExecutiveReport(data) {
+        let html = '<div class="row">';
+
+        // Summary cards
+        html += `
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h3>${data.total_initiatives || 0}</h3>
+                        <small>Total Initiatives</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h3>${data.active_goals || 0}</h3>
+                        <small>Active Goals</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h3>${data.avg_achievement || 0}%</h3>
+                        <small>Avg Achievement</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h3>${data.budget_utilization || 0}%</h3>
+                        <small>Budget Used</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        html += '</div>';
+
+        // Strategic highlights
+        if (data.highlights) {
+            html += '<h6 class="mt-4">Strategic Highlights</h6>';
+            html += '<ul class="list-group">';
+            data.highlights.forEach(h => {
+                html += `<li class="list-group-item">${h}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Render KPI report
+     */
+    function renderKPIReport(data) {
+        let html = '';
+
+        if (data.kpis && data.kpis.length > 0) {
+            html += '<table class="table table-bordered">';
+            html += '<thead><tr><th>KPI Code</th><th>Name</th><th>Perspective</th><th>Target</th><th>Current</th><th>Achievement</th></tr></thead>';
+            html += '<tbody>';
+
+            data.kpis.forEach(kpi => {
+                const pct = parseFloat(kpi.achievement_percentage) || 0;
+                const color = pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger';
+                html += `
+                    <tr>
+                        <td>${kpi.kpi_code}</td>
+                        <td>${kpi.kpi_name}</td>
+                        <td>${kpi.perspective}</td>
+                        <td>${kpi.target_value}</td>
+                        <td>${kpi.current_value}</td>
+                        <td><span class="badge bg-${color}">${pct.toFixed(1)}%</span></td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+        } else {
+            html = '<p class="text-muted">No KPI data available for the selected filters</p>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Render OKR report
+     */
+    function renderOKRReport(data) {
+        let html = '';
+
+        if (data.okrs && data.okrs.length > 0) {
+            html += '<div class="row">';
+
+            data.okrs.forEach(okr => {
+                const avgProgress = parseFloat(okr.overall_progress) || 0;
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>${okr.objective_text}</h6>
+                                <p class="small text-muted">Submitted by: ${okr.submitted_by_name || 'N/A'}</p>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" style="width: ${avgProgress}%">${avgProgress.toFixed(0)}%</div>
+                                </div>
+                                ${okr.key_result_1 ? `<p class="small mb-1"><strong>KR1:</strong> ${okr.key_result_1} (${okr.key_result_1_progress}%)</p>` : ''}
+                                ${okr.key_result_2 ? `<p class="small mb-1"><strong>KR2:</strong> ${okr.key_result_2} (${okr.key_result_2_progress}%)</p>` : ''}
+                                ${okr.key_result_3 ? `<p class="small mb-0"><strong>KR3:</strong> ${okr.key_result_3} (${okr.key_result_3_progress}%)</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        } else {
+            html = '<p class="text-muted">No OKR data available for the selected filters</p>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Render performance report
+     */
+    function renderPerformanceReport(data) {
+        let html = '';
+
+        if (data.goals && data.goals.length > 0) {
+            html += '<table class="table table-bordered">';
+            html += '<thead><tr><th>Goal</th><th>Impact Center</th><th>Type</th><th>Status</th><th>Progress</th></tr></thead>';
+            html += '<tbody>';
+
+            data.goals.forEach(goal => {
+                const statusClass = {
+                    'not_achieved': 'danger',
+                    'partially_achieved': 'warning',
+                    'achieved': 'success'
+                }[goal.achievement_status] || 'secondary';
+
+                html += `
+                    <tr>
+                        <td>${goal.goal_name}</td>
+                        <td>${goal.impact_center_name || 'N/A'}</td>
+                        <td>${goal.goal_type || 'N/A'}</td>
+                        <td><span class="badge bg-${statusClass}">${goal.achievement_status}</span></td>
+                        <td>${goal.progress_percentage || 0}%</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+        } else {
+            html = '<p class="text-muted">No performance data available for the selected filters</p>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Render budget report
+     */
+    function renderBudgetReport(data) {
+        let html = '';
+
+        if (data.programs && data.programs.length > 0) {
+            html += '<table class="table table-bordered">';
+            html += '<thead><tr><th>Program</th><th>Budget</th><th>Spent</th><th>Utilization</th><th>Remaining</th></tr></thead>';
+            html += '<tbody>';
+
+            data.programs.forEach(program => {
+                const budget = parseFloat(program.budget) || 0;
+                const spent = parseFloat(program.spent_budget) || 0;
+                const utilization = budget > 0 ? (spent / budget * 100).toFixed(1) : 0;
+                const remaining = budget - spent;
+                const color = utilization >= 90 ? 'danger' : utilization >= 70 ? 'warning' : 'success';
+
+                html += `
+                    <tr>
+                        <td>${program.program_name}</td>
+                        <td>${budget.toLocaleString()}</td>
+                        <td>${spent.toLocaleString()}</td>
+                        <td><span class="badge bg-${color}">${utilization}%</span></td>
+                        <td>${remaining.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+        } else {
+            html = '<p class="text-muted">No budget data available for the selected filters</p>';
+        }
+
+        return html;
+    }
+
+    /**
+     * Export report
+     */
+    function exportReport() {
+        if (!currentReportData) {
+            showToast('Please generate a report first', 'warning');
+            return;
+        }
+
+        const format = document.getElementById('exportFormat').value;
+        const category = document.getElementById('reportCategory').value;
+        const reportType = document.getElementById('reportType').value;
+
+        debugLog('REPORTS_CRUD', 'Exporting report as:', format);
+
+        // For now, use browser's print functionality
+        // In production, this would call the backend to generate PDF/Excel
+        if (format === 'pdf') {
+            printReport();
+        } else if (format === 'excel' || format === 'csv') {
+            // Export to CSV (simple implementation)
+            exportToCSV(currentReportData, category, reportType);
+        }
+    }
+
+    /**
+     * Print report
+     */
+    function printReport() {
+        const content = document.getElementById('reportPreviewContent').innerHTML;
+        const title = formatReportTitle(
+            document.getElementById('reportCategory').value,
+            document.getElementById('reportType').value
+        );
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>${title}</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body { padding: 20px; }
+                    .report-header { border-bottom: 2px solid #000; margin-bottom: 20px; }
+                    @media print { .no-print { display: none; } }
+                </style>
+            </head>
+            <body>
+                ${content}
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        window.close();
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
+
+    /**
+     * Export to CSV (simple implementation)
+     */
+    function exportToCSV(data, category, reportType) {
+        // This is a simplified CSV export
+        // In production, use a proper library or backend service
+        let csv = 'data:text/csv;charset=utf-8,';
+
+        // Add header
+        csv += formatReportTitle(category, reportType) + '\n';
+        csv += 'Generated:,' + new Date().toLocaleString() + '\n\n';
+
+        // Add data based on category
+        if (category === 'kpi' && data.kpis) {
+            csv += 'KPI Code,Name,Perspective,Target,Current,Achievement %\n';
+            data.kpis.forEach(kpi => {
+                csv += `"${kpi.kpi_code}","${kpi.kpi_name}","${kpi.perspective}",${kpi.target_value},${kpi.current_value},${kpi.achievement_percentage}\n`;
+            });
+        }
+
+        // Create download link
+        const encodedUri = encodeURI(csv);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `${category}_${reportType}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showToast('Report exported to CSV', 'success');
+    }
+
+    /**
+     * Schedule report
+     */
+    function scheduleReport() {
+        showToast('Report scheduling feature coming soon', 'info');
+    }
+
+    /**
+     * Load scheduled reports
+     */
+    async function loadScheduledReports() {
+        debugLog('REPORTS_CRUD', 'Loading scheduled reports...');
+
+        try {
+            const result = await apiCall('reports/scheduled');
+
+            if (result.success && result.data) {
+                scheduledReportsData = Array.isArray(result.data) ? result.data : [result.data];
+                renderScheduledReports(scheduledReportsData);
+                debugLog('REPORTS_CRUD', 'OK Loaded', scheduledReportsData.length, 'scheduled reports');
+            } else {
+                renderScheduledReports([]);
+            }
+        } catch (error) {
+            debugLog('REPORTS_CRUD', 'EXCEPTION loading scheduled reports:', error);
+        }
+    }
+
+    /**
+     * Render scheduled reports
+     */
+    function renderScheduledReports(data) {
+        const tbody = document.getElementById('scheduledReportsBody');
+        if (!tbody) return;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No scheduled reports</td></tr>';
+            return;
+        }
+
+        const html = data.map(report => `
+            <tr>
+                <td>${report.report_name}</td>
+                <td>${report.report_type}</td>
+                <td>${report.frequency}</td>
+                <td>${report.last_run || 'Never'}</td>
+                <td>${report.next_run || 'N/A'}</td>
+                <td><span class="badge bg-${report.is_active ? 'success' : 'secondary'}">${report.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="ReportManager.editScheduledReport('${report.schedule_id}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="ReportManager.deleteScheduledReport('${report.schedule_id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        tbody.innerHTML = html;
+    }
+
+    /**
+     * Edit scheduled report
+     */
+    function editScheduledReport(scheduleId) {
+        showToast('Edit scheduled report feature coming soon', 'info');
+    }
+
+    /**
+     * Delete scheduled report
+     */
+    async function deleteScheduledReport(scheduleId) {
+        if (!confirm('Are you sure you want to delete this scheduled report?')) {
+            return;
+        }
+
+        try {
+            const result = await apiCall('reports/delete-scheduled', { schedule_id: scheduleId });
+
+            if (result.success) {
+                showToast('Scheduled report deleted', 'success');
+                loadScheduledReports();
+            } else {
+                showToast('Failed to delete: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('REPORTS_CRUD', 'EXCEPTION deleting scheduled report:', error);
+            showToast('Error deleting scheduled report', 'error');
+        }
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadReportTypes: loadReportTypes,
+        generateReport: generateReport,
+        exportReport: exportReport,
+        printReport: printReport,
+        scheduleReport: scheduleReport,
+        loadScheduledReports: loadScheduledReports,
+        editScheduledReport: editScheduledReport,
+        deleteScheduledReport: deleteScheduledReport
+    };
+})();
+
+// Auto-initialize
+window.ReportManager = ReportManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('reports-view')) {
+        ReportManager.init();
+    }
+});
+
+debugLog('REPORTS_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('reports_crud.html');
+}
+</script>
