@@ -1,160 +1,137 @@
 <!-- User Management Page -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">User Management</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#userModal">
-            <i class="bi bi-person-plus me-1"></i>Add User
+    <h1 class="h2">User & Role Management</h1>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-tabs mb-4" id="usersTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+            <i class="bi bi-people me-2"></i>Users
         </button>
-    </div>
-</div>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles" type="button" role="tab">
+            <i class="bi bi-shield-lock me-2"></i>Roles
+        </button>
+    </li>
+</ul>
 
-<!-- Bulk Actions Card -->
-<div class="card bg-warning bg-opacity-10 mb-4" id="bulkActionsCard" style="display: none;">
-    <div class="card-body py-2">
-        <div class="d-flex justify-content-between align-items-center">
-            <span><strong id="selectedCount">0</strong> users selected</span>
-            <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-success" onclick="UserManager.bulkActivate()">
-                    <i class="bi bi-check-circle"></i> Activate
-                </button>
-                <button class="btn btn-outline-warning" onclick="UserManager.bulkDeactivate()">
-                    <i class="bi bi-dash-circle"></i> Deactivate
-                </button>
-                <button class="btn btn-outline-danger" onclick="UserManager.bulkDelete()">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
+<!-- Tab Content -->
+<div class="tab-content" id="usersTabContent">
+    <!-- Users Tab -->
+    <div class="tab-pane fade show active" id="users" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Users</h5>
+            <button class="btn btn-primary btn-sm" onclick="showModal('user')">
+                <i class="bi bi-person-plus me-1"></i>Add User
+            </button>
+        </div>
+
+        <!-- Bulk Actions Card -->
+        <div class="card bg-warning bg-opacity-10 mb-3" id="bulkActionsCard" style="display: none;">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><strong id="selectedCount">0</strong> users selected</span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success" onclick="UserManager.bulkActivate()">
+                            <i class="bi bi-check-circle"></i> Activate
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="UserManager.bulkDeactivate()">
+                            <i class="bi bi-dash-circle"></i> Deactivate
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="UserManager.bulkDelete()">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <input type="text" class="form-control" id="userSearch" placeholder="Search users...">
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="userRoleFilter">
-                    <option value="">All Roles</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="userStatusFilter">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" onclick="UserManager.loadUsers()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                </button>
+        <!-- Filters -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="userSearch" placeholder="Search users...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="userRoleFilter">
+                            <option value="">All Roles</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="userStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" onclick="UserManager.loadUsers()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Users Table -->
-<div class="table-responsive">
-    <table class="table table-hover" id="usersTable">
-        <thead>
-            <tr>
-                <th><input type="checkbox" id="selectAllUsers" onchange="UserManager.toggleSelectAll()"></th>
-                <th>Username</th>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Active Period</th>
-                <th>Last Login</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
-        </tbody>
-    </table>
+        <!-- Users Table -->
+        <div class="table-responsive">
+            <table class="table table-hover" id="usersTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllUsers" onchange="UserManager.toggleSelectAll()"></th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Active Period</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Roles Tab -->
+    <div class="tab-pane fade" id="roles" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Roles & Permissions</h5>
+            <button class="btn btn-primary btn-sm" onclick="showModal('role')">
+                <i class="bi bi-plus-lg me-1"></i>Add Role
+            </button>
+        </div>
+
+        <!-- Roles Table -->
+        <div class="table-responsive">
+            <table class="table table-hover" id="rolesTable">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Role Name</th>
+                        <th>Users Count</th>
+                        <th>System Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Page Modals -->
-<div id="page-modals">
-    <!-- User Modal -->
-    <div class="modal fade" id="userModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add User</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="userForm">
-                        <input type="hidden" id="user_id">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Username *</label>
-                                <input type="text" class="form-control" id="user_username" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Email *</label>
-                                <input type="email" class="form-control" id="user_email" required>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Full Name *</label>
-                            <input type="text" class="form-control" id="user_full_name" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Role *</label>
-                                <select class="form-select" id="user_role_id" required>
-                                    <option value="">Select Role</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Position</label>
-                                <select class="form-select" id="user_position_id">
-                                    <option value="">Select Position</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Active From</label>
-                                <input type="date" class="form-control" id="user_active_from">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Active Until</label>
-                                <input type="date" class="form-control" id="user_active_until">
-                                <small class="text-muted">Leave empty for unlimited</small>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" class="form-control" id="user_password">
-                            <small class="text-muted">Leave empty to keep current password</small>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="user_is_active" checked>
-                            <label class="form-check-label" for="user_is_active">Active</label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveUser()">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<div id="page-modals"></div>
 
 <script>
-function saveUser() {
-    showToast('Saving user...', 'info');
-}
-
 // Initialize users page
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof UserManager !== 'undefined' && UserManager.init) {

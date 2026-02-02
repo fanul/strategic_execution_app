@@ -1,0 +1,342 @@
+<!-- User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">Add User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <div id="userModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="userForm">
+                    <input type="hidden" id="user_id">
+
+                    <!-- Basic Information -->
+                    <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" class="form-control" id="user_username" required
+                                   minlength="3" placeholder="min 3 characters">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="user_email" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="user_full_name" required>
+                    </div>
+
+                    <!-- Role Assignment -->
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Role & Access</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role *</label>
+                            <select class="form-select" id="user_role_id" required>
+                                <option value="">Select Role</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="user_is_active" checked>
+                                <label class="form-check-label" for="user_is_active">
+                                    Active User
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Period -->
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Active Period</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Active From *</label>
+                            <input type="date" class="form-control" id="user_active_from" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Active Until</label>
+                            <input type="date" class="form-control" id="user_active_until"
+                                   placeholder="Leave empty for indefinite">
+                            <small class="text-muted">Leave empty for active indefinitely</small>
+                        </div>
+                    </div>
+
+                    <!-- Password (only for new users or when changing) -->
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Password</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" id="user_password_label">Password *</label>
+                            <input type="password" class="form-control" id="user_password"
+                                   minlength="8" placeholder="min 8 characters">
+                            <small class="text-muted">Min 8 characters, mix of upper, lower, numbers, symbols</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="user_password_confirm"
+                                   minlength="8">
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="user_notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveUser()">Save User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Role Modal -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roleModalTitle">Add Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <div id="roleModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="roleForm">
+                    <input type="hidden" id="role_id">
+
+                    <!-- Basic Information -->
+                    <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role Name *</label>
+                            <input type="text" class="form-control" id="role_name" required
+                                   placeholder="e.g., Manager">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role Code *</label>
+                            <input type="text" class="form-control" id="role_code" required
+                                   placeholder="e.g., MANAGER" style="text-transform: uppercase;">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="role_description" rows="2"></textarea>
+                    </div>
+
+                    <!-- Permissions Matrix -->
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Permissions</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Module</th>
+                                    <th width="15%">Create</th>
+                                    <th width="15%">Read</th>
+                                    <th width="15%">Update</th>
+                                    <th width="15%">Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Users</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="users" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="users" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="users" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="users" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Roles</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="roles" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="roles" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="roles" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="roles" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Organization</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="directorates" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="directorates" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="directorates" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="directorates" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Strategic Plan</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="strategic-plan" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="strategic-plan" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="strategic-plan" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="strategic-plan" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>KPI</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="kpis" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="kpis" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="kpis" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="kpis" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>OKR</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="okrs" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="okrs" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="okrs" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="okrs" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Programs</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="programs" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="programs" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="programs" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="programs" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Reports</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="reports" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="reports" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="reports" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="reports" data-action="delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Settings</strong></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="settings" data-action="create"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="settings" data-action="read" checked></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="settings" data-action="update"></td>
+                                    <td><input type="checkbox" class="form-check-input permission-check"
+                                               data-module="settings" data-action="delete"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="role_is_system">
+                        <label class="form-check-label" for="role_is_system">
+                            <strong>System Role</strong> (cannot be deleted)
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveRole()">Save Role</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <div id="changePasswordModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="changePasswordForm">
+                    <input type="hidden" id="cp_user_id">
+                    <div class="mb-3">
+                        <label class="form-label">User</label>
+                        <input type="text" class="form-control" id="cp_user_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Current Password *</label>
+                        <input type="password" class="form-control" id="cp_old_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password *</label>
+                        <input type="password" class="form-control" id="cp_new_password" required
+                               minlength="8">
+                        <small class="text-muted">Min 8 characters</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password *</label>
+                        <input type="password" class="form-control" id="cp_confirm_password" required
+                               minlength="8">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">Change Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="userDeleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this user?</p>
+                <p class="text-muted">
+                    <strong>User:</strong> <span id="deleteUserName"></span><br>
+                    <strong>Email:</strong> <span id="deleteUserEmail"></span>
+                </p>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone. All user data and associations will be lost.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmUserDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>

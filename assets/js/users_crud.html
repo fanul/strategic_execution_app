@@ -11,6 +11,7 @@ const UserManager = (function() {
     'use strict';
 
     let usersTable = null;
+    let rolesTable = null;
     let usersData = [];
     let rolesData = [];
 
@@ -22,7 +23,27 @@ const UserManager = (function() {
         loadRoles();
         loadUsers();
         setupEventListeners();
+
+        // Setup tab switching
+        setupTabSwitching();
         debugLog('USERS_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Setup tab switching
+     */
+    function setupTabSwitching() {
+        const rolesTab = document.getElementById('roles-tab');
+        if (rolesTab) {
+            rolesTab.addEventListener('shown.bs.tab', function() {
+                debugLog('USERS_CRUD', 'Roles tab activated, loading roles...');
+                if (rolesData.length === 0) {
+                    loadRolesForTable();
+                } else {
+                    renderRolesTable();
+                }
+            });
+        }
     }
 
     /**
@@ -87,6 +108,91 @@ const UserManager = (function() {
 
         // Restore selection
         filterDropdown.value = currentValue;
+    }
+
+    /**
+     * Load roles for table display
+     */
+    async function loadRolesForTable() {
+        debugLog('USERS_CRUD', '=== loadRolesForTable START ===');
+
+        try {
+            const result = await apiCall('roles/list');
+
+            if (result.success && result.data) {
+                rolesData = result.data;
+                debugLog('USERS_CRUD', 'OK Loaded', rolesData.length, 'roles');
+                renderRolesTable();
+            } else {
+                showToast('Failed to load roles: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('USERS_CRUD', 'EXCEPTION:', error);
+            showToast('Error loading roles', 'error');
+        }
+    }
+
+    /**
+     * Render roles table
+     */
+    function renderRolesTable() {
+        debugLog('USERS_CRUD', '=== renderRolesTable START ===');
+
+        if (rolesTable) {
+            rolesTable.destroy();
+            rolesTable = null;
+        }
+
+        const tableEl = document.getElementById('rolesTable');
+        if (!tableEl) {
+            debugLog('USERS_CRUD', 'FAIL: rolesTable element not found');
+            return;
+        }
+
+        rolesTable = $('#rolesTable').DataTable({
+            data: rolesData,
+            columns: [
+                { data: 'role_code' },
+                { data: 'role_name' },
+                {
+                    data: 'users_count',
+                    render: (data) => `<span class="badge bg-primary">${data || 0}</span>`
+                },
+                {
+                    data: 'is_system_role',
+                    render: (data) => data ?
+                        '<span class="badge bg-warning">System</span>' :
+                        '<span class="badge bg-secondary">Custom</span>'
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('role', '${row.role_id}')" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            ${!row.is_system_role ? `
+                            <button class="btn btn-outline-danger" onclick="deleteItem('role', '${row.role_id}')" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            ` : `
+                            <button class="btn btn-outline-secondary" disabled title="Cannot delete system role">
+                                <i class="bi bi-lock"></i>
+                            </button>
+                            `}
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[0, 'asc']],
+            pageLength: 25,
+            language: {
+                emptyTable: 'No roles found. Click "Add Role" to create one.'
+            }
+        });
+
+        debugLog('USERS_CRUD', 'OK Roles table rendered');
     }
 
     /**
@@ -391,6 +497,7 @@ const UserManager = (function() {
     return {
         init: init,
         loadUsers: loadUsers,
+        loadRoles: loadRolesForTable,
         updateBulkActions: updateBulkActions,
         toggleSelectAll: toggleSelectAll,
         bulkActivate: bulkActivate,

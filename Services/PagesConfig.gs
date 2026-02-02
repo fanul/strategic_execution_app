@@ -59,14 +59,14 @@ var PagesConfig = {
             title: 'Strategic Planning',
             template: 'pages/strategic-plan.html',
             scripts: ['assets/js/strategic_crud.html'],
-            modals: ''
+            modals: 'layout/modals/strategic_modals.html'
         },
 
         kpi: {
             title: 'KPI Management',
             template: 'pages/kpi.html',
             scripts: ['assets/js/kpi_crud.html'],
-            modals: ''
+            modals: 'layout/modals/kpi_modals.html'
         },
 
         okrs: {
@@ -80,14 +80,14 @@ var PagesConfig = {
             title: 'User Management',
             template: 'pages/users.html',
             scripts: ['assets/js/users_crud.html'],
-            modals: ''
+            modals: 'layout/modals/user_modals.html'
         },
 
         roles: {
             title: 'Role Management',
             template: 'pages/roles.html',
             scripts: ['assets/js/roles_crud.html'],
-            modals: ''
+            modals: 'layout/modals/user_modals.html'
         },
 
         programs: {
