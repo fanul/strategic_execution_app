@@ -14,6 +14,9 @@ var RouteRegistry = {
     // Dashboard
     'dashboard': { module: 'DashboardRoutes', handler: 'routeDashboard' },
 
+    // Database
+    'database': { module: 'SystemRoutes', handler: 'routeDatabase' },
+
     // Authentication
     'auth': { module: 'AuthRoutes', handler: 'route' },
 
@@ -27,6 +30,17 @@ var RouteRegistry = {
     'workUnits': { module: 'OrganizationRoutes', handler: 'routeWorkUnits' },
     'affairs': { module: 'OrganizationRoutes', handler: 'routeAffairs' },
     'positions': { module: 'OrganizationRoutes', handler: 'routePositions' },
+
+    // NEW: Organizational Units (Unified Structure)
+    'organizational-units': { module: 'OrganizationRoutes', handler: 'routeOrganizationalUnits' },
+    'organizationalUnits': { module: 'OrganizationRoutes', handler: 'routeOrganizationalUnits' },
+    'regional-offices': { module: 'OrganizationRoutes', handler: 'routeRegionalOffices' },
+    'regionalOffices': { module: 'OrganizationRoutes', handler: 'routeRegionalOffices' },
+    'branch-offices': { module: 'OrganizationRoutes', handler: 'routeBranchOffices' },
+    'branchOffices': { module: 'OrganizationRoutes', handler: 'routeBranchOffices' },
+    'subsidiaries': { module: 'OrganizationRoutes', handler: 'routeSubsidiaries' },
+    'office-lifecycle': { module: 'OrganizationRoutes', handler: 'routeOfficeLifecycle' },
+    'officeLifecycle': { module: 'OrganizationRoutes', handler: 'routeOfficeLifecycle' },
 
     // Strategic
     'okrs': { module: 'StrategicRoutes', handler: 'routeOKRs' },

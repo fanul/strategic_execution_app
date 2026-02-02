@@ -1,9 +1,39 @@
 /**
  * SystemRoutes.gs
- * System-level API routes (Notifications, Audit/Revisions, Settings, Pages)
+ * System-level API routes (Database, Notifications, Audit/Revisions, Settings, Pages)
  */
 
 var SystemRoutes = {
+  /**
+   * Route database operations
+   * @param {string} action - Action to perform
+   * @param {Object} data - Request data
+   * @param {string} userId - Current user ID
+   * @returns {Object} Response object
+   */
+  routeDatabase: function(action, data, userId) {
+    switch (action) {
+      case 'initialize':
+        return initializeDatabase();
+
+      case 'getStats':
+      case 'get-stats':
+        return getDatabaseStats();
+
+      case 'generateSheets':
+      case 'generate-sheets':
+        requirePermission(data._sessionToken, 'settings', 'update');
+        return generateGoogleSheets(data.sheetName, data.data);
+
+      case 'moveToFolder':
+      case 'move-to-folder':
+        requirePermission(data._sessionToken, 'settings', 'update');
+        return moveSheetToFolder(data.spreadsheetId, data.folderId);
+
+      default:
+        return { success: false, message: 'Unknown database action: ' + action };
+    }
+  },
   /**
    * Route notification requests
    * @param {string} action - Action to perform

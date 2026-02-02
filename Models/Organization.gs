@@ -907,4 +907,637 @@ const OrganizationModel = {
       });
     },
   },
+
+  // ===== ORGANIZATIONAL UNITS (New Unified Structure for BPJS) =====
+  OrganizationalUnit: {
+    /**
+     * Find organizational unit by ID
+     */
+    findById(unitId) {
+      const units = getTableData(DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS);
+      return units.find(u => u.unit_id === unitId) || null;
+    },
+
+    /**
+     * Get unit by ID with response wrapper
+     */
+    getById(unitId) {
+      const unit = this.findById(unitId);
+      return unit ? { success: true, data: unit } : { success: false, message: 'Organizational unit not found' };
+    },
+
+    /**
+     * Get all organizational units with optional filters
+     */
+    getAll(filters = {}) {
+      let units = getTableData(DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS);
+
+      // Filter by is_active (default: only active)
+      if (filters.is_active !== undefined) {
+        units = units.filter(u => u.is_active === filters.is_active);
+      } else if (filters.include_inactive !== true) {
+        // Default to showing only active units
+        units = units.filter(u => u.is_active === true);
+      }
+
+      // Filter by unit_type
+      if (filters.unit_type) {
+        units = units.filter(u => u.unit_type === filters.unit_type);
+      }
+
+      // Filter by classification
+      if (filters.classification) {
+        units = units.filter(u => u.classification === filters.classification);
+      }
+
+      // Filter by parent
+      if (filters.parent_unit_id) {
+        units = units.filter(u => u.parent_unit_id === filters.parent_unit_id);
+      }
+
+      // Filter by geographical scope
+      if (filters.geographical_scope) {
+        units = units.filter(u => u.geographical_scope === filters.geographical_scope);
+      }
+
+      // Filter by province
+      if (filters.province) {
+        units = units.filter(u => u.province === filters.province);
+      }
+
+      // Filter by city
+      if (filters.city) {
+        units = units.filter(u => u.city === filters.city);
+      }
+
+      // Sort by unit_level, then sort_order
+      units.sort((a, b) => {
+        if (a.unit_level !== b.unit_level) {
+          return a.unit_level - b.unit_level;
+        }
+        return (a.unit_name || '').localeCompare(b.unit_name || '');
+      });
+
+      return units;
+    },
+
+    /**
+     * Get units by type
+     */
+    getByType(type) {
+      return this.getAll({ unit_type: type });
+    },
+
+    /**
+     * Get units by classification
+     */
+    getByClassification(classification) {
+      return this.getAll({ classification: classification });
+    },
+
+    /**
+     * Get regional offices only
+     */
+    getRegionalOffices() {
+      return this.getAll({ unit_type: 'REGIONAL_OFFICE' });
+    },
+
+    /**
+     * Get branch offices only
+     */
+    getBranchOffices() {
+      return this.getAll({ unit_type: 'BRANCH_OFFICE' });
+    },
+
+    /**
+     * Get subsidiaries only
+     */
+    getSubsidiaries() {
+      return this.getAll({ unit_type: 'SUBSIDIARY' });
+    },
+
+    /**
+     * Get children of a unit
+     */
+    getChildren(unitId) {
+      return this.getAll({ parent_unit_id: unitId });
+    },
+
+    /**
+     * Get parent of a unit
+     */
+    getParent(unitId) {
+      const unit = this.findById(unitId);
+      if (!unit || !unit.parent_unit_id) return null;
+      return this.findById(unit.parent_unit_id);
+    },
+
+    /**
+     * Get complete hierarchy tree
+     */
+    getHierarchyTree(filters = {}) {
+      const units = this.getAll(filters);
+
+      // Build tree structure
+      const buildTree = (parentId) => {
+        return units
+          .filter(u => u.parent_unit_id === parentId)
+          .map(u => ({
+            ...u,
+            children: buildTree(u.unit_id)
+          }));
+      };
+
+      // Find root nodes: either parent_unit_id is null OR unit_type is ROOT
+      // This handles the case where ROOT units might have themselves as parent or no parent
+      let roots;
+      const nullParentUnits = units.filter(u => !u.parent_unit_id || u.parent_unit_id === '');
+
+      if (nullParentUnits.length > 0) {
+        // Use units with no parent as roots
+        roots = nullParentUnits.map(u => ({
+          ...u,
+          children: buildTree(u.unit_id)
+        }));
+      } else {
+        // Fallback: Find ROOT type units or units that reference themselves as parent
+        const rootTypeUnits = units.filter(u => u.unit_type === 'ROOT');
+        if (rootTypeUnits.length > 0) {
+          roots = rootTypeUnits.map(u => ({
+            ...u,
+            children: buildTree(u.unit_id)
+          }));
+        } else {
+          // Last resort: Find units whose parent doesn't exist in the dataset
+          roots = units.filter(u => {
+            const parentExists = units.some(p => p.unit_id === u.parent_unit_id);
+            return !parentExists;
+          }).map(u => ({
+            ...u,
+            children: buildTree(u.unit_id)
+          }));
+        }
+      }
+
+      return roots;
+    },
+
+    /**
+     * Create new organizational unit
+     */
+    create(data) {
+      // Validation
+      if (!data.unit_type) {
+        return { success: false, message: 'unit_type is required' };
+      }
+      if (!data.unit_name) {
+        return { success: false, message: 'unit_name is required' };
+      }
+
+      // Validate parent-child relationship
+      if (data.parent_unit_id) {
+        const parent = this.findById(data.parent_unit_id);
+        if (!parent) {
+          return { success: false, message: 'Parent unit not found' };
+        }
+
+        const validation = this.validateParentChild(parent.unit_type, data.unit_type);
+        if (!validation.valid) {
+          return { success: false, message: validation.message };
+        }
+
+        // Set unit_level
+        data.unit_level = parent.unit_level + 1;
+      } else {
+        data.unit_level = 0;
+      }
+
+      // Auto-generate unit_code if not provided
+      if (!data.unit_code) {
+        data.unit_code = this.generateCode(data.unit_type);
+      }
+
+      const newUnit = {
+        unit_id: generateUUID(),
+        unit_type: data.unit_type,
+        parent_unit_id: data.parent_unit_id || null,
+        unit_code: data.unit_code,
+        unit_name: data.unit_name,
+        unit_level: data.unit_level,
+        classification: data.classification || null,
+        geographical_scope: data.geographical_scope || null,
+        province: data.province || null,
+        city: data.city || null,
+        address: data.address || null,
+        head_position_id: data.head_position_id || null,
+        active_from: data.active_from || formatDateTime(new Date()),
+        active_until: data.active_until || null,
+        is_active: data.is_active !== undefined ? data.is_active : true,
+        lifecycle_status: 'ACTIVE',
+        closed_date: null,
+        closure_reason: null,
+        merged_into_unit_id: null,
+        split_from_unit_id: null,
+        previous_classification: null,
+        created_at: formatDateTime(new Date()),
+        created_by: data.created_by,
+        updated_at: formatDateTime(new Date()),
+        updated_by: data.created_by,
+        notes: data.notes || ''
+      };
+
+      const result = insertRecord(DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS, newUnit);
+
+      return result.success ? {
+        success: true,
+        data: newUnit,
+        message: 'Organizational unit created successfully'
+      } : {
+        success: false,
+        error: result.error,
+        message: 'Failed to create organizational unit'
+      };
+    },
+
+    /**
+     * Update organizational unit
+     */
+    update(unitId, data) {
+      const existing = this.findById(unitId);
+      if (!existing) {
+        return { success: false, message: 'Organizational unit not found' };
+      }
+
+      const updateData = { ...data, updated_at: formatDateTime(new Date()) };
+
+      // Remove fields that shouldn't be updated directly
+      delete updateData.unit_id;
+      delete updateData.created_at;
+      delete updateData.created_by;
+
+      // If changing parent, validate and update unit_level
+      if (updateData.parent_unit_id && updateData.parent_unit_id !== existing.parent_unit_id) {
+        const newParent = this.findById(updateData.parent_unit_id);
+        if (!newParent) {
+          return { success: false, message: 'New parent unit not found' };
+        }
+
+        // Prevent circular reference
+        if (updateData.parent_unit_id === unitId) {
+          return { success: false, message: 'Cannot set parent to self' };
+        }
+
+        const validation = this.validateParentChild(newParent.unit_type, existing.unit_type);
+        if (!validation.valid) {
+          return { success: false, message: validation.message };
+        }
+
+        updateData.unit_level = newParent.unit_level + 1;
+      }
+
+      const result = updateRecord(
+        DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS,
+        'unit_id',
+        unitId,
+        updateData
+      );
+
+      return result.success ? {
+        success: true,
+        data: { unit_id: unitId, ...updateData },
+        message: 'Organizational unit updated successfully'
+      } : {
+        success: false,
+        error: result.error,
+        message: 'Failed to update organizational unit'
+      };
+    },
+
+    /**
+     * Delete organizational unit (soft delete by setting is_active=false)
+     */
+    delete(unitId) {
+      // Check for children
+      const children = this.getChildren(unitId);
+      if (children.length > 0) {
+        return {
+          success: false,
+          message: 'Cannot delete unit with active children. Delete or reassign children first.',
+          children: children.map(c => ({ id: c.unit_id, name: c.unit_name }))
+        };
+      }
+
+      // Check for positions assigned to this unit
+      const positions = getTableData(DB_CONFIG.SHEET_NAMES.POSITIONS);
+      const assignedPositions = positions.filter(p => p.unit_id === unitId && p.is_active);
+
+      if (assignedPositions.length > 0) {
+        return {
+          success: false,
+          message: 'Cannot delete unit with active positions. Reassign positions first.',
+          positions: assignedPositions.map(p => ({ id: p.position_id, name: p.position_name }))
+        };
+      }
+
+      return this.closeUnit(unitId, 'Deleted via system', new Date());
+    },
+
+    /**
+     * Close an organizational unit
+     */
+    closeUnit(unitId, reason, closedBy) {
+      const unit = this.findById(unitId);
+      if (!unit) {
+        return { success: false, message: 'Unit not found' };
+      }
+
+      if (unit.lifecycle_status !== 'ACTIVE') {
+        return { success: false, message: 'Unit is not active' };
+      }
+
+      const updateData = {
+        is_active: false,
+        lifecycle_status: 'CLOSED',
+        closed_date: formatDateTime(closedBy || new Date()),
+        closure_reason: reason,
+        updated_at: formatDateTime(new Date()),
+        updated_by: closedBy
+      };
+
+      const result = updateRecord(
+        DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS,
+        'unit_id',
+        unitId,
+        updateData
+      );
+
+      if (result.success) {
+        // Create lifecycle history entry
+        this.createLifecycleHistory(unitId, 'CLOSED', reason, closedBy);
+      }
+
+      return result.success ? {
+        success: true,
+        message: 'Unit closed successfully'
+      } : {
+        success: false,
+        message: 'Failed to close unit'
+      };
+    },
+
+    /**
+     * Merge two units
+     */
+    mergeUnits(sourceId, targetId, reason, performedBy) {
+      const source = this.findById(sourceId);
+      const target = this.findById(targetId);
+
+      if (!source) {
+        return { success: false, message: 'Source unit not found' };
+      }
+      if (!target) {
+        return { success: false, message: 'Target unit not found' };
+      }
+      if (sourceId === targetId) {
+        return { success: false, message: 'Cannot merge unit with itself' };
+      }
+      if (source.lifecycle_status !== 'ACTIVE' || target.lifecycle_status !== 'ACTIVE') {
+        return { success: false, message: 'Both units must be active to merge' };
+      }
+
+      // Validate merge compatibility
+      if (source.unit_type !== target.unit_type) {
+        return { success: false, message: 'Cannot merge units of different types' };
+      }
+
+      // Update source unit
+      const sourceUpdate = {
+        is_active: false,
+        lifecycle_status: 'MERGED',
+        merged_into_unit_id: targetId,
+        closed_date: formatDateTime(new Date()),
+        closure_reason: reason,
+        updated_at: formatDateTime(new Date()),
+        updated_by: performedBy
+      };
+
+      const sourceResult = updateRecord(
+        DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS,
+        'unit_id',
+        sourceId,
+        sourceUpdate
+      );
+
+      if (!sourceResult.success) {
+        return { success: false, message: 'Failed to update source unit' };
+      }
+
+      // Reassign children
+      const children = this.getChildren(sourceId);
+      children.forEach(child => {
+        this.update(child.unit_id, { parent_unit_id: targetId, updated_by: performedBy });
+      });
+
+      // Reassign positions
+      const positions = getTableData(DB_CONFIG.SHEET_NAMES.POSITIONS);
+      positions
+        .filter(p => p.unit_id === sourceId && p.is_active)
+        .forEach(pos => {
+          updateRecord(DB_CONFIG.SHEET_NAMES.POSITIONS, 'position_id', pos.position_id, {
+            unit_id: targetId,
+            updated_at: formatDateTime(new Date()),
+            updated_by: performedBy
+          });
+        });
+
+      // Create lifecycle history
+      this.createLifecycleHistory(sourceId, 'MERGED', reason, performedBy, targetId);
+
+      return {
+        success: true,
+        message: `Merged ${source.unit_name} into ${target.unit_name}`,
+        source_unit: source.unit_name,
+        target_unit: target.unit_name,
+        children_reassigned: children.length
+      };
+    },
+
+    /**
+     * Reclassify a unit (e.g., change branch class from KELAS_2 to KELAS_1)
+     */
+    reclassifyUnit(unitId, newClassification, reason, performedBy) {
+      const unit = this.findById(unitId);
+      if (!unit) {
+        return { success: false, message: 'Unit not found' };
+      }
+
+      if (!unit.classification) {
+        return { success: false, message: 'Unit does not have a classification to change' };
+      }
+
+      if (unit.classification === newClassification) {
+        return { success: false, message: 'Unit already has this classification' };
+      }
+
+      const oldClassification = unit.classification;
+
+      const updateData = {
+        previous_classification: oldClassification,
+        classification: newClassification,
+        lifecycle_status: 'RECLASSIFIED',
+        updated_at: formatDateTime(new Date()),
+        updated_by: performedBy,
+        notes: (unit.notes || '') + ` | Reclassified from ${oldClassification} to ${newClassification}: ${reason}`
+      };
+
+      const result = updateRecord(
+        DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS,
+        'unit_id',
+        unitId,
+        updateData
+      );
+
+      if (result.success) {
+        // Create lifecycle history
+        const historyData = {
+          unit_id: unitId,
+          event_type: 'RECLASSIFIED',
+          event_date: formatDateTime(new Date()),
+          event_reason: reason,
+          previous_status: 'ACTIVE',
+          new_status: 'ACTIVE',
+          previous_classification: oldClassification,
+          new_classification: newClassification,
+          performed_by: performedBy,
+          created_at: formatDateTime(new Date())
+        };
+        insertRecord(DB_CONFIG.SHEET_NAMES.OFFICE_LIFECYCLE_HISTORY, historyData);
+
+        // Update positions under this unit
+        const positions = getTableData(DB_CONFIG.SHEET_NAMES.POSITIONS);
+        positions
+          .filter(p => p.unit_id === unitId)
+          .forEach(pos => {
+            updateRecord(DB_CONFIG.SHEET_NAMES.POSITIONS, 'position_id', pos.position_id, {
+              branch_classification: newClassification,
+              updated_at: formatDateTime(new Date()),
+              updated_by: performedBy
+            });
+          });
+      }
+
+      return result.success ? {
+        success: true,
+        message: `Unit reclassified from ${oldClassification} to ${newClassification}`,
+        previous_classification: oldClassification,
+        new_classification: newClassification
+      } : {
+        success: false,
+        message: 'Failed to reclassify unit'
+      };
+    },
+
+    /**
+     * Generate auto code for unit
+     */
+    generateCode(unitType) {
+      const units = getTableData(DB_CONFIG.SHEET_NAMES.ORGANIZATIONAL_UNITS);
+      const typeUnits = units.filter(u => u.unit_type === unitType);
+
+      const prefixes = {
+        'ROOT': 'ROOT',
+        'DIRECTORATE': 'DIR',
+        'WORK_UNIT': 'WU',
+        'AFFAIR': 'AFF',
+        'REGIONAL_OFFICE': 'RO',
+        'BRANCH_OFFICE': 'BO',
+        'SUBSIDIARY': 'SUB',
+        'SUBSIDIARY_UNIT': 'SU'
+      };
+
+      const prefix = prefixes[unitType] || 'UNIT';
+      const maxNumber = Math.max(0, ...typeUnits.map(u => parseCodeNumber(u.unit_code)));
+
+      return generateCode(prefix, maxNumber + 1, 3);
+    },
+
+    /**
+     * Validate parent-child relationship
+     */
+    validateParentChild(parentType, childType) {
+      const validRelationships = {
+        'ROOT': ['DIRECTORATE', 'REGIONAL_OFFICE', 'SUBSIDIARY'],
+        'DIRECTORATE': ['WORK_UNIT'],
+        'WORK_UNIT': ['AFFAIR'],
+        'AFFAIR': [],
+        'REGIONAL_OFFICE': ['BRANCH_OFFICE'],
+        'BRANCH_OFFICE': [],
+        'SUBSIDIARY': ['SUBSIDIARY_UNIT'],
+        'SUBSIDIARY_UNIT': []
+      };
+
+      const validChildren = validRelationships[parentType] || [];
+
+      if (validChildren.length === 0) {
+        return { valid: false, message: `${parentType} cannot have children` };
+      }
+
+      if (!validChildren.includes(childType)) {
+        return {
+          valid: false,
+          message: `${childType} cannot be a child of ${parentType}. Valid children are: ${validChildren.join(', ')}`
+        };
+      }
+
+      return { valid: true };
+    },
+
+    /**
+     * Check if unit has children
+     */
+    hasChildren(unitId) {
+      const children = this.getChildren(unitId);
+      return {
+        hasChildren: children.length > 0,
+        count: children.length,
+        children: children
+      };
+    },
+
+    /**
+     * Create lifecycle history entry
+     */
+    createLifecycleHistory(unitId, eventType, reason, performedBy, relatedUnitId = null) {
+      const unit = this.findById(unitId);
+
+      const historyEntry = {
+        history_id: generateUUID(),
+        unit_id: unitId,
+        event_type: eventType,
+        event_date: formatDateTime(new Date()),
+        event_reason: reason,
+        previous_status: unit ? unit.lifecycle_status : null,
+        new_status: eventType === 'CLOSED' ? 'CLOSED' : (eventType === 'MERGED' ? 'MERGED' : 'ACTIVE'),
+        previous_classification: unit ? unit.classification : null,
+        new_classification: unit ? unit.classification : null,
+        related_unit_id: relatedUnitId,
+        performed_by: performedBy,
+        supporting_documents: null,
+        notes: '',
+        created_at: formatDateTime(new Date())
+      };
+
+      return insertRecord(DB_CONFIG.SHEET_NAMES.OFFICE_LIFECYCLE_HISTORY, historyEntry);
+    },
+
+    /**
+     * Get lifecycle history for a unit
+     */
+    getLifecycleHistory(unitId) {
+      const history = getTableData(DB_CONFIG.SHEET_NAMES.OFFICE_LIFECYCLE_HISTORY);
+      return history
+        .filter(h => h.unit_id === unitId)
+        .sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+    }
+  }
 };

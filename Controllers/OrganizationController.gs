@@ -341,6 +341,209 @@ const OrganizationController = {
       const assignments = OrganizationModel.PositionAssignment.getByUser(userId);
       return { success: true, data: assignments };
     }
+  },
+
+  // ===== ORGANIZATIONAL UNITS (New Unified Structure) =====
+  OrganizationalUnit: {
+    getAll(filters) {
+      const units = OrganizationModel.OrganizationalUnit.getAll(filters);
+      return { success: true, data: units };
+    },
+
+    getById(unitId) {
+      return OrganizationModel.OrganizationalUnit.getById(unitId);
+    },
+
+    create(data, creatorId) {
+      data.created_by = creatorId;
+      const result = OrganizationModel.OrganizationalUnit.create(data);
+
+      if (result.success) {
+        logAudit('CREATE', 'OrganizationalUnits', result.data.unit_id, creatorId, 'Organizational unit created');
+      }
+
+      return result;
+    },
+
+    update(unitId, data, updaterId) {
+      data.updated_by = updaterId;
+      const result = OrganizationModel.OrganizationalUnit.update(unitId, data);
+
+      if (result.success) {
+        logAudit('UPDATE', 'OrganizationalUnits', unitId, updaterId, 'Organizational unit updated');
+      }
+
+      return result;
+    },
+
+    delete(unitId, deleterId) {
+      const result = OrganizationModel.OrganizationalUnit.delete(unitId);
+
+      if (result.success) {
+        logAudit('DELETE', 'OrganizationalUnits', unitId, deleterId, 'Organizational unit deleted');
+      }
+
+      return result;
+    },
+
+    getHierarchy(filters) {
+      const tree = OrganizationModel.OrganizationalUnit.getHierarchyTree(filters);
+      return { success: true, data: tree };
+    },
+
+    getChildren(unitId) {
+      const children = OrganizationModel.OrganizationalUnit.getChildren(unitId);
+      return { success: true, data: children };
+    },
+
+    getParent(unitId) {
+      const parent = OrganizationModel.OrganizationalUnit.getParent(unitId);
+      return parent ? { success: true, data: parent } : { success: false, message: 'Parent not found' };
+    },
+
+    getByType(type) {
+      const units = OrganizationModel.OrganizationalUnit.getByType(type);
+      return { success: true, data: units };
+    },
+
+    getByClassification(classification) {
+      const units = OrganizationModel.OrganizationalUnit.getByClassification(classification);
+      return { success: true, data: units };
+    },
+
+    getRegionalOffices() {
+      const units = OrganizationModel.OrganizationalUnit.getRegionalOffices();
+      return { success: true, data: units };
+    },
+
+    getBranchOffices() {
+      const units = OrganizationModel.OrganizationalUnit.getBranchOffices();
+      return { success: true, data: units };
+    },
+
+    getSubsidiaries() {
+      const units = OrganizationModel.OrganizationalUnit.getSubsidiaries();
+      return { success: true, data: units };
+    },
+
+    close(unitId, data, performerId) {
+      const result = OrganizationModel.OrganizationalUnit.closeUnit(
+        unitId,
+        data.reason || 'Closed via system',
+        performerId
+      );
+
+      if (result.success) {
+        logAudit('UPDATE', 'OrganizationalUnits', unitId, performerId, 'Organizational unit closed');
+      }
+
+      return result;
+    },
+
+    merge(sourceId, targetId, data, performerId) {
+      const result = OrganizationModel.OrganizationalUnit.mergeUnits(
+        sourceId,
+        targetId,
+        data.reason || 'Merged via system',
+        performerId
+      );
+
+      if (result.success) {
+        logAudit('UPDATE', 'OrganizationalUnits', sourceId, performerId,
+          `Merged into ${targetId}: ${result.message}`);
+      }
+
+      return result;
+    },
+
+    reclassify(unitId, data, performerId) {
+      const result = OrganizationModel.OrganizationalUnit.reclassifyUnit(
+        unitId,
+        data.new_classification,
+        data.reason || 'Reclassified via system',
+        performerId
+      );
+
+      if (result.success) {
+        logAudit('UPDATE', 'OrganizationalUnits', unitId, performerId,
+          `Reclassified to ${data.new_classification}`);
+      }
+
+      return result;
+    },
+
+    hasChildren(unitId) {
+      const result = OrganizationModel.OrganizationalUnit.hasChildren(unitId);
+      return { success: true, data: result };
+    },
+
+    getHistory(unitId) {
+      const history = OrganizationModel.OrganizationalUnit.getLifecycleHistory(unitId);
+      return { success: true, data: history };
+    },
+
+    getTimeline(unitId) {
+      const timeline = OrganizationModel.OrganizationalUnit.getLifecycleHistory(unitId);
+      const unit = OrganizationModel.OrganizationalUnit.findById(unitId);
+
+      const enrichedTimeline = timeline.map(event => {
+        const relatedUnit = event.related_unit_id ?
+          OrganizationModel.OrganizationalUnit.findById(event.related_unit_id) : null;
+
+        return {
+          ...event,
+          unit_name: unit ? unit.unit_name : 'Unknown',
+          related_unit_name: relatedUnit ? relatedUnit.unit_name : null,
+          event_description: OfficeLifecycleModel.getEventDescription(event)
+        };
+      });
+
+      return { success: true, data: enrichedTimeline };
+    }
+  },
+
+  // ===== LIFECYCLE MANAGEMENT =====
+  Lifecycle: {
+    getHistory(unitId) {
+      const history = OfficeLifecycleModel.getByUnit(unitId);
+      return { success: true, data: history };
+    },
+
+    getTimeline(unitId) {
+      const timeline = OfficeLifecycleModel.getTimeline(unitId);
+      return { success: true, data: timeline };
+    },
+
+    getEvents(filters) {
+      const events = OfficeLifecycleModel.getAll(filters);
+      return { success: true, data: events };
+    },
+
+    getByEventType(eventType) {
+      const events = OfficeLifecycleModel.getByEventType(eventType);
+      return { success: true, data: events };
+    },
+
+    getByDateRange(startDate, endDate) {
+      const events = OfficeLifecycleModel.getByDateRange(startDate, endDate);
+      return { success: true, data: events };
+    },
+
+    getStatistics(filters) {
+      const stats = OfficeLifecycleModel.getStatistics(filters);
+      return { success: true, data: stats };
+    },
+
+    getRecentChanges(limit) {
+      const changes = OfficeLifecycleModel.getRecentChanges(limit || 10);
+      return { success: true, data: changes };
+    },
+
+    create(historyData, creatorId) {
+      historyData.performed_by = creatorId;
+      const result = OfficeLifecycleModel.create(historyData);
+      return result;
+    }
   }
 };
 

@@ -47,6 +47,12 @@ function showModal(type, id = null, parentId = null) {
                 loadWorkUnitsForPositionDropdown(),
                 loadUsersForPositionDropdown()
             ]);
+        } else if (type === 'org-unit') {
+            // Load parent units and positions for org unit
+            dropdownPromise = Promise.all([
+                loadParentUnitsForOrgUnitModal(),
+                loadPositionsForOrgUnitDropdown()
+            ]);
         } else {
             dropdownPromise = Promise.resolve();
         }
@@ -92,6 +98,9 @@ function showModal(type, id = null, parentId = null) {
         } else if (type === 'position') {
             loadWorkUnitsForPositionDropdown(parentId);
             loadUsersForPositionDropdown(); // Load users dropdown for new position
+        } else if (type === 'org-unit') {
+            loadParentUnitsForOrgUnitModal();
+            loadPositionsForOrgUnitDropdown(); // Load positions dropdown for head position
         }
     }
 }
@@ -139,11 +148,19 @@ async function loadItemData(type, id) {
 
     const endpoint = type === 'directorate' ? 'directorates/get' :
                      type === 'work-unit' ? 'work-units/get' :
-                     type === 'affair' ? 'affairs/get' : 'positions/get';
+                     type === 'affair' ? 'affairs/get' :
+                     type === 'position' ? 'positions/get' :
+                     type === 'org-unit' ? 'organizational-units/get' : '';
 
-    debugLog('MODAL', 'Calling endpoint: ' + endpoint, { id: id });
+    if (!endpoint) {
+        debugLog('MODAL', 'FAIL Unknown type: ' + type);
+        showToast('Unknown item type', 'error');
+        return;
+    }
 
-    const result = await apiCall(endpoint, { id });
+    debugLog('MODAL', 'Calling endpoint: ' + endpoint, { id: id, unitId: id });
+
+    const result = await apiCall(endpoint, type === 'org-unit' ? { unitId: id } : { id: id });
     debugLog('MODAL', 'API result:', result);
 
     const modalId = type + 'Modal';
@@ -166,6 +183,10 @@ async function loadItemData(type, id) {
             select2Fields['work_unit_id'] = 'position_work_unit_id_select';
             select2Fields['user_id'] = 'position_user_id_select'; // Add user_id field for position
         }
+        if (type === 'org-unit') {
+            select2Fields['parent_unit_id'] = 'parent_unit_id';
+            select2Fields['head_position_id'] = 'head_position_id';
+        }
 
         // Populate all non-Select2 fields first
         Object.keys(item).forEach(key => {
@@ -173,7 +194,12 @@ async function loadItemData(type, id) {
                 const field = document.getElementById(key);
                 if (field) {
                     // Always set value, including hidden fields (needed for ID fields)
-                    field.value = item[key] || '';
+                    // Special handling for checkbox fields
+                    if (field.type === 'checkbox') {
+                        field.checked = item[key] === true;
+                    } else {
+                        field.value = item[key] || '';
+                    }
                     debugLog('MODAL', '  OK Set ' + key + ' = "' + (item[key] || '') + '"');
                 }
             }
@@ -419,6 +445,58 @@ async function loadUsersForPositionDropdown(preselectedValue = null) {
     }
 
     debugLog('MODAL', '=== loadUsersForPositionDropdown COMPLETE ===');
+}
+
+// Load Parent Units for Organizational Unit Modal
+async function loadParentUnitsForOrgUnitModal(preselectedValue = null) {
+    debugLog('MODAL', '=== loadParentUnitsForOrgUnitModal START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('organizational-units/list', { is_active: true });
+        debugLog('MODAL', 'Organizational Units API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#parent_unit_id');
+            const modal = $('#org-unitModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">No Parent (Root Level)</option>');
+
+            result.data.forEach(u => {
+                select.append('<option value="' + u.unit_id + '">' + u.unit_code + ' - ' + u.unit_name + ' (' + u.unit_type + ')</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Parent Unit',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected parent unit:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' parent units into dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load parent units: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading parent units: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadParentUnitsForOrgUnitModal COMPLETE ===');
 }
 
 // Track script loading

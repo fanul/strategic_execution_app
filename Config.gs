@@ -145,9 +145,11 @@ const DB_CONFIG = {
     ROLES: 'Roles',
     
     // Organization Structure
-    DIRECTORATES: 'Directorates',
-    WORK_UNITS: 'WorkUnits',
-    AFFAIRS: 'Affairs',
+    DIRECTORATES: 'Directorates',  // DEPRECATED - Use OrganizationalUnits instead
+    WORK_UNITS: 'WorkUnits',        // DEPRECATED - Use OrganizationalUnits instead
+    AFFAIRS: 'Affairs',            // DEPRECATED - Use OrganizationalUnits instead
+    ORGANIZATIONAL_UNITS: 'OrganizationalUnits',  // NEW - Unified organizational structure
+    OFFICE_LIFECYCLE_HISTORY: 'OfficeLifecycleHistory',  // NEW - Audit trail for office changes
     POSITIONS: 'Positions',
     POSITION_ASSIGNMENTS: 'PositionAssignments',
     
@@ -215,10 +217,26 @@ const DB_CONFIG = {
       'assistant_deputy_position_id', 'active_from', 'active_until', 'is_active',
       'sort_order', 'created_at', 'created_by', 'updated_at', 'updated_by', 'notes'
     ],
-    
+
+    ORGANIZATIONAL_UNITS: [
+      'unit_id', 'unit_type', 'parent_unit_id', 'unit_code', 'unit_name',
+      'unit_level', 'classification', 'geographical_scope', 'province', 'city',
+      'address', 'head_position_id', 'active_from', 'active_until', 'is_active',
+      'lifecycle_status', 'closed_date', 'closure_reason', 'merged_into_unit_id',
+      'split_from_unit_id', 'previous_classification', 'created_at', 'created_by',
+      'updated_at', 'updated_by', 'notes'
+    ],
+
+    OFFICE_LIFECYCLE_HISTORY: [
+      'history_id', 'unit_id', 'event_type', 'event_date', 'event_reason',
+      'previous_status', 'new_status', 'previous_classification', 'new_classification',
+      'related_unit_id', 'performed_by', 'supporting_documents', 'notes', 'created_at'
+    ],
+
     POSITIONS: [
       'position_id', 'position_code', 'position_name', 'position_type', 'position_level',
       'parent_position_id', 'directorate_id', 'work_unit_id', 'affair_id',
+      'organizational_context', 'branch_classification', 'unit_id',
       'description', 'responsibilities', 'active_from', 'active_until', 'is_active',
       'sort_order', 'created_at', 'created_by', 'updated_at', 'updated_by', 'notes'
     ],

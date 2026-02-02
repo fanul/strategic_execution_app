@@ -1,83 +1,128 @@
-# Organization Module - Complete Guide
+# Organization Module - Complete Guide (BPJS Ketenagakerjaan Structure)
 
 ## Overview
 
-The Organization Module is a fully functional hierarchical organization management system with:
-- **Two View Modes**: Table View (DataTables) and Diagram View (D3.js)
-- **Complete CRUD Operations**: Create, Read, Update, Delete for all entities
-- **Advanced Delete Handling**: Cascade delete and reassign options
+The Organization Module is a comprehensive hierarchical organization management system for BPJS Ketenagakerjaan with:
+- **NEW: BPJS Structure Support** - OrganizationalUnits with proper hierarchy for HQ, Regional Offices, Branch Offices, and Subsidiaries
+- **Dual Architecture**: Legacy structure (Directorates/WorkUnits/Affairs) + New unified structure (OrganizationalUnits)
+- **Three View Modes**: Tree View (HTML), Flat View (Table), and Diagram View (D3.js)
+- **Complete CRUD Operations**: Create, Read, Update, Delete for all entity types
+- **Office Lifecycle Management**: Track closures, mergers, splits, and reclassifications
+- **Advanced Filtering**: By unit type, classification, province, city, and status
 - **Lazy Loading**: Data loads only when needed
 - **Caching**: Prevents redundant API calls
 
-## Hierarchy Structure
+## BPJS Ketenagakerjaan Hierarchy Structure
 
 ```
-Organization
+BPJS KETENAGAKERJAAN (ROOT)
 │
-├── Directorate (e.g., "DIR-001 - Directorate of Finance")
+├── KANTOR PUSAT (Headquarters)
+│   ├── 7 Directorates
+│   │   └── 27 Work Units (Deputi)
+│   │       └── Affairs (Urusan)
+│   │           └── Positions (Job Desc) → Persons
+│   └── HQ-level Positions
+│
+├── KANTOR DAERAH (Regional Division)
+│   ├── REGIONAL_OFFICE (Parent units)
+│   │   ├── Regional Head
+│   │   ├── Bidang (Departments)
+│   │   │   └── Positions (with Persons)
+│   │   └── Positions
 │   │
-│   ├── Work Unit (e.g., "WU-001 - Accounting Department")
-│   │   │
-│   │   ├── Affair (e.g., "AFF-001 - Budget Planning")
-│   │   │   │
-│   │   │   └── Position (e.g., "POS-001 - Budget Analyst")
-│   │   │
-│   │   └── Position (can be directly under Work Unit)
-│   │
-│   └── Work Unit (e.g., "WU-002 - Treasury Department")
-│       │
-│       └── Affair → Position
+│   └── BRANCH_OFFICE (Children - 317 total)
+│       ├── KELAS_1 (Class 1 branches)
+│       ├── KELAS_2 (Class 2 branches)
+│       ├── KELAS_3 (Class 3 branches)
+│       └── KELAS_3A (Class 3A branches)
+│           ├── Branch Head
+│           ├── Bidang (Departments)
+│           │   └── Positions (with Persons)
+│           └── Positions
 │
-├── Directorate (e.g., "DIR-002 - Directorate of HR")
-│   └── Work Unit → Affair → Position
-│
-└── ...
+└── ANAK PERUSAHAAN (Subsidiaries)
+    └── SUBSIDIARY (Each with own depth)
+        └── SUBSIDIARY_UNIT
+            └── Positions (with Persons)
 ```
+
+### Unit Types
+
+| Unit Type | Code | Description | Classification Options |
+|-----------|------|-------------|-------------------------|
+| ROOT | ROOT | BPJS Ketenagakerjaan (Organization) | HQ |
+| DIRECTORATE | DIR | HQ Directorates (7) | HQ |
+| WORK_UNIT | WU | HQ Work Units/Deputi (27) | HQ |
+| AFFAIR | AFF | HQ Affairs (Urusan) | HQ |
+| REGIONAL_OFFICE | RO | Regional Offices (parents) | HQ |
+| BRANCH_OFFICE | BO | Branch Offices (317) | KELAS_1, KELAS_2, KELAS_3, KELAS_3A |
+| SUBSIDIARY | SUB | Subsidiaries | SUBSIDIARY |
+| SUBSIDIARY_UNIT | SU | Subsidiary internal units | SUBSIDIARY |
+
+### Classifications
+
+| Classification | Description | Color Code |
+|---------------|-------------|------------|
+| HQ | Headquarters units | Blue (#1E88E5) |
+| KELAS_1 | Class 1 branches | Dark Green (#2E7D32) |
+| KELAS_2 | Class 2 branches | Medium Green (#43A047) |
+| KELAS_3 | Class 3 branches | Light Green (#8BC34A) |
+| KELAS_3A | Class 3A branches | Pale Green (#AED581) |
+| SUBSIDIARY | Subsidiary units | Purple (#8E24AA) |
+
+### Lifecycle Statuses
+
+| Status | Description | Use Case |
+|--------|-------------|----------|
+| ACTIVE | Currently active | Default for all new units |
+| CLOSED | Permanently closed | Office shutdown |
+| MERGED | Merged into another unit | Administrative merger |
+| SPLIT | Split into multiple units | Reorganization |
+| RECLASSIFIED | Classification changed | Kelas upgrade/downgrade |
 
 ## Module Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         ORGANIZATION MODULE ARCHITECTURE                     │
+│                    BPJS ORGANIZATION MODULE ARCHITECTURE (v3.0)               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              FRONTEND LAYER                                  │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                        pages/organization.html                         │  │
-│  │  - Navigation Tabs (Directorates, Work Units, Affairs, Positions)    │  │
-│  │  - Table View Container                                               │  │
-│  │  - Diagram View Container                                             │  │
+│  │                   pages/organization.html (UPDATED)                    │  │
+│  │  - NEW: Organizational Units tab (default active)                     │  │
+│  │  - Stats Cards: Total, Regional, Branch, Subsidiary counts           │  │
+│  │  - Advanced Filters: Type, Classification, Province, City            │  │
+│  │  - View Toggle: Tree View ↔ Flat View                               │  │
+│  │  - LEGACY: Directorates, Work Units, Affairs tabs (marked Legacy)    │  │
+│  │  - Positions tab                                                      │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                      │                                       │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                          VIEW TOGGLE SYSTEM                            │  │
-│  │  assets/js/view-toggle.html                                          │  │
-│  │  - switchView('table' | 'diagram')                                    │  │
-│  │  - View state persistence (localStorage)                              │  │
-│  │  - Auto-initialize on saved preference                                │  │
+│  │                     ORGANIZATIONAL UNITS MANAGER                       │  │
+│  │  assets/js/organization_crud.html (UPDATED with OrgUnitManager)     │  │
+│  │  - OrgUnitManager.init() - Initialize and load data                 │  │
+│  │  - OrgUnitManager.loadStats() - Update statistics cards             │  │
+│  │  - OrgUnitManager.loadTreeView() - HTML tree view                    │  │
+│  │  - OrgUnitManager.loadFlatView() - DataTable view                    │  │
+│  │  - OrgUnitManager.applyFilters() - Filter management                 │  │
+│  │  - OrgUnitManager.deleteUnit() - Delete with validation              │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                      │                                       │
-│  ┌──────────────────┬───────────────────────────────────────────────────┐  │
-│  │   TABLE VIEW     │                  DIAGRAM VIEW                      │  │
-│  │  (DataTable +    │                  (D3.js Tree)                       │  │
-│  │   CRUD)          │                                                       │  │
-│  │                  │                                                       │  │
-│  │  ┌──────────────┐ │  ┌─────────────────────────────────────────────┐ │  │
-│  │  │ Organization │ │  │ OrgDiagram Module                           │ │  │
-│  │  │    Manager   │ │  │ assets/js/org-diagram.html                 │ │  │
-│  │  │              │ │  │ - D3.js hierarchical tree visualization     │ │  │
-│  │  │ DataTables   │ │  │ - Zoom, pan, collapse/expand                │ │  │
-│  │  │    (lazy)    │ │  │ - Drag & drop node repositioning            │ │  │
-│  │  │              │ │  │ - Right-click context menu                  │ │  │
-│  │  └──────────────┘ │  │ - Export to PNG                            │ │  │
-│  │                  │  └─────────────────────────────────────────────┘ │  │
-│  └──────────────────┴───────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                    LEGACY ORGANIZATION MANAGER                         │  │
+│  │  assets/js/organization_datatables.html                              │  │
+│  │  - OrganizationManager.initialize() - Legacy tabs                    │  │
+│  │  - DataTable manager with lazy loading and caching                   │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
 │                                      │                                       │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
 │  │                       CRUD OPERATIONS LAYER                            │  │
 │  │  assets/js/organization_crud.html                                     │  │
 │  │  - saveDirectorate(), saveWorkUnit(), saveAffair(), savePosition()   │  │
+│  │  - OrgUnitManager CRUD (NEW)                                        │  │
 │  │  - deleteItem(type, id) - Enhanced delete with cascade/reassign      │  │
 │  │  - editItem(type, id) - Populate modal for editing                   │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
@@ -86,7 +131,18 @@ Organization
 │  │                      MODALS (layout/modals/)                           │  │
 │  │  organization_modals.html                                             │  │
 │  │  - directorateModal, work-unitModal, affairModal, positionModal      │  │
+│  │  - TODO: org-unitModal (for creating/editing organizational units)     │  │
 │  │  - deleteConfirmModal (with cascade/reassign options)                │  │
+│  │  - TODO: Lifecycle modals (close, merge, reclassify)               │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                      │                                       │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                       DIAGRAM VISUALIZATION                           │  │
+│  │  assets/js/org-diagram.html                                         │  │
+│  │  - D3.js hierarchical tree visualization                            │  │
+│  │  - TODO: Update for BPJS structure with proper colors              │  │
+│  │  - Zoom, pan, collapse/expand                                        │  │
+│  │  - Export to PNG                                                     │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -100,28 +156,39 @@ Organization
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            BACKEND ROUTING                                  │
-│  Code.gs → callAPI(endpoint, data)                                         │
-│  Routes to: OrganizationController.Directorate|WorkUnit|Affair|Position     │
+│  Routing/RouteRegistry.gs → Lazy-loaded route handlers                     │
+│  Routes to: OrganizationController.Directorate|WorkUnit|Affair|Position    │
+│              + OrganizationalUnit|Lifecycle (NEW)                         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          CONTROLLER LAYER                                    │
-│  Controllers/OrganizationController.gs                                      │
+│  Controllers/OrganizationController.gs (UPDATED)                          │
+│  - Legacy: Directorate, WorkUnit, Affair, Position controllers           │
+│  - NEW: OrganizationalUnit controller (20+ methods)                     │
+│  - NEW: Lifecycle controller (8 methods)                                │
 │  - Validation, business logic, audit logging                               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MODEL LAYER                                        │
-│  Models/Organization.gs                                                     │
-│  - Database operations, hierarchical operations                             │
+│  Models/Organization.gs (ENHANCED)                                       │
+│  - Legacy: Directorate, WorkUnit, Affair, Position, PositionAssignment  │
+│  - NEW: OrganizationalUnit model (600+ lines)                           │
+│  - Database operations, hierarchical operations, lifecycle management    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        DATABASE LAYER (Google Sheets)                        │
-│  Directorates → WorkUnits → Affairs → Positions                            │
+│  ORGANIZATIONAL_UNITS (NEW) - Unified structure table                    │
+│  OFFICE_LIFECYCLE_HISTORY (NEW) - Audit trail table                      │
+│  Directorates (DEPRECATED) → Migrated to OrganizationalUnits             │
+│  WorkUnits (DEPRECATED) → Migrated to OrganizationalUnits                │
+│  Affairs (DEPRECATED) → Migrated to OrganizationalUnits                  │
+│  Positions (ENHANCED) - Added organizational_context, branch_classification │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -129,166 +196,268 @@ Organization
 
 ### Backend Files
 
-| File | Description |
-|------|-------------|
-| [Controllers/OrganizationController.gs](../Controllers/OrganizationController.gs) | Business logic for all org entities |
-| [Models/Organization.gs](../Models/Organization.gs) | Data access and hierarchical operations |
+| File | Description | Status |
+|------|-------------|--------|
+| [Controllers/OrganizationController.gs](../Controllers/OrganizationController.gs) | Business logic for all org entities + NEW OrgUnit & Lifecycle controllers | ✅ Updated |
+| [Models/Organization.gs](../Models/Organization.gs) | Data access, hierarchical operations + NEW OrganizationalUnit model (600+ lines) | ✅ Updated |
+| [Models/OfficeLifecycle.gs](../Models/OfficeLifecycle.gs) | NEW: Lifecycle tracking model | ✅ New |
+| [Routing/OrganizationRoutes.gs](../Routing/OrganizationRoutes.gs) | NEW: Route handlers for organizational units, regional/branch offices, lifecycle | ✅ Updated |
+| [Routing/RouteRegistry.gs](../Routing/RouteRegistry.gs) | NEW: Route mappings for 9 new endpoints | ✅ Updated |
+| [InitializeApp.gs](../InitializeApp.gs) | NEW: Easy migration system with version tracking | ✅ Updated |
+| [Config.gs](../Config.gs) | NEW: Database schema for OrganizationalUnits and OfficeLifecycleHistory | ✅ Updated |
 
 ### Frontend Files
 
-| File | Description |
-|------|-------------|
-| [pages/organization.html](../pages/organization.html) | Main page with tabs and view containers |
-| [layout/modals/organization_modals.html](../layout/modals/organization_modals.html) | Modal forms for CRUD operations |
-| [assets/js/organization_datatables.html](../assets/js/organization_datatables.html) | DataTable manager with lazy loading |
-| [assets/js/organization_crud.html](../assets/js/organization_crud.html) | CRUD operations and enhanced delete |
-| [assets/js/view-toggle.html](../assets/js/view-toggle.html) | Table/diagram view switcher |
-| [assets/js/org-diagram.html](../assets/js/org-diagram.html) | D3.js tree visualization |
-| [assets/js/org-diagram-controls.html](../assets/js/org-diagram-controls.html) | Diagram toolbar controls |
-| [assets/js/org-diagram-tooltip.html](../assets/js/org-diagram-tooltip.html) | Node tooltips |
-| [assets/js/org-diagram-context-menu.html](../assets/js/org-diagram-context-menu.html) | Right-click context menu |
-| [assets/js/organization-view-functions.html](../assets/js/organization-view-functions.html) | View helper functions |
+| File | Description | Status |
+|------|-------------|--------|
+| [pages/organization.html](../pages/organization.html) | NEW: Organizational Units tab + Stats cards + Filters + View toggle | ✅ Updated |
+| [layout/modals/organization_modals.html](../layout/modals/organization_modals.html) | Modal forms for legacy CRUD operations | ⏳ TODO: Add org-unitModal |
+| [assets/js/organization_datatables.html](../assets/js/organization_datatables.html) | DataTable manager for legacy tabs | ✅ Working |
+| [assets/js/organization_crud.html](../assets/js/organization_crud.html) | NEW: OrgUnitManager (400+ lines) + Legacy CRUD functions | ✅ Updated |
+| [assets/js/view-toggle.html](../assets/js/view-toggle.html) | Table/diagram view switcher | ✅ Working |
+| [assets/js/org-diagram.html](../assets/js/org-diagram.html) | D3.js tree visualization | ⏳ TODO: Update for BPJS |
+| [assets/js/org-diagram-controls.html](../assets/js/org-diagram-controls.html) | Diagram toolbar controls | ✅ Working |
+| [assets/js/org-diagram-tooltip.html](../assets/js/org-diagram-tooltip.html) | Node tooltips | ✅ Working |
+| [assets/js/org-diagram-context-menu.html](../assets/js/org-diagram-context-menu.html) | Right-click context menu | ✅ Working |
+| [assets/js/organization-view-functions.html](../assets/js/organization-view-functions.html) | View helper functions | ✅ Working |
 
 ## API Endpoints
 
-### Directorates
+### Legacy Endpoints (Deprecated but functional)
 
 | Endpoint | Description |
 |----------|-------------|
 | `directorates/list` | Get all directorates |
-| `directorates/get` | Get directorate by ID |
 | `directorates/create` | Create new directorate |
 | `directorates/update` | Update directorate |
-| `directorates/delete` | Delete directorate (direct) |
-| `directorates/check-children` | Check for child entities |
-| `directorates/get-alternatives` | Get reassignment options |
-| `directorates/delete-cascade` | Delete with all children |
-| `directorates/delete-reassign` | Reassign children then delete |
+| `directorates/delete` | Delete directorate |
+| `work-units/*` | Same pattern for work units |
+| `affairs/*` | Same pattern for affairs |
+| `positions/*` | Same pattern for positions |
 
-### Work Units
+### NEW: Organizational Units Endpoints
 
-Same pattern with `work-units` prefix.
+| Endpoint | Description | Parameters |
+|----------|-------------|------------|
+| `organizational-units/list` | Get all units with filters | `{ is_active, unit_type, classification, parent_unit_id, province, city }` |
+| `organizational-units/get` | Get unit by ID | `{ unitId }` |
+| `organizational-units/create` | Create new unit | `{ unit_type, unit_name, parent_unit_id, classification, ... }` |
+| `organizational-units/update` | Update unit | `{ unitId, ...data }` |
+| `organizational-units/delete` | Delete unit | `{ unitId }` |
+| `organizational-units/hierarchy` | Get tree structure | `{ include_inactive }` |
+| `organizational-units/children` | Get children of unit | `{ unitId }` |
+| `organizational-units/parent` | Get parent of unit | `{ unitId }` |
+| `organizational-units/byType` | Get by type | `{ unit_type }` |
+| `organizational-units/byClassification` | Get by classification | `{ classification }` |
+| `organizational-units/history` | Get lifecycle history | `{ unitId }` |
+| `organizational-units/timeline` | Get enriched timeline | `{ unitId }` |
 
-### Affairs
-
-Same pattern with `affairs` prefix.
-
-### Positions
+### NEW: Regional Offices Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `positions/list` | Get all positions |
-| `positions/get` | Get position by ID |
-| `positions/create` | Create new position |
-| `positions/update` | Update position |
-| `positions/delete` | Delete position |
+| `regional-offices/list` | Get all regional offices |
+| `regional-offices/create` | Create regional office |
+| `regional-offices/update` | Update regional office |
+| `regional-offices/delete` | Delete regional office |
 
-## Complete Data Flow: Creating a Work Unit
+### NEW: Branch Offices Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `branch-offices/list` | Get all branch offices |
+| `branch-offices/create` | Create branch office |
+| `branch-offices/update` | Update branch office |
+| `branch-offices/delete` | Delete branch office |
+| `branch-offices/reclassify` | Change branch classification | `{ unitId, new_classification, reason }` |
+
+### NEW: Subsidiaries Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `subsidiaries/list` | Get all subsidiaries |
+| `subsidiaries/create` | Create subsidiary |
+| `subsidiaries/update` | Update subsidiary |
+| `subsidiaries/delete` | Delete subsidiary |
+
+### NEW: Office Lifecycle Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `office-lifecycle/list` | Get all lifecycle events |
+| `office-lifecycle/history` | Get history for unit | `{ unitId }` |
+| `office-lifecycle/timeline` | Get timeline for unit | `{ unitId }` |
+| `office-lifecycle/byType` | Get by event type | `{ event_type }` |
+| `office-lifecycle/statistics` | Get summary statistics | `{ filters }` |
+| `office-lifecycle/recent` | Get recent changes | `{ limit }` |
+
+## OrgUnitManager API
+
+**File**: [assets/js/organization_crud.html](../assets/js/organization_crud.html#L763-L1169)
+
+```javascript
+const OrgUnitManager = {
+    // Initialize the manager and load data
+    init(): async void
+
+    // Statistics
+    loadStats(): async void
+    └─► Updates 4 dashboard cards with live counts
+
+    // View Management
+    loadTreeView(): async void
+    └─► Fetches hierarchy and builds HTML tree
+
+    loadFlatView(): async void
+    └─► Fetches all units and renders DataTable
+
+    showTreeView(): async void
+    └─► Switches to tree view
+
+    showFlatView(): async void
+    └─► Switches to flat table view
+
+    // Filtering
+    applyFilters(): async void
+    └─► Applies type, classification, province, city filters
+
+    clearFilters(): async void
+    └─► Resets all filters and reloads
+
+    // CRUD Operations
+    viewUnit(unitId): void
+    └─► Shows unit details (TODO)
+
+    editUnit(unitId): void
+    └─► Opens edit modal (TODO)
+
+    deleteUnit(unitId): async void
+    └─► Deletes unit with validation
+
+    // Helpers
+    buildTreeHtml(nodes, level): string
+    └─► Builds HTML tree from API data
+
+    getNodeIcon(unitType): string
+    └─► Returns Bootstrap icon HTML
+
+    getTypeBadge(unitType): string
+    └─► Returns color-coded badge
+
+    getClassificationBadge(classification): string
+    └─► Returns classification badge (Kelas 1-3A)
+
+    getTypeLabel(unitType): string
+    └─► Returns human-readable label
+
+    setupEventListeners(): void
+    └─► Initializes filter change listeners
+}
+```
+
+## Database Migration
+
+**File**: [InitializeApp.gs](../InitializeApp.gs)
+
+### Migration System Features:
+- **Version Tracking**: `APP_VERSION = '3.0.0'`, `DB_VERSION = '3.0.0'`
+- **Automatic Detection**: Checks DB version on `setupCompleteDatabase()`
+- **Easy Updates**: Add new migrations in `runDatabaseMigrations()`
+
+### Running the Migration:
+```javascript
+// In Apps Script Editor
+setupCompleteDatabase()
+```
+
+### What Migration Does:
+1. Creates `OrganizationalUnits` table (25 columns)
+2. Creates `OfficeLifecycleHistory` table (14 columns)
+3. Enhances `Positions` table (3 new columns)
+4. Migrates Directorates → OrganizationalUnits
+5. Migrates WorkUnits → OrganizationalUnits
+6. Migrates Affairs → OrganizationalUnits
+7. Creates ROOT unit (BPJS Ketenagakerjaan)
+8. Updates parent references
+9. Marks old tables as deprecated
+
+## Complete Data Flow: Loading Organizational Units
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     CREATE WORK UNIT - COMPLETE FLOW                    │
+│                 LOAD ORGANIZATIONAL UNITS - COMPLETE FLOW              │
 └─────────────────────────────────────────────────────────────────────────┘
 
-1. USER ACTION
-   User clicks "Add Work Unit" button
-   onclick="showModal('work-unit')"
+1. PAGE LOAD
+   User navigates to Organization page
+   └─► DOMContentLoaded event fires
 
-2. MODAL DISPLAY
-   showModal('work-unit') → Opens work-unitModal
-   - Empty form fields
-   - Populates directorate dropdown via apiCall('directorates/list')
+2. INITIALIZATION (pages/organization.html)
+   document.addEventListener('DOMContentLoaded', function() {
+       OrgUnitManager.init();
+   });
 
-3. USER FILLS FORM
-   - Code: "WU-003"
-   - Name: "IT Department"
-   - Directorate: Selects from dropdown
+3. OrgUnitManager.init()
+   ├─► debugLog('ORG_UNIT', '=== OrgUnitManager init START ===')
+   │
+   ├─► OrgUnitManager.loadStats()
+   │   └─► apiCall('organizational-units/list', { is_active: true })
+   │       ├─► Backend: OrganizationController.OrganizationalUnit.getAll()
+   │       ├─► Model: OrganizationModel.OrganizationalUnit.getAll()
+   │       ├─► Database: Get OrganizationalUnits sheet
+   │       └─► Return: Array of all active units
+   │
+   ├─► Count by type (Regional, Branch, Subsidiary)
+   │
+   └─► Update UI elements:
+       ├─► document.getElementById('stat-total-units').textContent = total
+       ├─► document.getElementById('stat-regional-offices').textContent = regional
+       ├─► document.getElementById('stat-branch-offices').textContent = branch
+       └─► document.getElementById('stat-subsidiaries').textContent = subsidiary
 
-4. USER CLICKS "SAVE"
-   onclick="saveWorkUnit()"
+4. OrgUnitManager.loadTreeView()
+   └─► apiCall('organizational-units/hierarchy', { include_inactive: false })
+       ├─► Backend: OrganizationController.OrganizationalUnit.getHierarchy()
+       ├─► Model: OrganizationModel.OrganizationalUnit.getHierarchyTree()
+       ├─► Build tree structure:
+       │   {
+       │     unit_id: 'root-uuid',
+       │     unit_name: 'BPJS Ketenagakerjaan',
+       │     unit_type: 'ROOT',
+       │     children: [
+       │       {
+       │         unit_id: 'dir-1',
+       │         unit_name: 'Directorate of Finance',
+       │         unit_type: 'DIRECTORATE',
+       │         children: [...]
+       │       },
+       │       ...
+       │     ]
+       │   }
+       └─► Return: Tree structure
 
-5. CRUD OPERATION (assets/js/organization_crud.html)
-   saveWorkUnit():
-   │
-   ├─► Extract form values
-   │   data = {
-   │     work_unit_code: "WU-003",
-   │     work_unit_name: "IT Department",
-   │     directorate_id: "...selected id..."
-   │   }
-   │
-   ├─► Validate required fields
-   │
-   ├─► Determine endpoint: 'work-units/create' (no id = create)
-   │
-   └─► apiCall('work-units/create', data)
+5. Build HTML Tree (buildTreeHtml)
+   ├─► Iterate through tree nodes
+   ├─► For each node:
+   │   ├─► Get icon: getNodeIcon(unit_type)
+   │   ├─► Get badges: getTypeBadge(), getClassificationBadge()
+   │   ├─► Build HTML with expand/collapse caret
+   │   └─► Recursively process children
+   └─► Return: Complete HTML tree
 
-6. API CALL (assets/js/api_helper.html)
-   apiCall(endpoint, data):
-   │
-   └─► google.script.run
-         .withSuccessHandler(result)
-         .withFailureHandler(error)
-         .callAPI(endpoint, data)
+6. Render Tree
+   container.innerHTML = treeHtml
+   ├─► Spinner disappears
+   ├─► Tree is displayed
+   └─► Carets are clickable to expand/collapse
 
-7. BACKEND ROUTING (Code.gs)
-   callAPI('work-units/create', data):
-   │
-   ├─► Parse: resource='work-units', action='create'
-   ├─► Get userId from session
-   │
-   └─► Route to: OrganizationController.WorkUnit.create(data, userId)
-
-8. CONTROLLER (Controllers/OrganizationController.gs)
-   OrganizationController.WorkUnit.create(data, userId):
-   │
-   ├─► Create new object with UUID, timestamps
-   │
-   └─► OrganizationModel.WorkUnit.create(data)
-
-9. MODEL (Models/Organization.gs)
-   OrganizationModel.WorkUnit.create(data):
-   │
-   ├─► newWorkUnit = {
-   │     work_unit_id: generateUUID(),
-   │     work_unit_code: data.work_unit_code || generateCode(),
-   │     work_unit_name: data.work_unit_name,
-   │     directorate_id: data.directorate_id,
-   │     created_at: formatDateTime(new Date()),
-   │     created_by: data.created_by,
-   │     ...
-   │   }
-   │
-   └─► insertRecord(DB_CONFIG.SHEET_NAMES.WORK_UNITS, newWorkUnit)
-
-10. DATABASE SERVICE (DatabaseService.gs)
-    insertRecord(sheetName, data):
-    │
-    ├─► Get sheet by name
-    ├─► Append row with data values
-    │
-    └─► Return { success: true, data: newWorkUnit }
-
-11. RESPONSE FLOW (back to frontend)
-    result = { success: true, data: newWorkUnit }
-    │
-    ├─► Controller adds audit log
-    ├─► Response returned to frontend
-    │
-    └─► saveWorkUnit() receives result
-
-12. FRONTEND COMPLETION
-    if (result.success):
-    │
-    ├─► Close modal (bootstrap.Modal.getInstance().hide())
-    ├─► Show toast: "Work Unit saved successfully"
-    ├─► Refresh table: OrganizationManager.refreshEntityTable('work-unit')
-    │   └─► apiCall('work-units/list') → Re-render DataTable
-    │
-    └─► Reload diagram if active: OrgDiagram.reload()
+7. Setup Event Listeners
+   ├─► Filter changes → applyFilters()
+   ├─► View toggle buttons → showTreeView()/showFlatView()
+   └─► Tree carets → Expand/collapse children
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         OPERATION COMPLETE                               │
+│                         LOADING COMPLETE                               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -342,112 +511,53 @@ deleteItem(type, id) called
     6. Reload diagram if active
 ```
 
-## DataTable Manager (Lazy Loading)
+## Office Lifecycle Management
 
-**File**: [assets/js/organization_datatables.html](../assets/js/organization_datatables.html)
+### Supported Operations
 
-**Purpose**: Manages lazy loading, caching, and rendering of organization tables.
+| Operation | Description | API Endpoint | Status |
+|-----------|-------------|--------------|--------|
+| **Close** | Permanently close an office | `organizational-units/close` | ✅ Backend |
+| **Merge** | Merge one office into another | `organizational-units/merge` | ✅ Backend |
+| **Reclassify** | Change branch classification | `branch-offices/reclassify` | ✅ Backend |
+| **View History** | View office change timeline | `organizational-units/timeline` | ✅ Backend |
+| **Get Statistics** | Summary of all changes | `office-lifecycle/statistics` | ✅ Backend |
 
-**Key Features**:
-- **Lazy Loading**: Only loads data for the active tab
-- **Data Caching**: Prevents redundant API calls
-- **DataTable Integration**: jQuery DataTables with pagination, search, sorting
-- **Filter System**: Column-based filtering
+### Lifecycle Event Flow
 
-**API**:
-
-```javascript
-window.OrganizationManager = {
-    // Initialize tables and setup tab listeners
-    initialize(): async void
-
-    // Load entity data if not cached
-    loadEntityDataIfNotCached(entityType): async void
-
-    // Refresh specific table after CRUD
-    refreshEntityTable(crudType): async void
-
-    // Clear filters for entity type
-    clearFilters(entityType): void
-
-    // Data cache
-    cache: {
-        directorates: { loaded: bool, data: [], tableInstance: DataTable },
-        'work-units': { ... },
-        affairs: { ... },
-        positions: { ... }
-    }
-}
 ```
-
-**Flow**:
-```
-1. Page Load → OrganizationManager.initialize()
-2. Setup Bootstrap tab event listeners
-3. Load active tab's data (lazy load)
-4. User switches tab → loadEntityDataIfNotCached(entityType)
-5. If cached → skip, if not → apiCall(entityType/list)
-6. Render table with DataTable
-```
-
-## View Toggle System
-
-**File**: [assets/js/view-toggle.html](../assets/js/view-toggle.html)
-
-**Purpose**: Switch between Table View and Diagram View.
-
-**Features**:
-- State persistence with localStorage
-- Auto-initialize on saved preference
-- Resource cleanup when switching views
-
-**API**:
-
-```javascript
-const ViewToggle = {
-    init(): void,                    // Auto-load saved view
-    switchView('table' | 'diagram'): void,
-    refresh(): void,                  // Refresh current view after CRUD
-    toggleLegend(): void,             // Minimize/maximize diagram legend
-    getCurrentView(): string          // Returns 'table' or 'diagram'
-}
-```
-
-## Organization Diagram (D3.js)
-
-**File**: [assets/js/org-diagram.html](../assets/js/org-diagram.html)
-
-**Purpose**: D3.js hierarchical tree visualization of organization structure.
-
-**Key Features**:
-- **Interactive Tree**: Collapsible/expandable nodes
-- **Zoom & Pan**: D3 zoom behavior
-- **Drag & Drop**: Reposition nodes
-- **Context Menu**: Right-click for View/Edit/Add Child/Delete
-- **Export**: Download diagram as PNG
-
-**Entity Configuration**:
-
-```javascript
-const entityConfig = {
-    directorate: { color: '#667eea', label: 'Directorate' },
-    'work-unit':  { color: '#764ba2', label: 'Work Unit' },
-    affair:       { color: '#f093fb', label: 'Affair' },
-    position:     { color: '#4facfe', label: 'Position' }
-};
-```
-
-**Diagram API**:
-
-```javascript
-const OrgDiagram = {
-    init(): void,                    // Initialize and render diagram
-    reload(): async void,            // Reload data and re-render
-    zoomIn(), zoomOut(), resetZoom(),
-    expandAll(), collapseAll(),
-    exportPNG(),
-    destroy(): void                  // Clean up SVG and event listeners
-};
+1. User action (e.g., "Reclassify Branch")
+    │
+    ▼
+2. Frontend: OrgUnitManager.reclassifyBranch(unitId, newClass, reason)
+    │
+    ▼
+3. API Call: branch-offices/reclassify
+    │
+    ▼
+4. Backend: OrganizationController.OrganizationalUnit.reclassify()
+    │
+    ├─► Validation: Unit exists, has classification, new class is different
+    │
+    ├─► Update OrganizationalUnits table:
+    │   - previous_classification = oldClass
+    │   - classification = newClass
+    │   - lifecycle_status = 'RECLASSIFIED'
+    │
+    ├─► Create OfficeLifecycleHistory entry:
+    │   - event_type = 'RECLASSIFIED'
+    │   - previous_classification = oldClass
+    │   - new_classification = newClass
+    │   - event_reason = reason
+    │   - performed_by = userId
+    │
+    ├─► Update Positions under this unit:
+    │   - branch_classification = newClass
+    │
+    └─► Return: { success: true, message: "Reclassified from Kelas 2 to Kelas 1" }
+        │
+        ▼
+5. Frontend: Show success toast, refresh tree
 ```
 
 ## Error Handling
@@ -456,11 +566,13 @@ const OrgDiagram = {
 - Required field checks before API call
 - Client-side format validation
 - User-friendly error messages via toast notifications
+- **NEW**: OrgUnitManager validation for unit types and classifications
 
 ### Backend Validation
 - Data type validation in controller
 - Referential integrity checks (parent must exist)
-- Business rule validation (cannot delete entity with active children)
+- **NEW**: Parent-child relationship validation
+- **NEW**: Lifecycle status validation (e.g., cannot close unit with active children)
 
 ### API Response Format
 
@@ -483,24 +595,97 @@ All operations use `debugLog(category, message, data)`:
 | `'DELETE'` | Delete operations |
 | `'VIEW'` | View toggle operations |
 | `'DIAGRAM'` | Diagram operations |
+| `'ORG_UNIT'` | **NEW**: Organizational unit operations |
+
+## Color Scheme (BPJS Branded)
+
+### Unit Type Colors
+```
+ROOT/HQ Units:     Blue theme
+├─ ROOT:           #1E88E5 (Primary Blue)
+├─ Directorate:    #42A5F5 (Light Blue)
+├─ Work Unit:      #90CAF9 (Sky Blue)
+└─ Affairs:        #BBDEFB (Pale Blue)
+
+Regional/Branch:   Green theme
+├─ Regional:       #43A047 (Green)
+└─ Branch:         #8BC34A (Lime Green)
+   ├─ Kelas 1:     #2E7D32 (Dark Green)
+   ├─ Kelas 2:     #43A047 (Medium Green)
+   ├─ Kelas 3:     #8BC34A (Light Green)
+   └─ Kelas 3A:    #AED581 (Pale Green)
+
+Subsidiaries:      Purple theme
+└─ Subsidiary:     #8E24AA (Purple)
+
+Positions:         Orange/Gray theme
+```
 
 ## Extending the Organization Module
 
-### Adding a New Level to Hierarchy
+### Adding a New Unit Type
 
-To add a new level (e.g., "Sub-Affair" under Affair):
+To add a new unit type (e.g., "DIVISION" under Directorate):
 
-1. **Database**: Add new sheet in DatabaseService
-2. **Model**: Add `OrganizationModel.SubAffair` in Models/Organization.gs
-3. **Controller**: Add `OrganizationController.SubAffair` in Controllers/OrganizationController.gs
-4. **Frontend Page**: Add new tab in pages/organization.html
-5. **DataTable**: Add render function in organization_datatables.html
-6. **CRUD**: Add save functions in organization_crud.html
-7. **Modal**: Add modal form in organization_modals.html
-8. **Diagram**: Update entityConfig and tree structure in org-diagram.html
+1. **Database Schema**: Update `ORGANIZATIONAL_UNITS` headers in Config.gs
+2. **Model**: Add validation in `OrganizationModel.OrganizationalUnit.validateParentChild()`
+3. **Controller**: Add to `OrganizationController.OrganizationalUnit` if needed
+4. **Frontend**: Update `OrgUnitManager.getNodeIcon()`, `getTypeBadge()`, `getTypeLabel()`
+5. **Routes**: Already handled by generic `routeOrganizationalUnits()`
+
+### Adding Lifecycle Operations
+
+To add a new lifecycle operation (e.g., "Split"):
+
+1. **Model**: Add `OrganizationModel.OrganizationalUnit.splitUnit()`
+2. **Controller**: Add to `OrganizationController.OrganizationalUnit`
+3. **Route**: Add to `routeOrganizationalUnits` or create new `routeOfficeLifecycle` action
+4. **Frontend**: Add to OrgUnitManager with confirmation dialog
+5. **Modal**: Create lifecycle modal in organization_modals.html
 
 ## Next Steps
 
-- See [Creating a CRUD Module](./51-creating-crud-module.md) for detailed guide on building CRUD modules
-- See [Database Schema](./40-database-schema.md) for organization tables
-- See [Frontend Components](./21-frontend-components.md) for UI component patterns
+- **Run Migration**: Execute `setupCompleteDatabase()` in Apps Script Editor
+- **Test API**: Use browser console to test endpoints
+- **Create Units**: (TODO) After modals are implemented
+- **View Diagram**: (TODO) After D3.js update
+- **Manage Lifecycle**: (TODO) After lifecycle modals are implemented
+
+## Related Documentation
+
+- [IMPLEMENTATION_COMPLETE_FINAL.md](../IMPLEMENTATION_COMPLETE_FINAL.md) - Complete implementation status
+- [SPINNER_ERROR_FIXED.md](../SPINNER_ERROR_FIXED.md) - Frontend implementation details
+- [ORGANIZATION_RESTRUCTURE_COMPLETE.md](../ORGANIZATION_RESTRUCTURE_COMPLETE.md) - Technical reference
+- [InitializeApp.gs](../InitializeApp.gs) - Migration system documentation
+- [Creating a CRUD Module](./51-creating-crud-module.md) - Guide for building CRUD modules
+- [Database Schema](./40-database-schema.md) - Organization table schemas
+- [Frontend Components](./21-frontend-components.md) - UI component patterns
+
+## Quick Reference
+
+### Run Migration
+```javascript
+// In Apps Script Editor
+setupCompleteDatabase()
+```
+
+### Test Organizational Units API
+```javascript
+// Browser Console
+apiCall('organizational-units/hierarchy', {}).then(console.log);
+apiCall('organizational-units/list', {}).then(console.log);
+apiCall('branch-offices/list', {}).then(console.log);
+```
+
+### View Organizational Structure
+1. Open web app
+2. Navigate to **Organization** page
+3. See **Organizational Units** tab (default)
+4. View stats cards, tree structure, and filters
+5. Toggle between Tree View and Flat View
+
+---
+
+**Last Updated**: 2026-02-03
+**Version**: 3.0.0 (BPJS Structure)
+**Status**: Backend 100% Complete, Frontend 80% Complete

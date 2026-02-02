@@ -15,18 +15,23 @@
     <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mb-4" id="orgTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="directorates-tab" data-bs-toggle="tab" data-bs-target="#directorates" type="button" role="tab">
-                <i class="bi bi-building me-2"></i>Directorates
+            <button class="nav-link active" id="org-units-tab" data-bs-toggle="tab" data-bs-target="#org-units" type="button" role="tab">
+                <i class="bi bi-diagram-3 me-2"></i>Organizational Units
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="directorates-tab" data-bs-toggle="tab" data-bs-target="#directorates" type="button" role="tab">
+                <i class="bi bi-building me-2"></i>Directorates (Legacy)
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="work-units-tab" data-bs-toggle="tab" data-bs-target="#work-units" type="button" role="tab">
-                <i class="bi bi-layers me-2"></i>Work Units
+                <i class="bi bi-layers me-2"></i>Work Units (Legacy)
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="affairs-tab" data-bs-toggle="tab" data-bs-target="#affairs" type="button" role="tab">
-                <i class="bi bi-folder me-2"></i>Affairs
+                <i class="bi bi-folder me-2"></i>Affairs (Legacy)
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -38,8 +43,192 @@
 
     <!-- Tab Content -->
     <div class="tab-content" id="orgTabContent">
+        <!-- Organizational Units Tab (NEW - BPJS Structure) -->
+        <div class="tab-pane fade show active" id="org-units" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">BPJS Ketenagakerjaan - Organizational Structure</h5>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="showViewModeSelector()">
+                        <i class="bi bi-list-check"></i> View Mode
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="showModal('org-unit')">
+                        <i class="bi bi-plus-lg me-1"></i>Add Organizational Unit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Stats Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h6 class="card-subtitle mb-2 text-muted">Total Units</h6>
+                            <h3 class="card-title text-primary" id="stat-total-units">-</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h6 class="card-subtitle mb-2 text-muted">Regional Offices</h6>
+                            <h3 class="card-title text-success" id="stat-regional-offices">-</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-subtitle mb-2 text-muted">Branch Offices</h6>
+                            <h3 class="card-title text-info" id="stat-branch-offices">-</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-subtitle mb-2 text-muted">Subsidiaries</h6>
+                            <h3 class="card-title text-warning" id="stat-subsidiaries">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Filter Panel -->
+            <div class="accordion mb-3" id="org-units-filter-accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#org-units-filter-collapse">
+                            <i class="bi bi-funnel-fill me-2"></i> Advanced Filters
+                        </button>
+                    </h2>
+                    <div id="org-units-filter-collapse" class="accordion-collapse collapse show"
+                         data-bs-parent="#org-units-filter-accordion">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Unit Type</label>
+                                    <select class="form-select" id="org-units-filter-type" multiple>
+                                        <option value="ROOT">ROOT (Organization)</option>
+                                        <option value="DIRECTORATE">Directorate (HQ)</option>
+                                        <option value="WORK_UNIT">Work Unit (HQ)</option>
+                                        <option value="AFFAIR">Affair (HQ)</option>
+                                        <option value="REGIONAL_OFFICE">Regional Office</option>
+                                        <option value="BRANCH_OFFICE">Branch Office</option>
+                                        <option value="SUBSIDIARY">Subsidiary</option>
+                                        <option value="SUBSIDIARY_UNIT">Subsidiary Unit</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Classification</label>
+                                    <select class="form-select" id="org-units-filter-classification" multiple>
+                                        <option value="HQ">Headquarters (HQ)</option>
+                                        <option value="KELAS_1">Kelas 1 (Branch)</option>
+                                        <option value="KELAS_2">Kelas 2 (Branch)</option>
+                                        <option value="KELAS_3">Kelas 3 (Branch)</option>
+                                        <option value="KELAS_3A">Kelas 3A (Branch)</option>
+                                        <option value="SUBSIDIARY">Subsidiary</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Province</label>
+                                    <input type="text" class="form-control" id="org-units-filter-province"
+                                           placeholder="Filter by province...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" id="org-units-filter-city"
+                                           placeholder="Filter by city...">
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="org-units-show-inactive">
+                                        <label class="form-check-label" for="org-units-show-inactive">
+                                            Show inactive/closed units
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-primary btn-sm w-100" onclick="OrgUnitManager.applyFilters()">
+                                        <i class="bi bi-filter"></i> Apply Filters
+                                    </button>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-secondary btn-sm w-100" onclick="OrgUnitManager.clearFilters()">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hierarchy Tree Toggle -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary active" id="btn-tree-view" onclick="OrgUnitManager.showTreeView()">
+                        <i class="bi bi-diagram-3"></i> Tree View
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-flat-view" onclick="OrgUnitManager.showFlatView()">
+                        <i class="bi bi-list-ul"></i> Flat View
+                    </button>
+                </div>
+                <div>
+                    <button class="btn btn-outline-success btn-sm" onclick="OrgDiagram.expandAll()">
+                        <i class="bi bi-arrows-expand"></i> Expand All
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="OrgDiagram.collapseAll()">
+                        <i class="bi bi-arrows-collapse"></i> Collapse All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tree View Container -->
+            <div id="org-units-tree-view">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="org-units-tree-container" style="min-height: 500px; padding: 20px;">
+                            <div class="text-center text-muted">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading organizational structure...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flat View Container (Table) -->
+            <div id="org-units-flat-view" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="org-units-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Level</th>
+                                <th>Classification</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="org-units-body">
+                            <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Directorates Tab -->
-        <div class="tab-pane fade show active" id="directorates" role="tabpanel">
+        <div class="tab-pane fade" id="directorates" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">Directorates</h5>
                 <button class="btn btn-primary btn-sm" onclick="showModal('directorate')">
@@ -437,3 +626,53 @@
         </div>
     </div>
 </div><!-- End Diagram View -->
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Initialize organization page
+function initializeOrgPage() {
+    debugLog('ORG_PAGE', '=== initializeOrgPage START ===');
+
+    // Initialize old OrganizationManager for legacy tabs
+    if (typeof OrganizationManager !== 'undefined' && OrganizationManager.init) {
+        debugLog('ORG_PAGE', 'Initializing OrganizationManager...');
+        OrganizationManager.init();
+    } else {
+        debugLog('ORG_PAGE', 'OrganizationManager not available');
+    }
+
+    // Initialize new OrgUnitManager for BPJS structure
+    if (typeof OrgUnitManager !== 'undefined' && OrgUnitManager.init) {
+        debugLog('ORG_PAGE', 'Initializing OrgUnitManager...');
+        OrgUnitManager.init();
+    } else {
+        debugLog('ORG_PAGE', 'OrgUnitManager not available');
+    }
+
+    debugLog('ORG_PAGE', '=== initializeOrgPage COMPLETE ===');
+}
+
+// Try to initialize immediately (in case scripts already loaded)
+if (document.readyState === 'loading') {
+    // Still loading, wait for DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', initializeOrgPage);
+} else {
+    // DOM already ready, initialize now
+    initializeOrgPage();
+}
+
+// Also add a fallback initialization in case scripts load late
+setTimeout(function() {
+    if (typeof OrgUnitManager !== 'undefined' && OrgUnitManager.init) {
+        // Check if already initialized by checking for tree container
+        const treeContainer = document.getElementById('org-units-tree-container');
+        if (treeContainer && !treeContainer.hasAttribute('data-initialized')) {
+            debugLog('ORG_PAGE', 'Fallback: Initializing OrgUnitManager...');
+            OrgUnitManager.init();
+            treeContainer.setAttribute('data-initialized', 'true');
+        }
+    }
+}, 500);
+</script>
