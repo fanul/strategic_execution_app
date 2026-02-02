@@ -1,0 +1,334 @@
+<!-- Organization Management Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Organization Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="showOrgDiagram()">
+            <i class="bi bi-diagram-3"></i> Organization Diagram
+        </button>
+    </div>
+</div>
+
+<!-- Organization View -->
+<div id="organization-view" class="view-section active">
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="orgTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="directorates-tab" data-bs-toggle="tab" data-bs-target="#directorates" type="button" role="tab">
+                <i class="bi bi-building me-2"></i>Directorates
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="work-units-tab" data-bs-toggle="tab" data-bs-target="#work-units" type="button" role="tab">
+                <i class="bi bi-layers me-2"></i>Work Units
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="affairs-tab" data-bs-toggle="tab" data-bs-target="#affairs" type="button" role="tab">
+                <i class="bi bi-folder me-2"></i>Affairs
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="positions-tab" data-bs-toggle="tab" data-bs-target="#positions" type="button" role="tab">
+                <i class="bi bi-person-badge me-2"></i>Positions
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="orgTabContent">
+        <!-- Directorates Tab -->
+        <div class="tab-pane fade show active" id="directorates" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Directorates</h5>
+                <button class="btn btn-primary btn-sm" onclick="showModal('directorate')">
+                    <i class="bi bi-plus-lg me-1"></i>Add Directorate
+                </button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="accordion mb-3" id="directorates-filter-accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#directorates-filter-collapse">
+                            <i class="bi bi-funnel me-2"></i> Filters
+                        </button>
+                    </h2>
+                    <div id="directorates-filter-collapse" class="accordion-collapse collapse"
+                         data-bs-parent="#directorates-filter-accordion">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Code</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="0" id="directorates-filter-code"
+                                           placeholder="Filter by code...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="1" id="directorates-filter-name"
+                                           placeholder="Filter by name...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="2" id="directorates-filter-description"
+                                           placeholder="Filter by description...">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <button class="btn btn-secondary btn-sm" onclick="OrganizationManager.clearFilters('directorates')">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-hover" id="directorates-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="directorates-body">
+                        <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Work Units Tab -->
+        <div class="tab-pane fade" id="work-units" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Work Units</h5>
+                <button class="btn btn-primary btn-sm" onclick="showModal('work-unit')">
+                    <i class="bi bi-plus-lg me-1"></i>Add Work Unit
+                </button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="accordion mb-3" id="work-units-filter-accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#work-units-filter-collapse">
+                            <i class="bi bi-funnel me-2"></i> Filters
+                        </button>
+                    </h2>
+                    <div id="work-units-filter-collapse" class="accordion-collapse collapse"
+                         data-bs-parent="#work-units-filter-accordion">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Code</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="0" id="work-units-filter-code"
+                                           placeholder="Filter by code...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="1" id="work-units-filter-name"
+                                           placeholder="Filter by name...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Directorate</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="2" id="work-units-filter-directorate"
+                                           placeholder="Filter by directorate...">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <button class="btn btn-secondary btn-sm" onclick="OrganizationManager.clearFilters('work-units')">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-hover" id="work-units-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Directorate</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="work-units-body">
+                        <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Affairs Tab -->
+        <div class="tab-pane fade" id="affairs" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Affairs</h5>
+                <button class="btn btn-primary btn-sm" onclick="showModal('affair')">
+                    <i class="bi bi-plus-lg me-1"></i>Add Affair
+                </button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="accordion mb-3" id="affairs-filter-accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#affairs-filter-collapse">
+                            <i class="bi bi-funnel me-2"></i> Filters
+                        </button>
+                    </h2>
+                    <div id="affairs-filter-collapse" class="accordion-collapse collapse"
+                         data-bs-parent="#affairs-filter-accordion">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Code</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="0" id="affairs-filter-code"
+                                           placeholder="Filter by code...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="1" id="affairs-filter-name"
+                                           placeholder="Filter by name...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Work Unit</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="2" id="affairs-filter-workunit"
+                                           placeholder="Filter by work unit...">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <button class="btn btn-secondary btn-sm" onclick="OrganizationManager.clearFilters('affairs')">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-hover" id="affairs-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Work Unit</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="affairs-body">
+                        <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Positions Tab -->
+        <div class="tab-pane fade" id="positions" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Positions</h5>
+                <button class="btn btn-primary btn-sm" onclick="showModal('position')">
+                    <i class="bi bi-plus-lg me-1"></i>Add Position
+                </button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="accordion mb-3" id="positions-filter-accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#positions-filter-collapse">
+                            <i class="bi bi-funnel me-2"></i> Filters
+                        </button>
+                    </h2>
+                    <div id="positions-filter-collapse" class="accordion-collapse collapse"
+                         data-bs-parent="#positions-filter-accordion">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Code</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="0" id="positions-filter-code"
+                                           placeholder="Filter by code...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="1" id="positions-filter-name"
+                                           placeholder="Filter by name...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Level</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="2" id="positions-filter-level"
+                                           placeholder="Filter by level...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Work Unit</label>
+                                    <input type="text" class="form-control filter-input"
+                                           data-column="3" id="positions-filter-workunit"
+                                           placeholder="Filter by work unit...">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <button class="btn btn-secondary btn-sm" onclick="OrganizationManager.clearFilters('positions')">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="table table-hover" id="positions-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Level</th>
+                            <th>Work Unit</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positions-body">
+                        <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

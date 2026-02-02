@@ -1,0 +1,1216 @@
+<script>
+// ============================================================================
+// ORGANIZATION DIAGRAM COMPONENT
+// Hierarchical tree diagram with zoom, pan, collapse/expand, and drag-drop
+// ============================================================================
+
+// Color configuration by entity type
+const entityConfig = {
+    directorate: { color: '#667eea', label: 'Directorate' },
+    'work-unit': { color: '#764ba2', label: 'Work Unit' },
+    affair: { color: '#f093fb', label: 'Affair' },
+    position: { color: '#4facfe', label: 'Position' }
+};
+
+// Global diagram state
+let svg = null;
+let g = null;
+let zoom = null;
+let currentData = null;
+let treemap = null;
+let root = null;
+let collapsedIds = new Set();
+let draggedNode = null;
+let dragLine = null;
+let currentFilterType = ''; // '', 'directorate', 'work-unit', 'affair', 'position'
+let currentFilterStatus = ''; // '', 'active', 'inactive'
+let nodeElementsMap = new Map(); // Maps node ID to DOM element
+let linkElementsMap = new Map(); // Maps link key (sourceId-targetId) to link element
+let dragAnimationId = null; // For requestAnimationFrame
+let isDragging = false;
+
+// Initialize the OrgDiagram module
+const OrgDiagram = (function() {
+    'use strict';
+
+    return {
+        // Initialize the diagram
+        init() {
+            debugLog('DIAGRAM', '=== OrgDiagram.init START ===');
+
+            const container = document.getElementById('org-diagram-container');
+            if (!container) {
+                debugLog('DIAGRAM', 'FAIL Container not found');
+                return;
+            }
+
+            // Clear previous content
+            container.innerHTML = '';
+
+            // Show loading indicator
+            this.showLoadingIndicator(container);
+
+            // Get container dimensions
+            const width = container.clientWidth || 1200;
+            const height = container.clientHeight || 800;
+
+            debugLog('DIAGRAM', 'Container dimensions:', { width, height });
+
+            // Create SVG
+            svg = d3.select('#org-diagram-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', [-width / 2, -height / 2, width, height]);
+
+            // Add zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            // Create main group for diagram content
+            g = svg.append('g');
+
+            debugLog('DIAGRAM', 'SVG and zoom initialized');
+
+            // Load and render data
+            this.loadData();
+
+            debugLog('DIAGRAM', '=== OrgDiagram.init COMPLETE ===');
+        },
+
+        // Show loading indicator
+        showLoadingIndicator(container) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'diagram-loading';
+            loadingDiv.style.position = 'absolute';
+            loadingDiv.style.top = '50%';
+            loadingDiv.style.left = '50%';
+            loadingDiv.style.transform = 'translate(-50%, -50%)';
+            loadingDiv.style.textAlign = 'center';
+            loadingDiv.style.zIndex = '1000';
+            loadingDiv.innerHTML = `
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3 text-muted">Loading organization data...</div>
+            `;
+            container.appendChild(loadingDiv);
+            debugLog('DIAGRAM', 'Loading indicator shown');
+        },
+
+        // Hide loading indicator
+        hideLoadingIndicator() {
+            const loadingDiv = document.getElementById('diagram-loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+                debugLog('DIAGRAM', 'Loading indicator hidden');
+            }
+        },
+
+        // Load organization data
+        async loadData() {
+            debugLog('DIAGRAM', 'Loading organization data...');
+
+            try {
+                // Fetch all entity data in parallel
+                const [directorates, workUnits, affairs, positions] = await Promise.all([
+                    apiCall('directorates/list'),
+                    apiCall('work-units/list'),
+                    apiCall('affairs/list'),
+                    apiCall('positions/list')
+                ]);
+
+                debugLog('DIAGRAM', 'API responses:', {
+                    directorates: directorates.success ? directorates.data.length : 0,
+                    workUnits: workUnits.success ? workUnits.data.length : 0,
+                    affairs: affairs.success ? affairs.data.length : 0,
+                    positions: positions.success ? positions.data.length : 0
+                });
+
+                // Build hierarchical tree structure
+                currentData = this.buildHierarchy(
+                    directorates.success ? directorates.data : [],
+                    workUnits.success ? workUnits.data : [],
+                    affairs.success ? affairs.data : [],
+                    positions.success ? positions.data : []
+                );
+
+                debugLog('DIAGRAM', 'Data loaded successfully');
+
+                // Hide loading indicator
+                this.hideLoadingIndicator();
+
+                // Render diagram
+                this.render();
+
+            } catch (error) {
+                debugLog('DIAGRAM', 'FAIL Error loading data:', error.message);
+                this.hideLoadingIndicator();
+                showToast('Error loading organization data: ' + error.message, 'error');
+            }
+        },
+
+        // Build hierarchical tree from flat data
+        buildHierarchy(directorates, workUnits, affairs, positions) {
+            debugLog('DIAGRAM', '=== buildHierarchy START ===');
+
+            // Create root node
+            const root = {
+                id: 'root',
+                type: 'root',
+                name: 'Organization',
+                code: 'ROOT',
+                children: []
+            };
+
+            // Map for quick lookup
+            const workUnitMap = new Map();
+            const affairMap = new Map();
+
+            // Add work units under directorates
+            workUnits.forEach(wu => {
+                const node = {
+                    id: wu.work_unit_id,
+                    type: 'work-unit',
+                    name: wu.work_unit_name,
+                    code: wu.work_unit_code,
+                    is_active: wu.is_active,
+                    parent_id: wu.directorate_id,
+                    children: []
+                };
+                workUnitMap.set(wu.work_unit_id, node);
+            });
+
+            // Add affairs under work units
+            affairs.forEach(aff => {
+                const node = {
+                    id: aff.affair_id,
+                    type: 'affair',
+                    name: aff.affair_name,
+                    code: aff.affair_code,
+                    is_active: aff.is_active,
+                    parent_id: aff.work_unit_id,
+                    children: []
+                };
+                affairMap.set(aff.affair_id, node);
+            });
+
+            // Second pass: build tree structure
+            directorates.forEach(dir => {
+                const dirNode = {
+                    id: dir.directorate_id,
+                    type: 'directorate',
+                    name: dir.directorate_name,
+                    code: dir.directorate_code,
+                    is_active: dir.is_active,
+                    children: []
+                };
+
+                // Add work units for this directorate
+                workUnits.forEach(wu => {
+                    if (wu.directorate_id === dir.directorate_id) {
+                        const wuNode = workUnitMap.get(wu.work_unit_id);
+
+                        // Add affairs for this work unit
+                        affairs.forEach(aff => {
+                            if (aff.work_unit_id === wu.work_unit_id) {
+                                const affNode = affairMap.get(aff.affair_id);
+
+                                // Add positions for this affair
+                                positions.forEach(pos => {
+                                    if (pos.affair_id === aff.affair_id) {
+                                        affNode.children.push({
+                                            id: pos.position_id,
+                                            type: 'position',
+                                            name: pos.position_name,
+                                            code: pos.position_code,
+                                            position_level: pos.position_level,
+                                            is_active: pos.is_active,
+                                            parent_id: pos.affair_id,
+                                            children: [] // Positions have no children
+                                        });
+                                    }
+                                });
+
+                                wuNode.children.push(affNode);
+                            }
+                        });
+
+                        dirNode.children.push(wuNode);
+                    }
+                });
+
+                root.children.push(dirNode);
+            });
+
+            debugLog('DIAGRAM', '=== buildHierarchy COMPLETE ===');
+            return root;
+        },
+
+        // Filter data based on type and status
+        filterData(data, typeFilter, statusFilter) {
+            // If no filters, return original data
+            if (!typeFilter && !statusFilter) {
+                return data;
+            }
+
+            // When filtering by type, collect all matching nodes as direct children of root
+            if (typeFilter) {
+                const matchingNodes = [];
+
+                // Recursively find all nodes of the specified type
+                const collectNodes = (node) => {
+                    if (node.id === 'root') {
+                        // Skip root, check children
+                        if (node.children) {
+                            node.children.forEach(child => collectNodes(child));
+                        }
+                        return;
+                    }
+
+                    // Check status filter
+                    let statusMatch = true;
+                    if (statusFilter) {
+                        const isActive = node.is_active !== false;
+                        statusMatch = (statusFilter === 'active' && isActive) ||
+                                       (statusFilter === 'inactive' && !isActive);
+                    }
+
+                    // Check if this node matches type and status
+                    if (node.type === typeFilter && statusMatch) {
+                        // Add this node without children (flat list)
+                        matchingNodes.push({
+                            ...node,
+                            children: [] // No children when filtering by type
+                        });
+                    }
+
+                    // Continue searching through children
+                    if (node.children) {
+                        node.children.forEach(child => collectNodes(child));
+                    }
+                };
+
+                collectNodes(data);
+
+                debugLog('DIAGRAM', 'Found', matchingNodes.length, 'nodes matching type:', typeFilter);
+
+                // Return root with filtered nodes as direct children
+                return {
+                    id: 'root',
+                    type: 'root',
+                    name: 'Organization',
+                    code: 'ROOT',
+                    children: matchingNodes
+                };
+            }
+
+            // If only status filter (no type filter), maintain hierarchy but filter by status
+            const filterNodeByStatus = (node) => {
+                if (node.id === 'root') {
+                    return {
+                        ...node,
+                        children: node.children ? node.children.map(child => filterNodeByStatus(child)).filter(c => c !== null) : []
+                    };
+                }
+
+                // Check status filter
+                let statusMatch = true;
+                if (statusFilter) {
+                    const isActive = node.is_active !== false;
+                    statusMatch = (statusFilter === 'active' && isActive) ||
+                                   (statusFilter === 'inactive' && !isActive);
+                }
+
+                if (!statusMatch) {
+                    return null;
+                }
+
+                // Recursively filter children
+                const filteredChildren = node.children
+                    ? node.children.map(child => filterNodeByStatus(child)).filter(c => c !== null)
+                    : [];
+
+                return {
+                    ...node,
+                    children: filteredChildren
+                };
+            };
+
+            const filtered = filterNodeByStatus(data);
+            return filtered || { id: 'root', type: 'root', name: 'Organization', code: 'ROOT', children: [] };
+        },
+
+        // Render the diagram
+        render() {
+            debugLog('DIAGRAM', '=== render START ===');
+            debugLog('DIAGRAM', 'Current filters - Type:', currentFilterType, 'Status:', currentFilterStatus);
+
+            if (!svg || !g || !currentData) {
+                debugLog('DIAGRAM', 'FAIL Cannot render - missing:', {
+                    hasSvg: !!svg,
+                    hasG: !!g,
+                    hasData: !!currentData
+                });
+                return;
+            }
+
+            // Clear previous content
+            g.selectAll('*').remove();
+            debugLog('DIAGRAM', 'Cleared previous content');
+
+            // Create a filtered copy of the data based on type and status filters
+            const filteredData = this.filterData(currentData, currentFilterType, currentFilterStatus);
+
+            // Create tree layout with dynamic spacing
+            treemap = d3.tree().size([400, 800]);
+
+            // Convert data to hierarchy with collapse filter
+            const rootHierarchy = d3.hierarchy(filteredData, d => {
+                // Filter out children if node is collapsed
+                if (d.id && collapsedIds.has(d.id)) {
+                    return null;
+                }
+                // Return children if they exist (filterData already handles type filtering)
+                return d.children && d.children.length > 0 ? d.children : null;
+            });
+
+            // Apply tree layout
+            treemap(rootHierarchy);
+            root = rootHierarchy;
+
+            // Count descendants
+            const descendants = root.descendants();
+            debugLog('DIAGRAM', 'Rendering', descendants.length, 'nodes');
+
+            // Create links using D3 (for proper path generation)
+            const links = root.links();
+
+            // Clear previous maps
+            nodeElementsMap.clear();
+            linkElementsMap.clear();
+
+            g.selectAll('.org-link')
+                .data(links)
+                .join('path')
+                .attr('class', 'org-link')
+                .attr('fill', 'none')
+                .attr('stroke', '#ccc')
+                .attr('stroke-width', 2)
+                .attr('id', d => `link-${d.source.data.id}-${d.target.data.id}`)
+                .attr('d', d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x)
+                )
+                .each(function(d) {
+                    // Store link element reference with key: sourceId-targetId
+                    const linkKey = `${d.source.data.id}-${d.target.data.id}`;
+                    linkElementsMap.set(linkKey, this);
+                    // Store metadata on the element for drag updates
+                    this._linkSource = d.source.data.id;
+                    this._linkTarget = d.target.data.id;
+                });
+
+            // Create nodes using D3 data binding
+            const nodeSelection = g.selectAll('.org-node')
+                .data(descendants.filter(d => d.depth > 0)); // Exclude root
+
+            const nodeEnter = nodeSelection.enter().append('g')
+                .attr('class', 'org-node')
+                .attr('id', d => `node-${d.data.id}`)
+                .attr('transform', d => `translate(${d.y},${d.x})`)
+                .style('cursor', 'pointer');
+
+            const nodes = nodeSelection.merge(nodeEnter);
+
+            // Store data on each node for event access
+            nodes.each(function(d) {
+                this.__data__ = d;
+                // Store original data for easy access
+                this._nodeData = d.data;
+                this._nodeId = d.data.id;
+                this._nodeType = d.data.type;
+                // Store node element reference in map
+                nodeElementsMap.set(d.data.id, this);
+                // Store position for link updates
+                this._baseX = d.y;
+                this._baseY = d.x;
+                this._currentX = d.y;
+                this._currentY = d.x;
+            });
+
+            // Add rectangles with rounded corners
+            nodes.append('rect')
+                .attr('width', 180)
+                .attr('height', 70)
+                .attr('x', -90)
+                .attr('y', -35)
+                .attr('rx', 8)
+                .attr('ry', 8)
+                .attr('class', 'org-node-rect')
+                .style('fill', d => {
+                    const config = entityConfig[d.data.type] || entityConfig.position;
+                    return d.data.is_active !== false ? config.color : '#999';
+                })
+                .style('fill-opacity', d => d.data.is_active !== false ? 1 : 0.4)
+                .style('stroke', d => {
+                    const config = entityConfig[d.data.type] || entityConfig.position;
+                    return config.color;
+                })
+                .style('stroke-width', 2);
+
+            // Add name text
+            nodes.append('text')
+                .attr('x', 0)
+                .attr('y', -8)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.3em')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .style('fill', '#fff')
+                .style('pointer-events', 'none')
+                .text(d => {
+                    const name = d.data.name || '';
+                    return name.length > 20 ? name.substring(0, 17) + '...' : name;
+                });
+
+            // Add code text
+            nodes.append('text')
+                .attr('x', 0)
+                .attr('y', 12)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.3em')
+                .style('font-size', '11px')
+                .style('fill', 'rgba(255,255,255,0.85)')
+                .style('pointer-events', 'none')
+                .text(d => d.data.code || '');
+
+            // Add type indicator
+            nodes.append('text')
+                .attr('x', 0)
+                .attr('y', 26)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.3em')
+                .style('font-size', '9px')
+                .style('fill', 'rgba(255,255,255,0.7)')
+                .style('font-style', 'italic')
+                .style('pointer-events', 'none')
+                .text(d => {
+                    const config = entityConfig[d.data.type] || entityConfig.position;
+                    return config.label;
+                });
+
+            // Add collapse indicator for nodes with children (only when not filtering)
+            nodes.filter(d => {
+                // Hide collapse indicators when filter is active
+                if (currentFilterType) {
+                    return false;
+                }
+                // Check if original data has children
+                const hasChildren = this._hasChildrenInData(d.data.id);
+                return hasChildren;
+            })
+            .append('circle')
+                .attr('class', 'collapse-indicator')
+                .attr('cx', 90)
+                .attr('cy', 0)
+                .attr('r', 12)
+                .style('fill', '#fff')
+                .style('stroke', '#333')
+                .style('stroke-width', 2)
+                .style('cursor', 'pointer')
+                .style('pointer-events', 'all')
+                .on('click', (event, d) => {
+                    event.stopPropagation(); // Prevent zoom from firing
+                    this.toggleNode(d.data.id);
+                });
+
+            nodes.filter(d => {
+                // Hide collapse indicators when filter is active
+                if (currentFilterType) {
+                    return false;
+                }
+                const hasChildren = this._hasChildrenInData(d.data.id);
+                return hasChildren;
+            })
+            .append('text')
+                .attr('class', 'collapse-text')
+                .attr('x', 90)
+                .attr('y', 0)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .style('font-size', '16px')
+                .style('font-weight', 'bold')
+                .style('fill', '#333')
+                .style('cursor', 'pointer')
+                .style('pointer-events', 'none')
+                .text(d => collapsedIds.has(d.data.id) ? '+' : '-');
+
+            // Event handlers
+            nodes
+                .on('click', (event, d) => {
+                    event.stopPropagation(); // Prevent zoom from firing
+                    this.handleNodeClick(event, d);
+                })
+                .on('dblclick', (event, d) => {
+                    event.stopPropagation(); // Prevent zoom from firing
+                    this.handleNodeDblClick(event, d);
+                })
+                .on('contextmenu', (event, d) => {
+                    event.stopPropagation(); // Prevent zoom from firing
+                    this.handleNodeRightClick(event, d);
+                })
+                .on('mousedown', (event, d) => {
+                    event.stopPropagation(); // Prevent zoom from starting when clicking nodes
+                })
+                .on('mouseover', function(event, d) {
+                    // Highlight effect
+                    d3.select(this).select('rect')
+                        .style('stroke-width', 4)
+                        .style('stroke', '#ffd700')
+                        .style('filter', 'drop-shadow(0 0 12px rgba(255, 215, 0, 0.6))');
+                })
+                .on('mouseout', function(event, d) {
+                    const config = entityConfig[d.data.type] || entityConfig.position;
+                    d3.select(this).select('rect')
+                        .style('stroke-width', 2)
+                        .style('stroke', config.color)
+                        .style('filter', 'none');
+                });
+
+            // Setup custom drag events for nodes
+            this.setupDragEvents(nodes);
+
+            // Add canvas context menu (right-click on blank space)
+            svg.on('contextmenu', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.handleCanvasContextMenu(event);
+            });
+
+            debugLog('DIAGRAM', 'Diagram rendered successfully with', descendants.length, 'nodes');
+        },
+
+        // Drag and drop handlers - Smooth animation with requestAnimationFrame
+        dragStarted(event, d) {
+            debugLog('DIAGRAM', 'Drag started:', d.data.id);
+            event.stopPropagation();
+
+            // Get the node element
+            const nodeElement = event.currentTarget;
+            if (!nodeElement) return;
+
+            // Cancel any existing animation
+            if (dragAnimationId) {
+                cancelAnimationFrame(dragAnimationId);
+                dragAnimationId = null;
+            }
+
+            // Store drag state
+            draggedNode = {
+                element: nodeElement,
+                data: d,
+                nodeId: d.data.id,
+                startX: event.clientX,
+                startY: event.clientY,
+                currentX: 0,
+                currentY: 0
+            };
+
+            // Get current position from transform attribute
+            const transform = d3.select(nodeElement).attr('transform') || '';
+            const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            if (match) {
+                draggedNode.currentX = parseFloat(match[1]);
+                draggedNode.currentY = parseFloat(match[2]);
+            }
+
+            // Visual feedback
+            d3.select(nodeElement).style('opacity', '0.8');
+            d3.select(nodeElement).style('cursor', 'grabbing');
+            isDragging = true;
+
+            debugLog('DIAGRAM', 'Drag state initialized for node:', d.data.id);
+        },
+
+        dragged(event, d) {
+            if (!draggedNode || !isDragging) return;
+
+            // Calculate delta
+            const dx = event.clientX - draggedNode.startX;
+            const dy = event.clientY - draggedNode.startY;
+
+            // Update start position for next frame
+            draggedNode.startX = event.clientX;
+            draggedNode.startY = event.clientY;
+
+            // Add delta to current position
+            draggedNode.currentX += dx;
+            draggedNode.currentY += dy;
+
+            // Schedule animation frame for smooth update
+            if (dragAnimationId) {
+                cancelAnimationFrame(dragAnimationId);
+            }
+
+            dragAnimationId = requestAnimationFrame(() => {
+                this.updateDragPosition();
+            });
+        },
+
+        updateDragPosition() {
+            if (!draggedNode) return;
+
+            const nodeId = draggedNode.nodeId;
+            const newX = draggedNode.currentX;
+            const newY = draggedNode.currentY;
+
+            // Update node position
+            d3.select(draggedNode.element).attr('transform', `translate(${newX},${newY})`);
+
+            // Update connected links
+            this.updateConnectedLinks(nodeId, newX, newY);
+
+            dragAnimationId = null;
+        },
+
+        updateConnectedLinks(nodeId, nodeX, nodeY) {
+            debugLog('DIAGRAM', 'Updating links for node:', nodeId, 'at position:', nodeX, nodeY);
+
+            // Find all links connected to this node (as source or target)
+            linkElementsMap.forEach((linkElement, linkKey) => {
+                const sourceId = linkElement._linkSource;
+                const targetId = linkElement._linkTarget;
+
+                // Check if this link is connected to the dragged node
+                if (sourceId === nodeId || targetId === nodeId) {
+                    // Get the other node's position
+                    const otherNodeId = sourceId === nodeId ? targetId : sourceId;
+                    const otherNodeElement = nodeElementsMap.get(otherNodeId);
+
+                    if (otherNodeElement) {
+                        // Get other node's position
+                        const otherTransform = d3.select(otherNodeElement).attr('transform') || '';
+                        const otherMatch = otherTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                        let otherX, otherY;
+
+                        if (otherMatch) {
+                            otherX = parseFloat(otherMatch[1]);
+                            otherY = parseFloat(otherMatch[2]);
+                        } else {
+                            // Use base position if no transform
+                            otherX = otherNodeElement._baseX || 0;
+                            otherY = otherNodeElement._baseY || 0;
+                        }
+
+                        // Calculate link path
+                        let startX, startY, endX, endY;
+                        if (sourceId === nodeId) {
+                            // Dragged node is source
+                            startX = nodeX;
+                            startY = nodeY;
+                            endX = otherX;
+                            endY = otherY;
+                        } else {
+                            // Dragged node is target
+                            startX = otherX;
+                            startY = otherY;
+                            endX = nodeX;
+                            endY = nodeY;
+                        }
+
+                        // Generate horizontal link path
+                        const path = d3.linkHorizontal()
+                            .x(d => d.x)
+                            .y(d => d.y)({
+                                source: { x: startX, y: startY },
+                                target: { x: endX, y: endY }
+                            });
+
+                        // Update link path
+                        d3.select(linkElement).attr('d', path);
+                    }
+                }
+            });
+        },
+
+        dragEnded(event, d) {
+            if (!draggedNode) return;
+
+            debugLog('DIAGRAM', 'Drag ended:', d.data.id);
+
+            // Cancel any pending animation
+            if (dragAnimationId) {
+                cancelAnimationFrame(dragAnimationId);
+                dragAnimationId = null;
+            }
+
+            // Restore visual feedback
+            d3.select(draggedNode.element).style('opacity', '1');
+            d3.select(draggedNode.element).style('cursor', 'pointer');
+
+            // Show info toast about drag
+            showToast('Node position updated (visual preview)', 'info');
+
+            // Clear drag state
+            draggedNode = null;
+            isDragging = false;
+        },
+
+        // Custom drag event setup
+        setupDragEvents(nodes) {
+            debugLog('DIAGRAM', 'Setting up custom drag events for', nodes.size(), 'nodes');
+
+            nodes.on('mousedown', (event, d) => {
+                // Only drag with left mouse button
+                if (event.button !== 0) return;
+
+                this.dragStarted(event, d);
+
+                // Add temporary event listeners to window for drag and end
+                const dragHandler = (e) => this.dragged(e, d);
+                const dragEndHandler = (e) => {
+                    this.dragEnded(e, d);
+                    window.removeEventListener('mousemove', dragHandler);
+                    window.removeEventListener('mouseup', dragEndHandler);
+                };
+
+                window.addEventListener('mousemove', dragHandler);
+                window.addEventListener('mouseup', dragEndHandler, { once: true });
+
+                debugLog('DIAGRAM', 'Drag events attached for node:', d.data.id);
+            });
+        },
+
+        // Handle right-click on blank canvas
+        handleCanvasContextMenu(event) {
+            debugLog('DIAGRAM', 'Canvas right-clicked');
+
+            // Remove any existing context menus (both canvas and node)
+            document.querySelectorAll('.canvas-context-menu').forEach(m => m.remove());
+            const nodeMenu = document.getElementById('org-context-menu');
+            if (nodeMenu) {
+                nodeMenu.style.display = 'none';
+            }
+
+            // Show canvas menu with add and view options
+            const menu = document.createElement('div');
+            menu.className = 'canvas-context-menu';
+            menu.style.position = 'absolute';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.style.background = '#fff';
+            menu.style.border = '1px solid #ccc';
+            menu.style.borderRadius = '4px';
+            menu.style.padding = '8px 0';
+            menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            menu.style.zIndex = '10000';
+            menu.style.minWidth = '200px';
+
+            // Build menu HTML with "Add" options and view options
+            menu.innerHTML = `
+                <div style="padding: 8px 16px; font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase;">Add New</div>
+                <div class="canvas-menu-item" data-action="add-directorate" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-plus-circle text-primary"></i> Add Directorate
+                </div>
+                <div class="canvas-menu-item" data-action="add-work-unit" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-plus-circle text-success"></i> Add Work Unit
+                </div>
+                <div class="canvas-menu-item" data-action="add-affair" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-plus-circle text-info"></i> Add Affair
+                </div>
+                <div class="canvas-menu-item" data-action="add-position" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-plus-circle text-secondary"></i> Add Position
+                </div>
+                <div style="padding: 8px 16px; font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; margin-top: 4px;">View Options</div>
+                <div class="canvas-menu-item" data-action="zoom-in" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-zoom-in"></i> Zoom In
+                </div>
+                <div class="canvas-menu-item" data-action="zoom-out" style="padding: 8px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-zoom-out"></i> Zoom Out
+                </div>
+                <div class="canvas-menu-item" data-action="reset-view" style="padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-aspect-ratio"></i> Reset View
+                </div>
+            `;
+
+            document.body.appendChild(menu);
+
+            // Add hover effect
+            menu.querySelectorAll('.canvas-menu-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'transparent';
+                });
+            });
+
+            // Handle menu item clicks
+            menu.querySelectorAll('.canvas-menu-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const action = item.dataset.action;
+
+                    debugLog('DIAGRAM', 'Canvas menu action:', action);
+
+                    switch (action) {
+                        case 'add-directorate':
+                            if (typeof showModal === 'function') {
+                                showModal('directorate');
+                            } else {
+                                showToast('Add function not available', 'error');
+                            }
+                            break;
+                        case 'add-work-unit':
+                            if (typeof showModal === 'function') {
+                                showModal('work-unit');
+                            } else {
+                                showToast('Add function not available', 'error');
+                            }
+                            break;
+                        case 'add-affair':
+                            if (typeof showModal === 'function') {
+                                showModal('affair');
+                            } else {
+                                showToast('Add function not available', 'error');
+                            }
+                            break;
+                        case 'add-position':
+                            if (typeof showModal === 'function') {
+                                showModal('position');
+                            } else {
+                                showToast('Add function not available', 'error');
+                            }
+                            break;
+                        case 'zoom-in':
+                            this.zoomIn();
+                            break;
+                        case 'zoom-out':
+                            this.zoomOut();
+                            break;
+                        case 'reset-view':
+                            this.resetZoom();
+                            break;
+                    }
+
+                    menu.remove();
+                });
+            });
+
+            // Close on click elsewhere
+            setTimeout(() => {
+                const closeMenu = () => {
+                    if (menu.parentNode) {
+                        menu.remove();
+                    }
+                    document.removeEventListener('click', closeMenu);
+                };
+                document.addEventListener('click', closeMenu);
+            }, 10);
+        },
+
+        // Helper to find node in children recursively
+        _findNodeInChildren(node, targetId) {
+            if (node.id === targetId) return true;
+            if (node.children) {
+                for (const child of node.children) {
+                    if (this._findNodeInChildren(child, targetId)) return true;
+                }
+            }
+            return false;
+        },
+
+        // Toggle node collapse/expand
+        toggleNode(nodeId) {
+            debugLog('DIAGRAM', 'Toggling node:', nodeId);
+
+            if (collapsedIds.has(nodeId)) {
+                collapsedIds.delete(nodeId);
+                debugLog('DIAGRAM', 'Expanded node:', nodeId);
+            } else {
+                collapsedIds.add(nodeId);
+                debugLog('DIAGRAM', 'Collapsed node:', nodeId);
+            }
+
+            this.render();
+        },
+
+        // Handle single click
+        handleNodeClick(event, d) {
+            event.stopPropagation();
+            debugLog('DIAGRAM', 'Node clicked:', d.data.type, d.data.id);
+            // Just highlight, don't open modal on single click
+        },
+
+        // Handle double click - toggle collapse
+        handleNodeDblClick(event, d) {
+            event.stopPropagation();
+            debugLog('DIAGRAM', 'Node double-clicked:', d.data.id);
+
+            // Check if this node has children in original data
+            const hasChildren = this._hasChildrenInData(d.data.id);
+
+            if (hasChildren) {
+                this.toggleNode(d.data.id);
+            }
+        },
+
+        // Check if node has children in original data
+        _hasChildrenInData(nodeId) {
+            function search(node) {
+                if (node.id === nodeId) {
+                    return node.children && node.children.length > 0;
+                }
+                if (node.children) {
+                    for (const child of node.children) {
+                        if (search(child)) return true;
+                    }
+                }
+                return false;
+            }
+            return search(currentData);
+        },
+
+        // Handle right-click - show context menu
+        handleNodeRightClick(event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            debugLog('DIAGRAM', 'Node right-clicked:', d.data.type, d.data.id);
+
+            // Show context menu if function exists
+            if (typeof showContextMenu === 'function') {
+                showContextMenu(event, {
+                    id: d.data.id,
+                    type: d.data.type,
+                    code: d.data.code,
+                    name: d.data.name
+                });
+            } else {
+                debugLog('DIAGRAM', 'Context menu function not available');
+            }
+        },
+
+        // Zoom in
+        zoomIn() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 1.3);
+            }
+        },
+
+        // Zoom out
+        zoomOut() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 0.7);
+            }
+        },
+
+        // Reset zoom
+        resetZoom() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.transform, d3.zoomIdentity);
+            }
+        },
+
+        // Expand all nodes
+        expandAll() {
+            debugLog('DIAGRAM', 'Expanding all nodes');
+            collapsedIds.clear();
+            this.render();
+        },
+
+        // Collapse all nodes
+        collapseAll() {
+            debugLog('DIAGRAM', 'Collapsing all nodes');
+
+            // Collapse all nodes that have children
+            function collectIds(node, ids) {
+                if (node.children && node.children.length > 0) {
+                    ids.add(node.id);
+                    node.children.forEach(child => collectIds(child, ids));
+                }
+            }
+
+            currentData.children.forEach(child => collectIds(child, collapsedIds));
+            this.render();
+        },
+
+        // Search nodes
+        search(query) {
+            debugLog('DIAGRAM', 'Searching for:', query);
+
+            if (!query || query.length < 2) {
+                // Clear search highlights
+                g.selectAll('.org-node rect')
+                    .style('stroke-width', 2)
+                    .style('stroke', function() {
+                        const nodeData = this.parentNode._nodeData;
+                        if (!nodeData) return '#4facfe';
+                        const config = entityConfig[nodeData.type] || entityConfig.position;
+                        return config.color;
+                    });
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+
+            // Highlight matching nodes
+            g.selectAll('.org-node rect')
+                .style('stroke-width', function() {
+                    const nodeData = this.parentNode._nodeData;
+                    if (!nodeData) return 2;
+                    const match = (nodeData.name || '').toLowerCase().includes(lowerQuery) ||
+                                  (nodeData.code || '').toLowerCase().includes(lowerQuery);
+                    return match ? 4 : 2;
+                })
+                .style('stroke', function() {
+                    const nodeData = this.parentNode._nodeData;
+                    if (!nodeData) return '#4facfe';
+
+                    const match = (nodeData.name || '').toLowerCase().includes(lowerQuery) ||
+                                  (nodeData.code || '').toLowerCase().includes(lowerQuery);
+                    return match ? '#ffd700' : (nodeData.is_active !== false ?
+                        (entityConfig[nodeData.type]?.color || '#4facfe') : '#999');
+                });
+        },
+
+        // Filter by type
+        filterByType(type) {
+            debugLog('DIAGRAM', 'Filtering by type:', type || 'All');
+            currentFilterType = type;
+            this.render();
+        },
+
+        // Filter by status
+        filterByStatus(status) {
+            debugLog('DIAGRAM', 'Filtering by status:', status || 'All');
+            currentFilterStatus = status;
+            this.render();
+        },
+
+        // Export diagram to PNG
+        exportPNG() {
+            debugLog('DIAGRAM', 'Exporting to PNG...');
+
+            const svgElement = document.querySelector('#org-diagram-container svg');
+            if (!svgElement) {
+                debugLog('DIAGRAM', 'FAIL SVG element not found');
+                showToast('Failed to export: SVG not found', 'error');
+                return;
+            }
+
+            try {
+                // Serialize SVG
+                const serializer = new XMLSerializer();
+                let source = serializer.serializeToString(svgElement);
+
+                // Add namespaces
+                if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                    source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+                    source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+                }
+
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                const bbox = svgElement.getBoundingClientRect();
+                canvas.width = bbox.width * 2; // 2x scale for better quality
+                canvas.height = bbox.height * 2;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(2, 2);
+
+                // Create image
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0);
+
+                    // Download
+                    const a = document.createElement('a');
+                    a.download = 'organization-diagram.png';
+                    a.href = canvas.toDataURL('image/png');
+                    a.click();
+
+                    debugLog('DIAGRAM', 'Export complete');
+                    showToast('Diagram exported successfully', 'success');
+                };
+
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+            } catch (error) {
+                debugLog('DIAGRAM', 'FAIL Export error:', error.message);
+                showToast('Failed to export: ' + error.message, 'error');
+            }
+        },
+
+        // Reload diagram
+        async reload() {
+            debugLog('DIAGRAM', '=== RELOAD START ===');
+            collapsedIds.clear();
+            currentFilterType = '';
+            currentFilterStatus = '';
+            // Reset filter dropdowns
+            const typeFilter = document.getElementById('org-filter-type');
+            const statusFilter = document.getElementById('org-filter-status');
+            const searchInput = document.getElementById('org-search');
+            if (typeFilter) typeFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (searchInput) searchInput.value = '';
+
+            // Show loading indicator
+            const container = document.getElementById('org-diagram-container');
+            if (container) {
+                this.showLoadingIndicator(container);
+            }
+
+            // Clear current data to force refresh
+            currentData = null;
+
+            // Fetch fresh data from API
+            await this.loadData();
+
+            debugLog('DIAGRAM', '=== RELOAD COMPLETE ===');
+        },
+
+        // Destroy diagram
+        destroy() {
+            debugLog('DIAGRAM', 'Destroying diagram...');
+
+            // Cancel any pending drag animation
+            if (dragAnimationId) {
+                cancelAnimationFrame(dragAnimationId);
+                dragAnimationId = null;
+            }
+
+            if (g) {
+                g.selectAll('*').remove();
+                g = null;
+            }
+            if (svg) {
+                svg.remove();
+                svg = null;
+            }
+            zoom = null;
+            root = null;
+            treemap = null;
+            currentData = null;
+            collapsedIds.clear();
+            nodeElementsMap.clear();
+            linkElementsMap.clear();
+            currentFilterType = '';
+            currentFilterStatus = '';
+            isDragging = false;
+            draggedNode = null;
+
+            debugLog('DIAGRAM', 'Diagram destroyed');
+        }
+    };
+})();
+
+// Log initialization
+debugLog('ORG_DIAGRAM', 'OrgDiagram module loaded');
+</script>

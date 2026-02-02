@@ -1,0 +1,288 @@
+<!-- Settings Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Settings</h1>
+</div>
+
+<!-- Settings Tabs -->
+<ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+            <i class="bi bi-gear me-2"></i>General
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
+            <i class="bi bi-shield-lock me-2"></i>Security
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="notifications-settings-tab" data-bs-toggle="tab" data-bs-target="#notifications-settings" type="button" role="tab">
+            <i class="bi bi-bell me-2"></i>Notifications
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button" role="tab">
+            <i class="bi bi-database me-2"></i>Data Management
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab">
+            <i class="bi bi-info-circle me-2"></i>System
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="settingsTabContent">
+    <!-- General Settings -->
+    <div class="tab-pane fade show active" id="general" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">General Settings</h6>
+            </div>
+            <div class="card-body">
+                <form id="generalSettingsForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Application Name</label>
+                            <input type="text" class="form-control" id="appName" value="Strategic Execution Management">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Default Language</label>
+                            <select class="form-select" id="defaultLanguage">
+                                <option value="en" selected>English</option>
+                                <option value="ar">Arabic</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Date Format</label>
+                            <select class="form-select" id="dateFormat">
+                                <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Time Zone</label>
+                            <select class="form-select" id="timeZone">
+                                <option value="UTC">UTC</option>
+                                <option value="AST">Arabia Standard Time</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableDebugMode">
+                            <label class="form-check-label" for="enableDebugMode">Enable Debug Mode</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="saveGeneralSettings()">
+                        <i class="bi bi-save me-1"></i>Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Settings -->
+    <div class="tab-pane fade" id="security" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Security Settings</h6>
+            </div>
+            <div class="card-body">
+                <form id="securitySettingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">Session Timeout (minutes)</label>
+                        <input type="number" class="form-control" id="sessionTimeout" value="60">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password Policy</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="requireUppercase" checked>
+                            <label class="form-check-label" for="requireUppercase">Require Uppercase Letters</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="requireNumbers" checked>
+                            <label class="form-check-label" for="requireNumbers">Require Numbers</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="requireSpecialChars">
+                            <label class="form-check-label" for="requireSpecialChars">Require Special Characters</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Minimum Password Length</label>
+                        <input type="number" class="form-control" id="minPasswordLength" value="8">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableTwoFactor" id="twoFactorAuth">
+                            <label class="form-check-label" for="twoFactorAuth">Enable Two-Factor Authentication</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="saveSecuritySettings()">
+                        <i class="bi bi-save me-1"></i>Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div class="tab-pane fade" id="notifications-settings" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Notification Preferences</h6>
+            </div>
+            <div class="card-body">
+                <form id="notificationSettingsForm">
+                    <div class="mb-3">
+                        <h6>Email Notifications</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifKPIUpdates" checked>
+                            <label class="form-check-label" for="notifKPIUpdates">KPI Updates</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifOKRReviews" checked>
+                            <label class="form-check-label" for="notifOKRReviews">OKR Review Requests</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifDeadlineReminders" checked>
+                            <label class="form-check-label" for="notifDeadlineReminders">Deadline Reminders</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <h6>In-App Notifications</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifSystemUpdates" checked>
+                            <label class="form-check-label" for="notifSystemUpdates">System Updates</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifMentions" checked>
+                            <label class="form-check-label" for="notifMentions">Mentions</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="saveNotificationSettings()">
+                        <i class="bi bi-save me-1"></i>Save Preferences
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="tab-pane fade" id="data" role="tabpanel">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Data Export</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Export your data in various formats.</p>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="exportData('csv')">
+                                <i class="bi bi-filetype-csv me-1"></i>Export as CSV
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="exportData('excel')">
+                                <i class="bi bi-file-excel me-1"></i>Export as Excel
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="exportData('json')">
+                                <i class="bi bi-file-code me-1"></i>Export as JSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">Danger Zone</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-danger">These actions are irreversible.</p>
+                        <button class="btn btn-outline-danger w-100" onclick="confirmClearCache()">
+                            <i class="bi bi-trash me-1"></i>Clear Application Cache
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="tab-pane fade" id="system" role="tabpanel">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">System Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Application Version</th>
+                                <td id="appVersion">1.0.0</td>
+                            </tr>
+                            <tr>
+                                <th>Last Updated</th>
+                                <td id="lastUpdate">-</td>
+                            </tr>
+                            <tr>
+                                <th>Environment</th>
+                                <td id="envInfo">Production</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Help & Support</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>For assistance, please contact the system administrator.</p>
+                        <button class="btn btn-outline-primary" onclick="showSupportModal()">
+                            <i class="bi bi-question-circle me-1"></i>Get Help
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+function saveGeneralSettings() {
+    showToast('Saving general settings...', 'info');
+}
+
+function saveSecuritySettings() {
+    showToast('Saving security settings...', 'info');
+}
+
+function saveNotificationSettings() {
+    showToast('Saving notification preferences...', 'info');
+}
+
+function exportData(format) {
+    showToast('Exporting data as ' + format + '...', 'info');
+}
+
+function confirmClearCache() {
+    if (confirm('Are you sure you want to clear the application cache?')) {
+        showToast('Cache cleared successfully', 'success');
+    }
+}
+
+function showSupportModal() {
+    showModal('Help & Support', '<p>Please contact your system administrator for assistance.</p>');
+}
+</script>

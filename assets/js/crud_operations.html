@@ -1,0 +1,253 @@
+<script>
+// Save Directorate
+async function saveDirectorate() {
+    debugLog('CRUD', '=== saveDirectorate START ===');
+
+    // Get form values
+    const id = document.getElementById('directorate_id').value;
+    const data = {
+        directorate_code: document.getElementById('directorate_code').value,
+        directorate_name: document.getElementById('directorate_name').value,
+        description: document.getElementById('description').value
+    };
+
+    const formData = { id: id };
+    for (const key in data) {
+        formData[key] = data[key];
+    }
+    debugLog('CRUD', 'Form data:', formData);
+
+    // Validation
+    if (!data.directorate_code || !data.directorate_name) {
+        debugLog('CRUD', 'FAIL Validation failed: missing required fields');
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    debugLog('CRUD', 'OK Validation passed');
+
+    // Determine endpoint
+    const endpoint = id ? 'directorates/update' : 'directorates/create';
+    if (id) data.directorate_id = id;
+
+    debugLog('CRUD', 'Calling endpoint: ' + endpoint, data);
+
+    // API call
+    const result = await apiCall(endpoint, data);
+    debugLog('CRUD', 'API result:', result);
+
+    if (result.success) {
+        debugLog('CRUD', 'OK Directorate saved successfully');
+        showToast('Directorate saved successfully', 'success');
+
+        // Close modal
+        const modalEl = document.getElementById('directorateModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) {
+            modal.hide();
+            debugLog('CRUD', 'OK Modal closed');
+        } else {
+            debugLog('CRUD', 'FAIL Failed to get modal instance');
+        }
+
+        // Reload data
+        debugLog('CRUD', 'Reloading organization data...');
+        await loadOrganizationData();
+        debugLog('CRUD', 'OK Data reloaded, DataTables refreshed');
+        debugLog('CRUD', '=== saveDirectorate COMPLETE ===');
+    } else {
+        debugLog('CRUD', 'FAIL Failed to save: ' + result.message);
+        showToast('Failed to save: ' + result.message, 'error');
+    }
+}
+
+// Save Work Unit
+async function saveWorkUnit() {
+    debugLog('CRUD', '=== saveWorkUnit START ===');
+
+    const id = document.getElementById('work_unit_id').value;
+    const data = {
+        work_unit_code: document.getElementById('work_unit_code').value,
+        work_unit_name: document.getElementById('work_unit_name').value,
+        directorate_id: document.getElementById('directorate_id_select').value
+    };
+
+    const formData = { id: id };
+    for (const key in data) {
+        formData[key] = data[key];
+    }
+    debugLog('CRUD', 'Form data:', formData);
+
+    if (!data.work_unit_code || !data.work_unit_name || !data.directorate_id) {
+        debugLog('CRUD', 'FAIL Validation failed: missing required fields');
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    debugLog('CRUD', 'OK Validation passed');
+
+    const endpoint = id ? 'work-units/update' : 'work-units/create';
+    if (id) data.work_unit_id = id;
+
+    debugLog('CRUD', 'Calling endpoint: ' + endpoint, data);
+    const result = await apiCall(endpoint, data);
+    debugLog('CRUD', 'API result:', result);
+
+    if (result.success) {
+        debugLog('CRUD', 'OK Work Unit saved successfully');
+        showToast('Work Unit saved successfully', 'success');
+
+        const modalEl = document.getElementById('work-unitModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) {
+            modal.hide();
+            debugLog('CRUD', 'OK Modal closed');
+        }
+
+        await loadOrganizationData();
+        debugLog('CRUD', 'OK Data reloaded, DataTables refreshed');
+        debugLog('CRUD', '=== saveWorkUnit COMPLETE ===');
+    } else {
+        debugLog('CRUD', 'FAIL Failed to save: ' + result.message);
+        showToast('Failed to save: ' + result.message, 'error');
+    }
+}
+
+// Save Affair
+async function saveAffair() {
+    debugLog('CRUD', '=== saveAffair START ===');
+
+    const id = document.getElementById('affair_id').value;
+    const data = {
+        affair_code: document.getElementById('affair_code').value,
+        affair_name: document.getElementById('affair_name').value,
+        work_unit_id: document.getElementById('work_unit_id_select').value
+    };
+
+    const formData = { id: id };
+    for (const key in data) {
+        formData[key] = data[key];
+    }
+    debugLog('CRUD', 'Form data:', formData);
+
+    if (!data.affair_code || !data.affair_name || !data.work_unit_id) {
+        debugLog('CRUD', 'FAIL Validation failed: missing required fields');
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    debugLog('CRUD', 'OK Validation passed');
+
+    const endpoint = id ? 'affairs/update' : 'affairs/create';
+    if (id) data.affair_id = id;
+
+    debugLog('CRUD', 'Calling endpoint: ' + endpoint, data);
+    const result = await apiCall(endpoint, data);
+    debugLog('CRUD', 'API result:', result);
+
+    if (result.success) {
+        debugLog('CRUD', 'OK Affair saved successfully');
+        showToast('Affair saved successfully', 'success');
+
+        const modalEl = document.getElementById('affairModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) {
+            modal.hide();
+            debugLog('CRUD', 'OK Modal closed');
+        }
+
+        await loadOrganizationData();
+        debugLog('CRUD', 'OK Data reloaded, DataTables refreshed');
+        debugLog('CRUD', '=== saveAffair COMPLETE ===');
+    } else {
+        debugLog('CRUD', 'FAIL Failed to save: ' + result.message);
+        showToast('Failed to save: ' + result.message, 'error');
+    }
+}
+
+// Save Position
+async function savePosition() {
+    debugLog('CRUD', '=== savePosition START ===');
+
+    const id = document.getElementById('position_id').value;
+    const data = {
+        position_code: document.getElementById('position_code').value,
+        position_name: document.getElementById('position_name').value,
+        position_level: document.getElementById('position_level').value,
+        work_unit_id: document.getElementById('position_work_unit_id_select').value
+    };
+
+    const formData = { id: id };
+    for (const key in data) {
+        formData[key] = data[key];
+    }
+    debugLog('CRUD', 'Form data:', formData);
+
+    if (!data.position_code || !data.position_name || !data.work_unit_id) {
+        debugLog('CRUD', 'FAIL Validation failed: missing required fields');
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    debugLog('CRUD', 'OK Validation passed');
+
+    const endpoint = id ? 'positions/update' : 'positions/create';
+    if (id) data.position_id = id;
+
+    debugLog('CRUD', 'Calling endpoint: ' + endpoint, data);
+    const result = await apiCall(endpoint, data);
+    debugLog('CRUD', 'API result:', result);
+
+    if (result.success) {
+        debugLog('CRUD', 'OK Position saved successfully');
+        showToast('Position saved successfully', 'success');
+
+        const modalEl = document.getElementById('positionModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) {
+            modal.hide();
+            debugLog('CRUD', 'OK Modal closed');
+        }
+
+        await loadOrganizationData();
+        debugLog('CRUD', 'OK Data reloaded, DataTables refreshed');
+        debugLog('CRUD', '=== savePosition COMPLETE ===');
+    } else {
+        debugLog('CRUD', 'FAIL Failed to save: ' + result.message);
+        showToast('Failed to save: ' + result.message, 'error');
+    }
+}
+
+// Delete Item
+async function deleteItem(type, id) {
+    debugLog('CRUD', '=== deleteItem START === type=' + type + ', id=' + id);
+
+    if (!confirm('Are you sure you want to delete this ' + type + '?')) {
+        debugLog('CRUD', 'FAIL Delete cancelled by user');
+        return;
+    }
+    debugLog('CRUD', 'OK User confirmed deletion');
+
+    const endpoint = type === 'directorate' ? 'directorates/delete' :
+                     type === 'work-unit' ? 'work-units/delete' :
+                     type === 'affair' ? 'affairs/delete' : 'positions/delete';
+
+    debugLog('CRUD', 'Calling endpoint: ' + endpoint, { id: id });
+    const result = await apiCall(endpoint, { id });
+    debugLog('CRUD', 'API result:', result);
+
+    if (result.success) {
+        const typeName = type.charAt(0).toUpperCase() + type.slice(1);
+        debugLog('CRUD', 'OK ' + typeName + ' deleted successfully');
+        showToast(typeName + ' deleted successfully', 'success');
+
+        await loadOrganizationData();
+        debugLog('CRUD', 'OK Data reloaded, DataTables refreshed');
+        debugLog('CRUD', '=== deleteItem COMPLETE ===');
+    } else {
+        debugLog('CRUD', 'FAIL Failed to delete: ' + result.message);
+        showToast('Failed to delete: ' + result.message, 'error');
+    }
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('crud_operations.html');
+}
+</script>

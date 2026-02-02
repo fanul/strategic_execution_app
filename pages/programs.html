@@ -1,0 +1,99 @@
+<!-- Program Management Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Program Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#programModal">
+            <i class="bi bi-plus-lg me-1"></i>New Program
+        </button>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 id="totalPrograms">0</h3>
+                <small>Total Programs</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 id="activePrograms">0</h3>
+                <small>Active</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3 id="totalBudget">0</h3>
+                <small>Total Budget</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h3 id="budgetUsed">0%</h3>
+                <small>Budget Used</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Period</label>
+                <select class="form-select" id="programPeriodFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Periods</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Work Unit</label>
+                <select class="form-select" id="programWorkUnitFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Work Units</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="programStatusFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Status</option>
+                    <option value="not_started">Not Started</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" class="form-control" id="programSearchFilter" placeholder="Search programs..." oninput="ProgramManager.filterPrograms()">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Programs List -->
+<div id="programsContent">
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-diagram-3 fs-1"></i>
+        <p class="mt-3">Loading programs...</p>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Initialize programs page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof ProgramManager !== 'undefined' && ProgramManager.init) {
+        ProgramManager.init();
+    }
+});
+</script>

@@ -1,0 +1,213 @@
+<!-- Strategic Planning Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Strategic Planning</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <select class="form-select form-select-sm me-2" id="periodSelector" style="width: auto;">
+            <option value="">Select Period</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-success" onclick="StrategicManager.activatePeriod()">
+            <i class="bi bi-check-circle"></i> Activate Period
+        </button>
+    </div>
+</div>
+
+<!-- Strategy Views Tabs -->
+<ul class="nav nav-tabs mb-4" id="strategyTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="vision-tab" data-bs-toggle="tab" data-bs-target="#vision" type="button" role="tab">
+            <i class="bi bi-lightbulb me-2"></i>Vision
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="mission-tab" data-bs-toggle="tab" data-bs-target="#mission" type="button" role="tab">
+            <i class="bi bi-flag me-2"></i>Missions
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="initiatives-tab" data-bs-toggle="tab" data-bs-target="#initiatives" type="button" role="tab">
+            <i class="bi bi-rocket me-2"></i>Initiatives
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="goals-tab" data-bs-toggle="tab" data-bs-target="#goals" type="button" role="tab">
+            <i class="bi bi-bullseye me-2"></i>Goals
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="impact-centers-tab" data-bs-toggle="tab" data-bs-target="#impact-centers" type="button" role="tab">
+            <i class="bi bi-hdd-network me-2"></i>Impact Centers
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+            <i class="bi bi-graph-up me-2"></i>Analytics
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="strategyTabContent">
+    <!-- Vision Tab -->
+    <div class="tab-pane fade show active" id="vision" role="tabpanel">
+        <div id="visionContent">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-lightbulb fs-1"></i>
+                <p class="mt-3">Please select a period to view vision</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missions Tab -->
+    <div class="tab-pane fade" id="mission" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Mission Statements</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#missionModal">
+                <i class="bi bi-plus-lg me-1"></i>Add Mission
+            </button>
+        </div>
+        <div id="missionContent">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-flag fs-1"></i>
+                <p class="mt-3">Please select a period to view missions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initiatives Tab -->
+    <div class="tab-pane fade" id="initiatives" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Strategic Initiatives</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#initiativeModal">
+                <i class="bi bi-plus-lg me-1"></i>Add Initiative
+            </button>
+        </div>
+        <div id="initiativesContent">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-rocket fs-1"></i>
+                <p class="mt-3">Please select a period to view initiatives</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goals Tab -->
+    <div class="tab-pane fade" id="goals" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Organizational Goals</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#goalModal">
+                <i class="bi bi-plus-lg me-1"></i>Add Goal
+            </button>
+        </div>
+        <div id="goalsContent">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-bullseye fs-1"></i>
+                <p class="mt-3">Please select a period to view goals</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Centers Tab -->
+    <div class="tab-pane fade" id="impact-centers" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Impact Centers</h5>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#impactCenterModal">
+                <i class="bi bi-plus-lg me-1"></i>Add Impact Center
+            </button>
+        </div>
+        <div id="impactCentersContent">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-hdd-network fs-1"></i>
+                <p class="mt-3">Please select a period to view impact centers</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-pane fade" id="analytics" role="tabpanel">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6>Hierarchy Tree</h6>
+                        <button class="btn btn-outline-primary btn-sm" onclick="StrategicManager.refreshHierarchyTree()">
+                            <i class="bi bi-diagram-3"></i> View Tree
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6>Strategy Map</h6>
+                        <button class="btn btn-outline-primary btn-sm" onclick="StrategicManager.refreshStrategyMap()">
+                            <i class="bi bi-map"></i> View Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6>Relationships</h6>
+                        <button class="btn btn-outline-primary btn-sm" onclick="StrategicManager.refreshRelationships()">
+                            <i class="bi bi-link-45deg"></i> View Links
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Hierarchy Tree</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="hierarchyTreeContent">
+                            <div class="text-center text-muted">Select a period to view hierarchy</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Strategy Map</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="strategyMapContent">
+                            <div class="text-center text-muted">Select a period to view strategy map</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Strategic Dashboard</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="strategicDashboardContent">
+                            <div class="text-center text-muted">Select a period to view dashboard</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Initialize strategic planning page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof StrategicManager !== 'undefined' && StrategicManager.init) {
+        StrategicManager.init();
+    }
+});
+</script>

@@ -1,0 +1,42 @@
+<!-- Notifications Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Notifications</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="NotificationManager.markAllAsRead()">
+            <i class="bi bi-check2-all"></i> Mark All Read
+        </button>
+    </div>
+</div>
+
+<!-- Filter Buttons -->
+<div class="btn-group mb-4" role="group">
+    <button type="button" class="btn btn-outline-primary active" onclick="NotificationManager.filterByType('all')">
+        All
+    </button>
+    <button type="button" class="btn btn-outline-primary" onclick="NotificationManager.filterByType('unread')">
+        Unread
+    </button>
+    <button type="button" class="btn btn-outline-primary" onclick="NotificationManager.filterByType('high')">
+        High Priority
+    </button>
+</div>
+
+<!-- Notifications List -->
+<div id="notificationsContent">
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-bell-slash fs-1"></i>
+        <p class="mt-3">Loading notifications...</p>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Initialize notifications page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof NotificationManager !== 'undefined' && NotificationManager.init) {
+        NotificationManager.init();
+    }
+});
+</script>

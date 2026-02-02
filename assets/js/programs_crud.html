@@ -1,0 +1,306 @@
+<script>
+// ============================================================================
+// PROGRAMS CRUD - Program Management Operations
+// ============================================================================
+
+debugLog('PROGRAMS_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('PROGRAMS_CRUD', '║  PROGRAMS CRUD SCRIPT LOADING                      ║');
+debugLog('PROGRAMS_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const ProgramManager = (function() {
+    'use strict';
+
+    let programsData = [];
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('PROGRAMS_CRUD', '=== init START ===');
+        loadPeriods();
+        loadWorkUnits();
+        loadPrograms();
+        debugLog('PROGRAMS_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Load periods dropdown
+     */
+    async function loadPeriods() {
+        debugLog('PROGRAMS_CRUD', 'Loading periods...');
+
+        try {
+            const result = await apiCall('strategic/periods/list');
+            if (result.success && result.data) {
+                const select = document.getElementById('programPeriodFilter');
+                if (select) {
+                    select.innerHTML = '<option value="">All Periods</option>';
+                    result.data.forEach(p => {
+                        select.innerHTML += `<option value="${p.period_id}">${p.year} - ${p.period_name}</option>`;
+                    });
+                }
+                debugLog('PROGRAMS_CRUD', 'OK Periods loaded');
+            }
+        } catch (error) {
+            debugLog('PROGRAMS_CRUD', 'EXCEPTION loading periods:', error);
+        }
+    }
+
+    /**
+     * Load work units dropdown
+     */
+    async function loadWorkUnits() {
+        debugLog('PROGRAMS_CRUD', 'Loading work units...');
+
+        try {
+            const result = await apiCall('work-units/list');
+            if (result.success && result.data) {
+                const select = document.getElementById('programWorkUnitFilter');
+                if (select) {
+                    select.innerHTML = '<option value="">All Work Units</option>';
+                    result.data.forEach(wu => {
+                        select.innerHTML += `<option value="${wu.work_unit_id}">${wu.work_unit_code} - ${wu.work_unit_name}</option>`;
+                    });
+                }
+                debugLog('PROGRAMS_CRUD', 'OK Work units loaded');
+            }
+        } catch (error) {
+            debugLog('PROGRAMS_CRUD', 'EXCEPTION loading work units:', error);
+        }
+    }
+
+    /**
+     * Load all programs
+     */
+    async function loadPrograms() {
+        debugLog('PROGRAMS_CRUD', 'Loading programs...');
+
+        try {
+            const result = await apiCall('programs/list');
+
+            if (result.success && result.data) {
+                programsData = Array.isArray(result.data) ? result.data : [result.data];
+                renderPrograms(programsData);
+                updateSummary(programsData);
+                debugLog('PROGRAMS_CRUD', 'OK Loaded', programsData.length, 'programs');
+            } else {
+                renderPrograms([]);
+                updateSummary([]);
+            }
+        } catch (error) {
+            debugLog('PROGRAMS_CRUD', 'EXCEPTION loading programs:', error);
+            showToast('Error loading programs', 'error');
+        }
+    }
+
+    /**
+     * Render programs list
+     */
+    function renderPrograms(data) {
+        const container = document.getElementById('programsContent');
+        if (!container) return;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-diagram-3 fs-1"></i>
+                    <p class="mt-3">No programs found. Click "New Program" to create one.</p>
+                    <button class="btn btn-primary" onclick="showModal('program')">Create Program</button>
+                </div>
+            `;
+            return;
+        }
+
+        const html = data.map(program => {
+            const statusConfig = {
+                'not_started': { class: 'secondary', icon: 'pause-circle', label: 'Not Started' },
+                'in_progress': { class: 'primary', icon: 'play-circle', label: 'In Progress' },
+                'completed': { class: 'success', icon: 'check-circle', label: 'Completed' },
+                'on_hold': { class: 'warning', icon: 'dash-circle', label: 'On Hold' }
+            };
+            const config = statusConfig[program.status] || statusConfig['not_started'];
+
+            const budgetUsed = (program.spent_budget || 0);
+            const budgetTotal = (program.budget || 0);
+            const budgetPct = budgetTotal > 0 ? (budgetUsed / budgetTotal * 100).toFixed(1) : 0;
+            const budgetColor = budgetPct >= 90 ? 'danger' : budgetPct >= 70 ? 'warning' : 'success';
+
+            return `
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${program.program_name}</h6>
+                            <div>
+                                <span class="badge bg-${config.class}"><i class="bi bi-${config.icon} me-1"></i>${config.label}</span>
+                                ${program.kpi_count ? `<span class="badge bg-info ms-1">${program.kpi_count} KPIs</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">${program.description || ''}</p>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <small class="text-muted">Period</small>
+                                <p class="mb-0">${program.period_name || program.year || 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Responsible Unit</small>
+                                <p class="mb-0">${program.work_unit_name || 'N/A'}</p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Budget Allocation</small>
+                                <div class="d-flex justify-content-between">
+                                    <span>${budgetUsed.toLocaleString()} / ${budgetTotal.toLocaleString()}</span>
+                                    <span class="fw-bold">${budgetPct}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-${budgetColor}" style="width: ${budgetPct}%"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Progress</small>
+                                <div class="d-flex justify-content-between">
+                                    <span>Completion</span>
+                                    <span class="fw-bold">${program.progress_percentage || 0}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" style="width: ${program.progress_percentage || 0}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 border-top pt-2">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="showModal('program', '${program.program_id}')">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </button>
+                                <button class="btn btn-outline-info" onclick="ProgramManager.viewActivities('${program.program_id}')">
+                                    <i class="bi bi-list-task me-1"></i>Activities
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteItem('program', '${program.program_id}')">
+                                    <i class="bi bi-trash me-1"></i>Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Update summary cards
+     */
+    function updateSummary(data) {
+        const programs = Array.isArray(data) ? data : [];
+
+        const total = programs.length;
+        const active = programs.filter(p => p.status === 'in_progress').length;
+        const totalBudget = programs.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
+        const budgetUsed = programs.reduce((sum, p) => sum + (parseFloat(p.spent_budget) || 0), 0);
+        const budgetUtilization = totalBudget > 0 ? (budgetUsed / totalBudget * 100).toFixed(1) : 0;
+
+        updateElement('totalPrograms', total);
+        updateElement('activePrograms', active);
+        updateElement('totalBudget', totalBudget.toLocaleString());
+        updateElement('budgetUsed', budgetUtilization + '%');
+    }
+
+    /**
+     * Filter programs
+     */
+    function filterPrograms() {
+        const period = document.getElementById('programPeriodFilter')?.value || '';
+        const status = document.getElementById('programStatusFilter')?.value || '';
+        const workUnit = document.getElementById('programWorkUnitFilter')?.value || '';
+        const search = document.getElementById('programSearchFilter')?.value?.toLowerCase() || '';
+
+        let filtered = programsData.filter(program => {
+            if (period && program.period_id !== period) return false;
+            if (status && program.status !== status) return false;
+            if (workUnit && program.work_unit_id !== workUnit) return false;
+            if (search && !program.program_name.toLowerCase().includes(search)) return false;
+            return true;
+        });
+
+        renderPrograms(filtered);
+    }
+
+    /**
+     * View program activities
+     */
+    async function viewActivities(programId) {
+        debugLog('PROGRAMS_CRUD', 'Viewing activities for program:', programId);
+
+        try {
+            const result = await apiCall('activities/list', { program_id: programId });
+
+            if (result.success && result.data) {
+                const activities = Array.isArray(result.data) ? result.data : [result.data];
+                const program = programsData.find(p => p.program_id === programId);
+
+                const html = `
+                    <h6>Activities: ${program?.program_name || 'Program'}</h6>
+                    <div class="list-group">
+                        ${activities.map(activity => `
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>${activity.activity_name}</strong>
+                                    <span class="badge bg-info">${activity.activity_status || 'Pending'}</span>
+                                </div>
+                                <p class="small text-muted mb-2">${activity.description || ''}</p>
+                                <div class="d-flex justify-content-between small">
+                                    <span>Cost: ${activity.total_cost?.toLocaleString() || 'N/A'}</span>
+                                    <span>Responsible: ${activity.responsible_position || 'N/A'}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${activities.length === 0 ? '<p class="text-muted text-center">No activities found for this program.</p>' : ''}
+                `;
+
+                showModal('Program Activities', html);
+            }
+        } catch (error) {
+            debugLog('PROGRAMS_CRUD', 'EXCEPTION loading activities:', error);
+            showToast('Error loading activities', 'error');
+        }
+    }
+
+    /**
+     * Update element safely
+     */
+    function updateElement(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadPrograms: loadPrograms,
+        filterPrograms: filterPrograms,
+        viewActivities: viewActivities
+    };
+})();
+
+// Auto-initialize
+window.ProgramManager = ProgramManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('programs-view')) {
+        ProgramManager.init();
+    }
+});
+
+debugLog('PROGRAMS_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('programs_crud.html');
+}
+</script>

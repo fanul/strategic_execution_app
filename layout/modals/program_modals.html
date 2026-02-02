@@ -1,0 +1,264 @@
+<!-- Program Modal -->
+<div class="modal fade" id="programModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Strategic Program</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="programForm">
+                    <input type="hidden" name="program_id" id="program_id">
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Program Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="program_name" id="program_program_name" required placeholder="Enter program name">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Program Code</label>
+                            <input type="text" class="form-control" name="program_code" id="program_program_code" placeholder="Auto-generated" readonly>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" id="program_description" rows="3" placeholder="Program description..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Period <span class="text-danger">*</span></label>
+                            <select class="form-select" name="period_id" id="program_period_id" required>
+                                <option value="">Select Period</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Responsible Work Unit</label>
+                            <select class="form-select" name="work_unit_id" id="program_work_unit_id">
+                                <option value="">Select Work Unit</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Budget</label>
+                            <input type="number" class="form-control" name="budget" id="program_budget" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" id="program_status">
+                                <option value="not_started">Not Started</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="on_hold">On Hold</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Linked KPIs</label>
+                        <select class="form-select" name="kpi_ids" id="program_kpi_ids" multiple>
+                            <option value="">Select KPIs (multiple selection)</option>
+                        </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select multiple KPIs</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" name="start_date" id="program_start_date">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" name="end_date" id="program_end_date">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveProgram()">
+                    <i class="bi bi-check-circle me-1"></i>Save Program
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load program data for editing
+async function loadItemData(type, id) {
+    if (type !== 'program') return;
+
+    debugLog('MODAL', 'Loading program data for ID:', id);
+
+    try {
+        // Load dropdown data first
+        await Promise.all([
+            loadPeriodsForProgramDropdown(),
+            loadWorkUnitsForProgramDropdown(),
+            loadKPIsForProgramDropdown()
+        ]);
+
+        const result = await apiCall('programs/get', { id: id });
+
+        if (result.success && result.data) {
+            const program = result.data;
+
+            // Populate form fields
+            document.getElementById('program_id').value = program.program_id || '';
+            document.getElementById('program_program_name').value = program.program_name || '';
+            document.getElementById('program_program_code').value = program.program_code || '';
+            document.getElementById('program_description').value = program.description || '';
+            document.getElementById('program_period_id').value = program.period_id || '';
+            document.getElementById('program_work_unit_id').value = program.work_unit_id || '';
+            document.getElementById('program_budget').value = program.budget || '';
+            document.getElementById('program_status').value = program.status || 'not_started';
+            document.getElementById('program_start_date').value = program.start_date || '';
+            document.getElementById('program_end_date').value = program.end_date || '';
+
+            // Set KPI selections (multi-select)
+            const kpiSelect = document.getElementById('program_kpi_ids');
+            if (kpiSelect && program.kpi_ids) {
+                Array.from(kpiSelect.options).forEach(option => {
+                    option.selected = program.kpi_ids.includes(option.value);
+                });
+            }
+
+            debugLog('MODAL', 'OK Program data loaded');
+        } else {
+            throw new Error(result.message || 'Failed to load program');
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION loading program:', error);
+        throw error;
+    }
+}
+
+// Clear program form
+function clearForm(type) {
+    if (type === 'program') {
+        const form = document.getElementById('programForm');
+        if (form) {
+            form.reset();
+            // Load dropdowns for new program
+            Promise.all([
+                loadPeriodsForProgramDropdown(),
+                loadWorkUnitsForProgramDropdown(),
+                loadKPIsForProgramDropdown()
+            ]);
+        }
+        debugLog('MODAL', 'OK Program form cleared');
+    }
+}
+
+// Load periods dropdown
+async function loadPeriodsForProgramDropdown() {
+    try {
+        const result = await apiCall('strategic/periods/list');
+        if (result.success && result.data) {
+            const select = document.getElementById('program_period_id');
+            if (select) {
+                select.innerHTML = '<option value="">Select Period</option>';
+                result.data.forEach(p => {
+                    select.innerHTML += `<option value="${p.period_id}">${p.year} - ${p.period_name}</option>`;
+                });
+            }
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION loading periods:', error);
+    }
+}
+
+// Load work units dropdown
+async function loadWorkUnitsForProgramDropdown() {
+    try {
+        const result = await apiCall('work-units/list');
+        if (result.success && result.data) {
+            const select = document.getElementById('program_work_unit_id');
+            if (select) {
+                select.innerHTML = '<option value="">Select Work Unit</option>';
+                result.data.forEach(wu => {
+                    select.innerHTML += `<option value="${wu.work_unit_id}">${wu.work_unit_code} - ${wu.work_unit_name}</option>`;
+                });
+            }
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION loading work units:', error);
+    }
+}
+
+// Load KPIs dropdown
+async function loadKPIsForProgramDropdown() {
+    try {
+        const result = await apiCall('kpi/list-org');
+        if (result.success && result.data) {
+            const select = document.getElementById('program_kpi_ids');
+            if (select) {
+                select.innerHTML = '<option value="">Select KPIs</option>';
+                result.data.forEach(kpi => {
+                    select.innerHTML += `<option value="${kpi.kpi_id}">${kpi.kpi_code} - ${kpi.kpi_name}</option>`;
+                });
+            }
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION loading KPIs:', error);
+    }
+}
+
+// Save program
+async function saveProgram() {
+    const form = document.getElementById('programForm');
+    if (!form) {
+        showToast('Form not found', 'error');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Get selected KPIs (multi-select)
+    const kpiSelect = document.getElementById('program_kpi_ids');
+    if (kpiSelect) {
+        data.kpi_ids = Array.from(kpiSelect.selectedOptions).map(opt => opt.value);
+    }
+
+    // Validate required fields
+    if (!data.program_name || !data.program_name.trim()) {
+        showToast('Please enter program name', 'warning');
+        return;
+    }
+    if (!data.period_id) {
+        showToast('Please select a period', 'warning');
+        return;
+    }
+
+    debugLog('MODAL', 'Saving program:', data);
+
+    try {
+        const result = await apiCall('programs/save', data);
+
+        if (result.success) {
+            showToast('Program saved successfully', 'success');
+
+            // Close modal
+            const modalEl = document.getElementById('programModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            // Refresh program list
+            if (typeof ProgramManager !== 'undefined' && ProgramManager.loadPrograms) {
+                ProgramManager.loadPrograms();
+            }
+        } else {
+            showToast('Failed to save program: ' + result.message, 'error');
+        }
+    } catch (error) {
+        debugLog('MODAL', 'EXCEPTION saving program:', error);
+        showToast('Error saving program', 'error');
+    }
+}
+</script>

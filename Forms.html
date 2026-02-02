@@ -1,0 +1,123 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Data Entry</h1>
+</div>
+
+<div class="row">
+    <!-- Goal Creation Form -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">New Strategic Goal</h6>
+            </div>
+            <div class="card-body">
+                <form id="goalForm" onsubmit="handleGoalSubmit(event)">
+                    <div class="mb-3">
+                        <label for="goalTitle" class="form-label">Goal Title</label>
+                        <input type="text" class="form-control" id="goalTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="goalDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="goalDescription" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="startDate">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="endDate">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Goal</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Update Form -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-info">Update KPI</h6>
+            </div>
+            <div class="card-body">
+                <form id="kpiForm">
+                    <div class="mb-3">
+                        <label for="kpiSelect" class="form-label">Select KPI</label>
+                        <select class="form-select" id="kpiSelect">
+                            <option selected disabled>Choose...</option>
+                            <option value="1">Q1 Revenue</option>
+                            <option value="2">Customer Satisfaction</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="currentValue" class="form-label">Current Value</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="currentValue" required>
+                            <span class="input-group-text" id="unitAddon">%</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-info text-white" onclick="submitKPIUpdate()">Update
+                        Metric</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleGoalSubmit(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        const btn = event.submitter;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...';
+
+        const goalData = {
+            title: document.getElementById('goalTitle').value,
+            description: document.getElementById('goalDescription').value,
+            startDate: document.getElementById('startDate').value,
+            endDate: document.getElementById('endDate').value
+        };
+
+        google.script.run
+            .withSuccessHandler((res) => {
+                showToast(res.message, 'Success');
+                document.getElementById('goalForm').reset();
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            })
+            .withFailureHandler((err) => {
+                showToast('Error: ' + err, 'Error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            })
+            .createStrategicGoal(goalData);
+    }
+
+    function submitKPIUpdate() {
+        const kpiId = document.getElementById('kpiSelect').value;
+        const value = document.getElementById('currentValue').value;
+
+        // Disable button to prevent double submit
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+
+        // Call Backend
+        google.script.run
+            .withSuccessHandler((res) => {
+                showToast(res.message, 'Success');
+                btn.disabled = false;
+                btn.innerHTML = 'Update Metric';
+            })
+            .withFailureHandler((err) => {
+                showToast('Error: ' + err, 'Error');
+                btn.disabled = false;
+                btn.innerHTML = 'Update Metric';
+            })
+            .updateKPIValue(kpiId, value);
+    }
+</script>

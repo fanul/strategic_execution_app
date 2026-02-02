@@ -1,0 +1,247 @@
+<!-- Directorate Modal -->
+<div class="modal fade" id="directorateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="directorateModalTitle">Add Directorate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <!-- Modal Loading Overlay -->
+                <div id="directorateModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="directorateForm">
+                    <input type="hidden" id="directorate_id">
+                    <div class="mb-3">
+                        <label class="form-label">Code *</label>
+                        <input type="text" class="form-control" id="directorate_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="directorate_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveDirectorate()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Work Unit Modal -->
+<div class="modal fade" id="work-unitModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Work Unit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <!-- Modal Loading Overlay -->
+                <div id="work-unitModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="work-unitForm">
+                    <input type="hidden" id="work_unit_id">
+                    <div class="mb-3">
+                        <label class="form-label">Code *</label>
+                        <input type="text" class="form-control" id="work_unit_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="work_unit_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Directorate *</label>
+                        <select class="form-select" id="directorate_id_select" required>
+                            <option value="">Select Directorate</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveWorkUnit()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Affair Modal -->
+<div class="modal fade" id="affairModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Affair</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <!-- Modal Loading Overlay -->
+                <div id="affairModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="affairForm">
+                    <input type="hidden" id="affair_id">
+                    <div class="mb-3">
+                        <label class="form-label">Code *</label>
+                        <input type="text" class="form-control" id="affair_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="affair_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Unit *</label>
+                        <select class="form-select" id="work_unit_id_select" required>
+                            <option value="">Select Work Unit</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAffair()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Position Modal -->
+<div class="modal fade" id="positionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Position</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body position-relative">
+                <!-- Modal Loading Overlay -->
+                <div id="positionModalLoading" class="modal-loading-overlay" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="positionForm">
+                    <input type="hidden" id="position_id">
+                    <div class="mb-3">
+                        <label class="form-label">Code *</label>
+                        <input type="text" class="form-control" id="position_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="position_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Level</label>
+                        <input type="text" class="form-control" id="position_level">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Unit *</label>
+                        <select class="form-select" id="position_work_unit_id_select" required>
+                            <option value="">Select Work Unit</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned User</label>
+                        <select class="form-select" id="position_user_id_select">
+                            <option value="">Unassigned</option>
+                        </select>
+                        <small class="text-muted">Assign a user to this position</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePosition()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <span id="deleteConfirmTitle">Confirm Delete</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Warning: Item has children -->
+                <div id="deleteHasChildrenWarning" class="alert alert-warning" style="display:none;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Warning:</strong> This item has <strong id="childrenCount">0</strong> child item(s) that will also be affected.
+                </div>
+
+                <!-- Children details -->
+                <div id="deleteChildrenDetails" style="display:none; margin-bottom: 15px;">
+                    <ul class="list-unstyled" id="childrenList">
+                        <!-- Will be populated dynamically -->
+                    </ul>
+                </div>
+
+                <!-- Delete options -->
+                <div id="deleteOptionsSection" style="display:none;">
+                    <h6 class="mb-3">Choose how to handle child items:</h6>
+
+                    <!-- Cascade delete option -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="deleteOption" id="deleteOptionCascade" value="cascade" checked>
+                        <label class="form-check-label" for="deleteOptionCascade">
+                            <strong>Delete all children</strong>
+                            <small class="d-block text-muted">Delete this item and all child items. This cannot be undone.</small>
+                        </label>
+                    </div>
+
+                    <!-- Reassign option -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="deleteOption" id="deleteOptionReassign" value="reassign">
+                        <label class="form-check-label" for="deleteOptionReassign">
+                            <strong>Reassign children</strong>
+                            <small class="d-block text-muted">Move child items to another parent before deleting.</small>
+                        </label>
+                    </div>
+
+                    <!-- Reassign dropdown (shown when reassign is selected) -->
+                    <div id="reassignSection" style="display:none; margin-left: 1.5em; margin-bottom: 15px;">
+                        <label class="form-label">Select new parent:</label>
+                        <select class="form-select" id="reassignTarget">
+                            <option value="">-- Select new parent --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Direct delete message (no children) -->
+                <div id="deleteDirectMessage" style="display:none;">
+                    <p>Are you sure you want to delete <strong id="deleteItemName">this item</strong>?</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="executeDelete()">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

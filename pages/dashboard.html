@@ -1,0 +1,441 @@
+<!-- Dashboard Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="exportDashboard()">
+            <i class="bi bi-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-primary">Total Goals</div>
+                        <div class="stat-value" id="stat-total-goals">0</div>
+                        <small class="text-muted">Active period</small>
+                    </div>
+                    <div class="stat-icon bg-primary bg-opacity-10">
+                        <i class="bi bi-flag-fill text-primary fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-success">Active KPIs</div>
+                        <div class="stat-value" id="stat-active-kpis">0</div>
+                        <small class="text-muted">Being tracked</small>
+                    </div>
+                    <div class="stat-icon bg-success bg-opacity-10">
+                        <i class="bi bi-activity-fill text-success fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-warning">Pending Reviews</div>
+                        <div class="stat-value" id="stat-pending-reviews">0</div>
+                        <small class="text-muted">Require attention</small>
+                    </div>
+                    <div class="stat-icon bg-warning bg-opacity-10">
+                        <i class="bi bi-clipboard-data-fill text-warning fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-danger">At Risk KPIs</div>
+                        <div class="stat-value" id="stat-risk-kpis">0</div>
+                        <small class="text-muted">Below 70%</small>
+                    </div>
+                    <div class="stat-icon bg-danger bg-opacity-10">
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">KPI Traffic Light Status</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('kpi-traffic-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="kpi-traffic-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Goal Achievement</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('goal-achievement-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="goal-achievement-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Performance Trend (Last 6 Months)</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('performance-trend-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="performance-trend-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Top Work Units</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('workunits-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="workunits-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities & Upcoming Deadlines -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Activities</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Activity</th>
+                                <th>User</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-activities-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Upcoming Deadlines</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group" id="upcoming-deadlines-body">
+                    <div class="text-center text-muted">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Impact Centers -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Impact Centers Progress</h6>
+            </div>
+            <div class="card-body">
+                <div id="impact-centers-container">
+                    <div class="text-center text-muted">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Dashboard charts instances
+let dashboardCharts = {};
+
+/**
+ * Initialize dashboard
+ */
+async function loadDashboard() {
+    try {
+        const response = await apiCall('dashboard/get-stats');
+        if (response.success && response.data) {
+            updateDashboardStats(response.data);
+            initializeDashboardCharts(response.data);
+            loadRecentActivities();
+            loadUpcomingDeadlines();
+            loadImpactCenters();
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+/**
+ * Update dashboard statistics
+ */
+function updateDashboardStats(data) {
+    if (data.stats) {
+        document.getElementById('stat-total-goals').textContent = data.stats.totalGoals || 0;
+        document.getElementById('stat-active-kpis').textContent = data.stats.activeKPIs || 0;
+        document.getElementById('stat-pending-reviews').textContent = data.stats.pendingReviews || 0;
+        document.getElementById('stat-risk-kpis').textContent = data.stats.riskKPIs || 0;
+    }
+}
+
+/**
+ * Initialize dashboard charts
+ */
+function initializeDashboardCharts(data) {
+    // Initialize charts if Chart.js is available
+    if (typeof Chart !== 'undefined') {
+        // KPI Traffic Light Chart
+        const kpiCtx = document.getElementById('kpi-traffic-chart');
+        if (kpiCtx) {
+            dashboardCharts.kpiTraffic = new Chart(kpiCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['On Track', 'At Risk', 'Off Track'],
+                    datasets: [{
+                        label: 'KPIs',
+                        data: [data.kpiTraffic?.onTrack || 5, data.kpiTraffic?.atRisk || 3, data.kpiTraffic?.offTrack || 2],
+                        backgroundColor: ['#198754', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Goal Achievement Chart
+        const goalCtx = document.getElementById('goal-achievement-chart');
+        if (goalCtx) {
+            dashboardCharts.goalAchievement = new Chart(goalCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Achieved', 'In Progress', 'Not Started'],
+                    datasets: [{
+                        data: [data.goalAchievement?.achieved || 5, data.goalAchievement?.inProgress || 8, data.goalAchievement?.notStarted || 3],
+                        backgroundColor: ['#198754', '#0d6efd', '#6c757d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // Performance Trend Chart
+        const trendCtx = document.getElementById('performance-trend-chart');
+        if (trendCtx) {
+            dashboardCharts.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Overall Performance',
+                        data: data.performanceTrend || [65, 72, 78, 82, 85, 88],
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+        }
+
+        // Work Units Chart
+        const unitsCtx = document.getElementById('workunits-chart');
+        if (unitsCtx) {
+            dashboardCharts.workUnits = new Chart(unitsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['IT', 'HR', 'Finance', 'Ops'],
+                    datasets: [{
+                        label: 'Achievement %',
+                        data: data.workUnitPerformance || [92, 88, 95, 85],
+                        backgroundColor: '#0d6efd'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    }
+}
+
+/**
+ * Load recent activities
+ */
+async function loadRecentActivities() {
+    try {
+        const response = await apiCall('dashboard/recent-activities');
+        if (response.success && response.data) {
+            const tbody = document.getElementById('recent-activities-body');
+            tbody.innerHTML = response.data.map(activity => `
+                <tr>
+                    <td>${activity.activity}</td>
+                    <td>${activity.user}</td>
+                    <td><small class="text-muted">${activity.time}</small></td>
+                    <td><span class="badge bg-${activity.statusColor || 'primary'}">${activity.status}</span></td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading activities:', error);
+    }
+}
+
+/**
+ * Load upcoming deadlines
+ */
+async function loadUpcomingDeadlines() {
+    try {
+        const response = await apiCall('dashboard/upcoming-deadlines');
+        if (response.success && response.data) {
+            const container = document.getElementById('upcoming-deadlines-body');
+            container.innerHTML = response.data.map(deadline => `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">${deadline.title}</h6>
+                        <small class="text-muted">${deadline.dueDate}</small>
+                    </div>
+                    <span class="badge bg-${deadline.urgencyColor || 'warning'}">${deadline.daysLeft}</span>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading deadlines:', error);
+    }
+}
+
+/**
+ * Load impact centers
+ */
+async function loadImpactCenters() {
+    try {
+        const response = await apiCall('dashboard/impact-centers');
+        if (response.success && response.data) {
+            const container = document.getElementById('impact-centers-container');
+            container.innerHTML = `
+                <div class="row">
+                    ${response.data.map(center => `
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">${center.name}</h6>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-${center.progressColor || 'primary'}" style="width: ${center.progress}%"></div>
+                                    </div>
+                                    <small class="text-muted">${center.progress}% Complete</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading impact centers:', error);
+    }
+}
+
+/**
+ * Refresh dashboard
+ */
+function refreshDashboard() {
+    loadDashboard();
+}
+
+/**
+ * Export dashboard
+ */
+function exportDashboard() {
+    showToast('Exporting dashboard...', 'info');
+}
+
+/**
+ * Export chart as image
+ */
+function exportChartAsImage(chartId) {
+    showToast('Exporting chart...', 'info');
+}
+
+// Initialize dashboard on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => loadDashboard(), 100);
+});
+</script>

@@ -1,0 +1,366 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="exportDashboard()">
+            <i class="bi bi-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-primary">Total Goals</div>
+                        <div class="stat-value" id="stat-total-goals">0</div>
+                        <small class="text-muted">Active period</small>
+                    </div>
+                    <div class="stat-icon bg-primary bg-opacity-10">
+                        <i class="bi bi-flag-fill text-primary fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-success">Active KPIs</div>
+                        <div class="stat-value" id="stat-active-kpis">0</div>
+                        <small class="text-muted">Being tracked</small>
+                    </div>
+                    <div class="stat-icon bg-success bg-opacity-10">
+                        <i class="bi bi-activity-fill text-success fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-warning">Pending Reviews</div>
+                        <div class="stat-value" id="stat-pending-reviews">0</div>
+                        <small class="text-muted">Require attention</small>
+                    </div>
+                    <div class="stat-icon bg-warning bg-opacity-10">
+                        <i class="bi bi-clipboard-data-fill text-warning fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-card-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label text-danger">At Risk KPIs</div>
+                        <div class="stat-value" id="stat-risk-kpis">0</div>
+                        <small class="text-muted">Below 70%</small>
+                    </div>
+                    <div class="stat-icon bg-danger bg-opacity-10">
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">KPI Traffic Light Status</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('kpi-traffic-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="kpi-traffic-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Vision/Mission Achievement</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('vision-achievement-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="vision-achievement-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Performance Trend (Last 6 Months)</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('performance-trend-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="performance-trend-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Goal Completion</h6>
+            </div>
+            <div class="card-body">
+                <div id="goal-progress-container">
+                    <!-- Progress bars will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Budget vs Actual Spending</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('budget-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="budget-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Top Performing Work Units</h6>
+                <button class="btn btn-sm btn-link" onclick="exportChartAsImage('workunits-chart')">Export</button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="workunits-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Activities</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Activity</th>
+                                <th>User</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-activities-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Scripts -->
+<script>
+// Dashboard charts instances
+let dashboardCharts = {};
+
+/**
+ * Initialize dashboard charts
+ */
+function initializeDashboardCharts() {
+    // KPI Traffic Light Chart
+    const kpiTrafficChart = new TrafficLightChart({
+        canvasId: 'kpi-traffic-chart',
+        data: TrafficLightChart.createData(3, 5, 12) // Red, Yellow, Green
+    }).create();
+    dashboardCharts.kpiTraffic = kpiTrafficChart;
+
+    // Vision/Mission Achievement Chart
+    const visionChart = new DonutChart({
+        canvasId: 'vision-achievement-chart',
+        data: DonutChart.createData(
+            ['Achieved', 'In Progress', 'Not Started'],
+            [5, 8, 3]
+        ),
+        options: {
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    }).create();
+    dashboardCharts.vision = visionChart;
+
+    // Performance Trend Chart
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const trendChart = new TrendChart({
+        canvasId: 'performance-trend-chart',
+        data: TrendChart.createData(
+            months,
+            [
+                { label: 'Overall Performance', data: [65, 72, 78, 82, 85, 88] },
+                { label: 'Target', data: [70, 75, 80, 85, 90, 95] }
+            ]
+        )
+    }).create();
+    dashboardCharts.trend = trendChart;
+
+    // Budget Chart
+    const budgetChart = new GroupedBarChart({
+        canvasId: 'budget-chart',
+        data: GroupedBarChart.createData(
+            ['Q1', 'Q2', 'Q3', 'Q4'],
+            [
+                { label: 'Budget', data: [100, 120, 110, 130] },
+                { label: 'Spent', data: [90, 115, 95, 80] }
+            ]
+        )
+    }).create();
+    dashboardCharts.budget = budgetChart;
+
+    // Work Units Chart
+    const workUnitsChart = new GroupedBarChart({
+        canvasId: 'workunits-chart',
+        data: GroupedBarChart.createData(
+            ['IT', 'HR', 'Finance', 'Ops'],
+            [
+                { label: 'Achievement %', data: [92, 88, 95, 85] }
+            ]
+        ),
+        options: {
+            indexAxis: 'y'
+        }
+    }).create();
+    dashboardCharts.workUnits = workUnitsChart;
+
+    // Goal Progress Bars
+    renderGoalProgress();
+}
+
+/**
+ * Render goal progress bars
+ */
+function renderGoalProgress() {
+    const goals = [
+        { name: 'Digital Transformation', progress: 85 },
+        { name: 'Process Optimization', progress: 72 },
+        { name: 'Cost Reduction', progress: 45 },
+        { name: 'Customer Satisfaction', progress: 91 }
+    ];
+
+    const container = document.getElementById('goal-progress-container');
+    container.innerHTML = goals.map(goal => `
+        <h6 class="small font-weight-bold mb-1">${goal.name} <span class="float-end">${goal.progress}%</span></h6>
+        <div class="progress mb-3">
+            <div class="progress-bar ${goal.progress >= 90 ? 'bg-success' : goal.progress >= 70 ? 'bg-warning' : 'bg-danger'}"
+                 role="progressbar"
+                 style="width: ${goal.progress}%"
+                 aria-valuenow="${goal.progress}"
+                 aria-valuemin="0"
+                 aria-valuemax="100"></div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Refresh dashboard data
+ */
+async function refreshDashboard() {
+    showSuccessToast('Refreshing dashboard...');
+
+    try {
+        const response = await api.dashboard.getExecutiveData();
+        if (response.success && response.data) {
+            updateDashboardStats(response.data);
+            // Re-render charts with new data
+            updateChartsWithData(response.data);
+        }
+    } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+        showErrorToast('Failed to refresh dashboard');
+    }
+}
+
+/**
+ * Update dashboard statistics
+ */
+function updateDashboardStats(data) {
+    if (data.stats) {
+        document.getElementById('stat-total-goals').textContent = data.stats.totalGoals || 0;
+        document.getElementById('stat-active-kpis').textContent = data.stats.activeKPIs || 0;
+        document.getElementById('stat-pending-reviews').textContent = data.stats.pendingReviews || 0;
+        document.getElementById('stat-risk-kpis').textContent = data.stats.riskKPIs || 0;
+    }
+}
+
+/**
+ * Update charts with new data
+ */
+function updateChartsWithData(data) {
+    // Update charts with actual data from API
+    // This would be implemented based on the API response structure
+}
+
+/**
+ * Export dashboard
+ */
+function exportDashboard() {
+    // Export all charts as images
+    Object.keys(dashboardCharts).forEach(key => {
+        exportChartAsImage(dashboardCharts[key].canvas.id, `dashboard-${key}.png`);
+    });
+}
+
+// Initialize charts when dashboard view is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for Chart.js to be loaded
+    setTimeout(() => {
+        initializeDashboardCharts();
+    }, 500);
+});
+</script>

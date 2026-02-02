@@ -1,0 +1,428 @@
+<script>
+// Modal management functions
+function showModal(type, id = null, parentId = null) {
+    debugLog('MODAL', '=== showModal START === type=' + type + ', id=' + (id || 'new') + ', parentId=' + (parentId || 'none'));
+
+    const modalId = type + 'Modal';
+    const modalEl = document.getElementById(modalId);
+
+    debugLog('MODAL', 'Looking for modal element: #' + modalId);
+
+    if (!modalEl) {
+        debugLog('MODAL', 'FAIL Modal not found: ' + modalId);
+        showToast('Modal not found: ' + modalId, 'error');
+        return;
+    }
+    debugLog('MODAL', 'OK Modal element found');
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    if (id) {
+        debugLog('MODAL', 'Loading existing item data for editing...');
+
+        // Show modal first with loading overlay
+        const modalTitle = document.querySelector('#' + modalId + ' .modal-title');
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit ' + type.charAt(0).toUpperCase() + type.slice(1);
+        } else {
+            debugLog('MODAL', 'WARN: Modal title element not found for', modalId);
+        }
+        modal.show();
+
+        const loadingEl = document.getElementById(modalId + 'Loading');
+        if (loadingEl) {
+            loadingEl.style.display = 'flex';
+            debugLog('MODAL', 'OK Loading overlay shown');
+        }
+
+        // Load dropdown data first, then load item data
+        let dropdownPromise;
+        if (type === 'work-unit') {
+            dropdownPromise = loadDirectoratesDropdown();
+        } else if (type === 'affair') {
+            dropdownPromise = loadWorkUnitsForAffairDropdown();
+        } else if (type === 'position') {
+            // Load both work units and users for position
+            dropdownPromise = Promise.all([
+                loadWorkUnitsForPositionDropdown(),
+                loadUsersForPositionDropdown()
+            ]);
+        } else {
+            dropdownPromise = Promise.resolve();
+        }
+
+        dropdownPromise.then(() => {
+            return loadItemData(type, id);
+        }).then(() => {
+            debugLog('MODAL', 'OK Modal shown with data');
+        }).catch((error) => {
+            debugLog('MODAL', 'FAIL Error loading modal data:', error);
+            // Hide loading overlay on error
+            const loadingEl = document.getElementById(modalId + 'Loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
+            showToast('Error loading item data: ' + error.message, 'error');
+        });
+    } else {
+        debugLog('MODAL', 'Preparing form for new item...');
+        clearForm(type);
+        const modalTitle = document.querySelector('#' + modalId + ' .modal-title');
+        if (modalTitle) {
+            modalTitle.textContent = 'Add ' + type.charAt(0).toUpperCase() + type.slice(1);
+        } else {
+            debugLog('MODAL', 'WARN: Modal title element not found for', modalId);
+        }
+        modal.show();
+        debugLog('MODAL', 'OK Modal shown (new mode)');
+
+        // Pre-select parent if provided
+        if (parentId) {
+            debugLog('MODAL', 'Pre-selecting parent:', parentId);
+            preselectParentDropdown(type, parentId);
+        }
+    }
+
+    // Load dropdown data for new item mode (if not already loaded)
+    if (!id) {
+        if (type === 'work-unit') {
+            loadDirectoratesDropdown(parentId);
+        } else if (type === 'affair') {
+            loadWorkUnitsForAffairDropdown(parentId);
+        } else if (type === 'position') {
+            loadWorkUnitsForPositionDropdown(parentId);
+            loadUsersForPositionDropdown(); // Load users dropdown for new position
+        }
+    }
+}
+
+// Pre-select parent in dropdown
+function preselectParentDropdown(type, parentId) {
+    debugLog('MODAL', 'Pre-selecting parent for type:', type, 'parentId:', parentId);
+
+    let dropdownId;
+    if (type === 'work-unit') {
+        dropdownId = 'directorate_id';
+    } else if (type === 'affair') {
+        dropdownId = 'work_unit_id';
+    } else if (type === 'position') {
+        dropdownId = 'affair_id';
+    } else {
+        return;
+    }
+
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+        dropdown.value = parentId;
+        debugLog('MODAL', 'OK Parent pre-selected:', dropdownId, '=', parentId);
+    } else {
+        debugLog('MODAL', 'FAIL Parent dropdown not found:', dropdownId);
+    }
+}
+
+function clearForm(type) {
+    debugLog('MODAL', '=== clearForm START === type=' + type);
+
+    const formId = type + 'Form';
+    const form = document.getElementById(formId);
+
+    if (form) {
+        form.reset();
+        debugLog('MODAL', 'OK Form cleared: #' + formId);
+    } else {
+        debugLog('MODAL', 'FAIL Form not found: #' + formId);
+    }
+}
+
+async function loadItemData(type, id) {
+    debugLog('MODAL', '=== loadItemData START === type=' + type + ', id=' + id);
+
+    const endpoint = type === 'directorate' ? 'directorates/get' :
+                     type === 'work-unit' ? 'work-units/get' :
+                     type === 'affair' ? 'affairs/get' : 'positions/get';
+
+    debugLog('MODAL', 'Calling endpoint: ' + endpoint, { id: id });
+
+    const result = await apiCall(endpoint, { id });
+    debugLog('MODAL', 'API result:', result);
+
+    const modalId = type + 'Modal';
+    const loadingEl = document.getElementById(modalId + 'Loading');
+
+    if (result.success && result.data) {
+        const item = result.data;
+        debugLog('MODAL', 'OK Item data received, populating form...', item);
+
+        // Store Select2 field IDs that need special handling
+        // Note: directorate_id should only be treated as Select2 for work-unit (not for directorate itself)
+        const select2Fields = {};
+        if (type === 'work-unit') {
+            select2Fields['directorate_id'] = 'directorate_id_select';
+        }
+        if (type === 'affair') {
+            select2Fields['work_unit_id'] = 'work_unit_id_select';
+        }
+        if (type === 'position') {
+            select2Fields['work_unit_id'] = 'position_work_unit_id_select';
+            select2Fields['user_id'] = 'position_user_id_select'; // Add user_id field for position
+        }
+
+        // Populate all non-Select2 fields first
+        Object.keys(item).forEach(key => {
+            if (!select2Fields[key]) {
+                const field = document.getElementById(key);
+                if (field) {
+                    // Always set value, including hidden fields (needed for ID fields)
+                    field.value = item[key] || '';
+                    debugLog('MODAL', '  OK Set ' + key + ' = "' + (item[key] || '') + '"');
+                }
+            }
+        });
+
+        // Populate Select2 fields with a small delay to ensure Select2 is ready
+        setTimeout(function() {
+            Object.keys(item).forEach(key => {
+                if (select2Fields[key]) {
+                    const selectId = select2Fields[key];
+                    const $select = $('#' + selectId);
+                    if ($select.length && $select.data('select2')) {
+                        $select.val(item[key]).trigger('change');
+                        debugLog('MODAL', '  OK Set Select2 ' + selectId + ' = "' + (item[key] || '') + '"');
+                    } else {
+                        debugLog('MODAL', '  FAIL Select2 ' + selectId + ' not initialized');
+                    }
+                }
+            });
+        }, 100);
+
+        debugLog('MODAL', 'OK Form populated successfully');
+    } else {
+        debugLog('MODAL', 'FAIL Failed to load item: ' + (result.message || 'Unknown error'));
+        showToast('Failed to load item: ' + (result.message || 'Unknown error'), 'error');
+    }
+
+    // Hide loading overlay
+    if (loadingEl) {
+        loadingEl.style.display = 'none';
+        debugLog('MODAL', 'OK Loading overlay hidden');
+    }
+}
+
+async function editItem(type, id) {
+    debugLog('MODAL', '=== editItem START === type=' + type + ', id=' + id);
+    showModal(type, id);
+}
+
+// Load Directorates into Select2 dropdown (for Work Unit modal)
+async function loadDirectoratesDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadDirectoratesDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('directorates/list');
+        debugLog('MODAL', 'Directorates API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#directorate_id_select');
+            const modal = $('#work-unitModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">Select Directorate</option>');
+
+            result.data.forEach(d => {
+                select.append('<option value="' + d.directorate_id + '">' + d.directorate_code + ' - ' + d.directorate_name + '</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Directorate',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected directorate:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' directorates into dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load directorates: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading directorates: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadDirectoratesDropdown COMPLETE ===');
+}
+
+// Load Work Units into Select2 dropdown (for Affair modal)
+async function loadWorkUnitsForAffairDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadWorkUnitsForAffairDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('work-units/list');
+        debugLog('MODAL', 'Work units API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#work_unit_id_select');
+            const modal = $('#affairModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">Select Work Unit</option>');
+
+            result.data.forEach(w => {
+                select.append('<option value="' + w.work_unit_id + '">' + w.work_unit_code + ' - ' + w.work_unit_name + '</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Work Unit',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected work unit:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' work units into affair dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load work units: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading work units: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadWorkUnitsForAffairDropdown COMPLETE ===');
+}
+
+// Load Work Units into Select2 dropdown (for Position modal)
+async function loadWorkUnitsForPositionDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadWorkUnitsForPositionDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('work-units/list');
+        debugLog('MODAL', 'Work units API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#position_work_unit_id_select');
+            const modal = $('#positionModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">Select Work Unit</option>');
+
+            result.data.forEach(w => {
+                select.append('<option value="' + w.work_unit_id + '">' + w.work_unit_code + ' - ' + w.work_unit_name + '</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Work Unit',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected work unit:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' work units into position dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load work units: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading work units: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadWorkUnitsForPositionDropdown COMPLETE ===');
+}
+
+// Load Users into Select2 dropdown (for Position modal - user assignment)
+async function loadUsersForPositionDropdown(preselectedValue = null) {
+    debugLog('MODAL', '=== loadUsersForPositionDropdown START ===' + (preselectedValue ? ', preselect=' + preselectedValue : ''));
+
+    try {
+        const result = await apiCall('users/list');
+        debugLog('MODAL', 'Users API result:', result);
+
+        if (result.success && result.data) {
+            const select = $('#position_user_id_select');
+            const modal = $('#positionModal');
+
+            // Destroy existing Select2 if initialized
+            if (select.data('select2')) {
+                select.select2('destroy');
+                debugLog('MODAL', 'OK Destroyed existing Select2 instance');
+            }
+
+            // Clear and populate options
+            select.empty();
+            select.append('<option value="">Unassigned</option>');
+
+            result.data.forEach(u => {
+                select.append('<option value="' + u.user_id + '">' + u.full_name + ' (' + u.username + ')</option>');
+            });
+
+            // Initialize Select2 with dropdownParent for modal
+            select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select User',
+                allowClear: true,
+                dropdownParent: modal
+            });
+
+            // Pre-select value if provided
+            if (preselectedValue) {
+                select.val(preselectedValue).trigger('change');
+                debugLog('MODAL', 'OK Pre-selected user:', preselectedValue);
+            }
+
+            debugLog('MODAL', 'OK Loaded ' + result.data.length + ' users into position dropdown and initialized Select2');
+        } else {
+            debugLog('MODAL', 'FAIL Failed to load users: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        debugLog('MODAL', 'FAIL Error loading users: ' + error.message);
+    }
+
+    debugLog('MODAL', '=== loadUsersForPositionDropdown COMPLETE ===');
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('modals.html');
+}
+</script>

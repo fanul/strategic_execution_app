@@ -1,0 +1,238 @@
+<script>
+// ============================================================================
+// CONTEXT MENU - Organization Diagram Node Context Menu
+// ============================================================================
+
+debugLog('CONTEXT_MENU', '╔════════════════════════════════════════════════════╗');
+debugLog('CONTEXT_MENU', '║  CONTEXT MENU SCRIPT LOADING                       ║');
+debugLog('CONTEXT_MENU', '╚════════════════════════════════════════════════════╝');
+
+// Initialize the ContextMenu module
+const ContextMenu = (function() {
+    'use strict';
+
+    // Private state
+    let contextMenuTargetNode = null;
+    let contextMenuHandlersSetup = false;
+    let documentClickHandler = null;
+
+    /**
+     * Show context menu at cursor position
+     */
+    function showContextMenu(event, node) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        debugLog('CONTEXT_MENU', 'Showing context menu for node:', node.type, node.id);
+
+        // Store target node FIRST
+        contextMenuTargetNode = node;
+
+        // Hide any existing context menus display only (don't clear target)
+        const menu = document.getElementById('org-context-menu');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+        // Also remove any canvas context menus
+        document.querySelectorAll('.canvas-context-menu').forEach(m => m.remove());
+
+        if (!menu) {
+            debugLog('CONTEXT_MENU', 'FAIL: org-context-menu element not found in DOM');
+            return;
+        }
+
+        const addChildItem = menu.querySelector('[data-action="add-child"]');
+
+        // Defensive check for addChildItem
+        if (!addChildItem) {
+            debugLog('CONTEXT_MENU', 'FAIL: add-child menu item not found');
+            return;
+        }
+
+        // Hide "Add Child" for positions (leaf nodes)
+        if (node.type === 'position') {
+            addChildItem.style.display = 'none';
+        } else {
+            addChildItem.style.display = 'flex';
+        }
+
+        menu.style.display = 'block';
+        menu.style.left = event.pageX + 'px';
+        menu.style.top = event.pageY + 'px';
+
+        debugLog('CONTEXT_MENU', 'Context menu displayed at:', event.pageX, event.pageY);
+    }
+
+    /**
+     * Hide context menu
+     */
+    function hideContextMenu() {
+        const menu = document.getElementById('org-context-menu');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+        // Only clear target when explicitly hiding (not when showing new menu)
+        // contextMenuTargetNode = null; // REMOVED - don't clear here
+    }
+
+    /**
+     * Clear target node (used when clicking outside)
+     */
+    function clearTargetNode() {
+        contextMenuTargetNode = null;
+    }
+
+    /**
+     * Get current target node (for testing/debugging)
+     */
+    function getTargetNode() {
+        return contextMenuTargetNode;
+    }
+
+    /**
+     * Handle clicking elsewhere - close all context menus
+     */
+    function handleDocumentClick(e) {
+        if (!e.target.closest('.org-context-menu') && !e.target.closest('.canvas-context-menu')) {
+            hideContextMenu();
+            clearTargetNode();
+            // Also remove any canvas context menus
+            document.querySelectorAll('.canvas-context-menu').forEach(m => m.remove());
+        }
+    }
+
+    /**
+     * Setup context menu item handlers
+     */
+    function setupContextMenuHandlers() {
+        // Prevent duplicate handlers
+        if (contextMenuHandlersSetup) {
+            debugLog('CONTEXT_MENU', 'Handlers already setup, skipping');
+            return;
+        }
+
+        // Setup document click handler
+        if (documentClickHandler) {
+            document.removeEventListener('click', documentClickHandler);
+        }
+        documentClickHandler = handleDocumentClick;
+        document.addEventListener('click', documentClickHandler);
+
+        const menuItems = document.querySelectorAll('.org-context-menu-item');
+        if (!menuItems || menuItems.length === 0) {
+            debugLog('CONTEXT_MENU', 'WARN: No context menu items found');
+            return;
+        }
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const action = this.dataset.action;
+                const node = contextMenuTargetNode;
+
+                if (!node) {
+                    debugLog('CONTEXT_MENU', 'FAIL: No target node for action:', action);
+                    hideContextMenu();
+                    return;
+                }
+
+                debugLog('CONTEXT_MENU', 'Action clicked:', action, 'for node:', node.type, node.id);
+
+                switch (action) {
+                    case 'view':
+                        showToast(`${node.code || node.name} (${node.type})`, 'info');
+                        break;
+
+                    case 'edit':
+                        if (typeof showModal === 'function') {
+                            showModal(node.type, node.id);
+                        } else {
+                            showToast('Edit function not available', 'error');
+                        }
+                        break;
+
+                    case 'add-child':
+                        const childType = getChildType(node.type);
+                        if (childType && typeof showModal === 'function') {
+                            showModal(childType, null, node.id);
+                        } else {
+                            showToast('Cannot add child to this node type', 'error');
+                        }
+                        break;
+
+                    case 'delete':
+                        if (typeof deleteItem === 'function') {
+                            deleteItem(node.type, node.id);
+                        } else {
+                            showToast('Delete function not available', 'error');
+                        }
+                        break;
+                }
+
+                hideContextMenu();
+                clearTargetNode();
+            });
+        });
+
+        contextMenuHandlersSetup = true;
+        debugLog('CONTEXT_MENU', 'Context menu handlers setup complete');
+    }
+
+    /**
+     * Helper function to get child type based on parent type
+     */
+    function getChildType(parentType) {
+        const childTypeMap = {
+            'directorate': 'work-unit',
+            'work-unit': 'affair',
+            'affair': 'position'
+        };
+        return childTypeMap[parentType] || null;
+    }
+
+    /**
+     * Cleanup function for destroy
+     */
+    function destroy() {
+        if (documentClickHandler) {
+            document.removeEventListener('click', documentClickHandler);
+            documentClickHandler = null;
+        }
+        contextMenuTargetNode = null;
+        contextMenuHandlersSetup = false;
+        debugLog('CONTEXT_MENU', 'Context menu destroyed');
+    }
+
+    // Public API
+    return {
+        show: showContextMenu,
+        hide: hideContextMenu,
+        getTargetNode: getTargetNode,
+        setupHandlers: setupContextMenuHandlers,
+        destroy: destroy
+    };
+})();
+
+// Make functions globally available for onclick handlers
+window.showContextMenu = ContextMenu.show;
+window.hideContextMenu = ContextMenu.hide;
+
+// Setup handlers when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ContextMenu.setupHandlers);
+} else {
+    ContextMenu.setupHandlers();
+}
+
+// Log that the script loaded
+debugLog('CONTEXT_MENU', '═══════════════════════════════════════════════════');
+debugLog('CONTEXT_MENU', 'SCRIPT LOADING COMPLETE');
+debugLog('CONTEXT_MENU', 'Verifying global functions:');
+debugLog('CONTEXT_MENU', '  - typeof window.showContextMenu: ' + typeof window.showContextMenu);
+debugLog('CONTEXT_MENU', '  - typeof window.hideContextMenu: ' + typeof window.hideContextMenu);
+debugLog('CONTEXT_MENU', '═══════════════════════════════════════════════════');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('org-diagram-context-menu.html');
+}
+</script>

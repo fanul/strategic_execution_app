@@ -1,0 +1,27 @@
+<script>
+// Save Settings function (only needed on settings page)
+async function saveSettings() {
+    const settings = {
+        debug_mode: document.getElementById('debugModeToggle').checked
+    };
+
+    const result = await apiCall('settings/save', settings);
+
+    if (result.success) {
+        showToast('Settings saved successfully', 'success');
+        DEBUG_MODE = settings.debug_mode;
+        if (settings.debug_mode && window.debugPanel) {
+            window.debugPanel.show();
+        } else if (window.debugPanel) {
+            window.debugPanel.hide();
+        }
+    } else {
+        showToast('Failed to save settings: ' + result.message, 'error');
+    }
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('settings_manager.html');
+}
+</script>

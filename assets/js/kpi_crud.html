@@ -1,0 +1,440 @@
+<script>
+// ============================================================================
+// KPI CRUD - KPI Management Operations
+// ============================================================================
+
+debugLog('KPI_CRUD', '╔════════════════════════════════════════════════════╗');
+debugLog('KPI_CRUD', '║  KPI CRUD SCRIPT LOADING                             ║');
+debugLog('KPI_CRUD', '╚════════════════════════════════════════════════════╝');
+
+const KPIManager = (function() {
+    'use strict';
+
+    let orgKpiTable = null;
+    let indKpiTable = null;
+    let orgKpiData = [];
+    let indKpiData = [];
+    let currentView = 'org-kpi';
+
+    /**
+     * Initialize module
+     */
+    function init() {
+        debugLog('KPI_CRUD', '=== init START ===');
+        loadWorkUnits();
+        loadYears();
+        loadOrgKPIs();
+        setupViewToggle();
+        debugLog('KPI_CRUD', '=== init COMPLETE ===');
+    }
+
+    /**
+     * Setup view toggle
+     */
+    function setupViewToggle() {
+        // Set initial state
+        if (currentView === 'org-kpi') {
+            document.getElementById('org-kpi-view-btn').classList.add('active');
+        }
+    }
+
+    /**
+     * Switch between org and individual KPI views
+     */
+    function switchView(view) {
+        debugLog('KPI_CRUD', 'Switching to view:', view);
+
+        const orgView = document.getElementById('org-kpi-view');
+        const indView = document.getElementById('ind-kpi-view');
+        const orgBtn = document.getElementById('org-kpi-view-btn');
+        const indBtn = document.getElementById('ind-kpi-view-btn');
+
+        if (!orgView || !indView || !orgBtn || !indBtn) {
+            debugLog('KPI_CRUD', 'FAIL: View elements not found');
+            return;
+        }
+
+        if (view === 'org-kpi') {
+            orgView.style.display = 'block';
+            indView.style.display = 'none';
+            orgBtn.classList.add('active');
+            indBtn.classList.remove('active');
+            currentView = 'org-kpi';
+            if (orgKpiData.length === 0) loadOrgKPIs();
+        } else if (view === 'ind-kpi') {
+            orgView.style.display = 'none';
+            indView.style.display = 'block';
+            orgBtn.classList.remove('active');
+            indBtn.classList.add('active');
+            currentView = 'ind-kpi';
+            if (indKpiData.length === 0) loadIndKPIs();
+        }
+    }
+
+    /**
+     * Load work units dropdown
+     */
+    async function loadWorkUnits() {
+        debugLog('KPI_CRUD', 'Loading work units...');
+
+        try {
+            const result = await apiCall('work-units/list');
+            if (result.success && result.data) {
+                const select = document.getElementById('kpiWorkUnitFilter');
+                if (select) {
+                    select.innerHTML = '<option value="">All Work Units</option>';
+                    result.data.forEach(wu => {
+                        select.innerHTML += `<option value="${wu.work_unit_id}">${wu.work_unit_code} - ${wu.work_unit_name}</option>`;
+                    });
+                }
+                debugLog('KPI_CRUD', 'OK Work units loaded');
+            }
+        } catch (error) {
+            debugLog('KPI_CRUD', 'EXCEPTION loading work units:', error);
+        }
+    }
+
+    /**
+     * Load years dropdown
+     */
+    async function loadYears() {
+        debugLog('KPI_CRUD', 'Loading years...');
+
+        try {
+            const result = await apiCall('strategic/periods/list');
+            if (result.success && result.data) {
+                const select = document.getElementById('kpiYearFilter');
+                if (select) {
+                    select.innerHTML = '<option value="">All Years</option>';
+                    result.data.forEach(p => {
+                        select.innerHTML += `<option value="${p.year}">${p.year}</option>`;
+                    });
+                }
+                debugLog('KPI_CRUD', 'OK Years loaded');
+            }
+        } catch (error) {
+            debugLog('KPI_CRUD', 'EXCEPTION loading years:', error);
+        }
+    }
+
+    /**
+     * Load organizational KPIs
+     */
+    async function loadOrgKPIs() {
+        debugLog('KPI_CRUD', 'Loading organizational KPIs...');
+
+        try {
+            const result = await apiCall('kpi/list-org');
+
+            if (result.success && result.data) {
+                orgKpiData = result.data;
+                renderOrgKpiTable();
+                updateScorecard();
+                debugLog('KPI_CRUD', 'OK Loaded', orgKpiData.length, 'org KPIs');
+            } else {
+                showToast('Failed to load KPIs: ' + result.message, 'error');
+            }
+        } catch (error) {
+            debugLog('KPI_CRUD', 'EXCEPTION:', error);
+            showToast('Error loading KPIs', 'error');
+        }
+    }
+
+    /**
+     * Render organizational KPI table
+     */
+    function renderOrgKpiTable() {
+        debugLog('KPI_CRUD', 'Rendering org KPI table...');
+
+        if (orgKpiTable) {
+            orgKpiTable.destroy();
+            orgKpiTable = null;
+        }
+
+        const tableEl = document.getElementById('orgKpiTable');
+        if (!tableEl) {
+            debugLog('KPI_CRUD', 'FAIL: orgKpiTable not found');
+            return;
+        }
+
+        orgKpiTable = $('#orgKpiTable').DataTable({
+            data: orgKpiData,
+            columns: [
+                { data: 'kpi_code' },
+                { data: 'kpi_name' },
+                {
+                    data: 'perspective',
+                    render: (data) => {
+                        const labels = {
+                            financial: 'Financial',
+                            customer: 'Customer',
+                            internal_process: 'Internal Process',
+                            learning_growth: 'Learning & Growth'
+                        };
+                        return labels[data] || data;
+                    }
+                },
+                { data: 'work_unit_name' },
+                {
+                    data: 'target_value',
+                    render: (data, type, row) => {
+                        return `${data} ${row.unit || ''}`;
+                    }
+                },
+                {
+                    data: 'current_value',
+                    render: (data, type, row) => {
+                        return `${data} ${row.unit || ''}`;
+                    }
+                },
+                {
+                    data: 'achievement_percentage',
+                    render: (data) => {
+                        const pct = parseFloat(data) || 0;
+                        const color = pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger';
+                        return `<span class="badge bg-${color}">${pct.toFixed(1)}%</span>`;
+                    }
+                },
+                {
+                    data: 'achievement_percentage',
+                    render: (data) => {
+                        const pct = parseFloat(data) || 0;
+                        if (pct >= 90) return '<span class="badge bg-success">ON TRACK</span>';
+                        if (pct >= 70) return '<span class="badge bg-warning">AT RISK</span>';
+                        return '<span class="badge bg-danger">OFF TRACK</span>';
+                    }
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('org-kpi', '${row.kpi_id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-info" onclick="KPIManager.viewProgress('${row.kpi_id}')">
+                                <i class="bi bi-list-check"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteItem('org-kpi', '${row.kpi_id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[0, 'asc']],
+            pageLength: 25,
+            language: {
+                emptyTable: 'No KPIs found. Click "Add Organizational KPI" to create one.'
+            }
+        });
+
+        debugLog('KPI_CRUD', 'OK Org KPI table rendered');
+    }
+
+    /**
+     * Load individual KPIs
+     */
+    async function loadIndKPIs() {
+        debugLog('KPI_CRUD', 'Loading individual KPIs...');
+
+        try {
+            const result = await apiCall('kpi/list-ind');
+
+            if (result.success && result.data) {
+                indKpiData = result.data;
+                renderIndKpiTable();
+                debugLog('KPI_CRUD', 'OK Loaded', indKpiData.length, 'ind KPIs');
+            }
+        } catch (error) {
+            debugLog('KPI_CRUD', 'EXCEPTION:', error);
+        }
+    }
+
+    /**
+     * Render individual KPI table
+     */
+    function renderIndKpiTable() {
+        debugLog('KPI_CRUD', 'Rendering ind KPI table...');
+
+        if (indKpiTable) {
+            indKpiTable.destroy();
+            indKpiTable = null;
+        }
+
+        const tableEl = document.getElementById('indKpiTable');
+        if (!tableEl) {
+            debugLog('KPI_CRUD', 'FAIL: indKpiTable not found');
+            return;
+        }
+
+        indKpiTable = $('#indKpiTable').DataTable({
+            data: indKpiData,
+            columns: [
+                { data: 'kpi_code' },
+                { data: 'kpi_name' },
+                { data: 'employee_name' },
+                { data: 'position_name' },
+                { data: 'target_value' },
+                { data: 'current_value' },
+                {
+                    data: 'achievement_percentage',
+                    render: (data) => {
+                        const pct = parseFloat(data) || 0;
+                        return `<span class="badge bg-${pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger'}">${pct.toFixed(1)}%</span>`;
+                    }
+                },
+                {
+                    data: 'achievement_percentage',
+                    render: (data) => {
+                        const pct = parseFloat(data) || 0;
+                        if (pct >= 90) return '<span class="badge bg-success">ON TRACK</span>';
+                        if (pct >= 70) return '<span class="badge bg-warning">AT RISK</span>';
+                        return '<span class="badge bg-danger">OFF TRACK</span>';
+                    }
+                },
+                {
+                    data: null,
+                    render: (data, type, row) => `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="showModal('ind-kpi', '${row.kpi_id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteItem('ind-kpi', '${row.kpi_id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `,
+                    orderable: false
+                }
+            ],
+            order: [[0, 'asc']],
+            pageLength: 25
+        });
+
+        debugLog('KPI_CRUD', 'OK Ind KPI table rendered');
+    }
+
+    /**
+     * Update scorecard
+     */
+    function updateScorecard() {
+        const onTrack = orgKpiData.filter(k => k.achievement_percentage >= 90).length;
+        const atRisk = orgKpiData.filter(k => k.achievement_percentage >= 70 && k.achievement_percentage < 90).length;
+        const offTrack = orgKpiData.filter(k => k.achievement_percentage < 70).length;
+        const avg = orgKpiData.reduce((sum, k) => sum + (parseFloat(k.achievement_percentage) || 0), 0) / (orgKpiData.length || 1);
+
+        updateElement('onTrackCount', onTrack);
+        updateElement('atRiskCount', atRisk);
+        updateElement('offTrackCount', offTrack);
+        updateElement('avgAchievement', avg.toFixed(1) + '%');
+    }
+
+    /**
+     * Filter KPIs
+     */
+    function filterKPIs() {
+        const perspective = document.getElementById('kpiPerspectiveFilter').value;
+        const workUnit = document.getElementById('kpiWorkUnitFilter').value;
+        const status = document.getElementById('kpiStatusFilter').value;
+        const year = document.getElementById('kpiYearFilter').value;
+
+        let filtered = orgKpiData.filter(kpi => {
+            if (perspective && kpi.perspective !== perspective) return false;
+            if (workUnit && kpi.work_unit_id !== workUnit) return false;
+            if (year && kpi.year !== year) return false;
+            if (status) {
+                const pct = parseFloat(kpi.achievement_percentage) || 0;
+                if (status === 'on_track' && pct < 90) return false;
+                if (status === 'at_risk' && (pct < 70 || pct >= 90)) return false;
+                if (status === 'off_track' && pct >= 70) return false;
+            }
+            return true;
+        });
+
+        orgKpiTable.clear();
+        orgKpiTable.rows.add(filtered);
+        orgKpiTable.draw();
+    }
+
+    /**
+     * View KPI progress details
+     */
+    async function viewProgress(kpiId) {
+        debugLog('KPI_CRUD', 'Viewing progress for KPI:', kpiId);
+
+        try {
+            const result = await apiCall('kpi/get', { id: kpiId });
+
+            if (result.success && result.data) {
+                const kpi = result.data;
+                const html = `
+                    <h5>${kpi.kpi_name}</h5>
+                    <p><strong>Code:</strong> ${kpi.kpi_code}</p>
+                    <p><strong>Perspective:</strong> ${kpi.perspective}</p>
+                    <p><strong>Target:</strong> ${kpi.target_value} ${kpi.unit || ''}</p>
+                    <p><strong>Current:</strong> ${kpi.current_value} ${kpi.unit || ''}</p>
+                    <p><strong>Achievement:</strong> ${kpi.achievement_percentage}%</p>
+                    <hr>
+                    <h6>Monthly Progress</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Target</th>
+                                <th>Actual</th>
+                                <th>Achievement %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${kpi.monthly_progress ? kpi.monthly_progress.map(p => `
+                                <tr>
+                                    <td>${p.month}</td>
+                                    <td>${p.target || '-'}</td>
+                                    <td>${p.actual || '-'}</td>
+                                    <td>${p.achievement_percentage || 0}%</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4">No progress data available</td></tr>'}
+                        </tbody>
+                    </table>
+                `;
+
+                showModal('KPI Progress', html);
+            }
+        } catch (error) {
+            debugLog('KPI_CRUD', 'EXCEPTION:', error);
+        }
+    }
+
+    /**
+     * Update element safely
+     */
+    function updateElement(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    // Public API
+    return {
+        init: init,
+        loadOrgKPIs: loadOrgKPIs,
+        loadIndKPIs: loadIndKPIs,
+        filterKPIs: filterKPIs,
+        viewProgress: viewProgress
+    };
+})();
+
+// Auto-initialize
+window.KPIManager = KPIManager;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('kpi-view')) {
+        KPIManager.init();
+    }
+});
+
+debugLog('KPI_CRUD', 'SCRIPT LOADING COMPLETE');
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('kpi_crud.html');
+}
+</script>

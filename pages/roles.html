@@ -1,0 +1,196 @@
+<!-- Role Management Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Role Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#roleModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Role
+        </button>
+    </div>
+</div>
+
+<!-- Role Templates -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">Quick Create from Templates</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-primary w-100" onclick="RoleManager.createFromTemplate('super_admin')">
+                    <i class="bi bi-shield-fill-check"></i> Super Admin
+                </button>
+            </div>
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-primary w-100" onclick="RoleManager.createFromTemplate('admin')">
+                    <i class="bi bi-shield"></i> Admin
+                </button>
+            </div>
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-primary w-100" onclick="RoleManager.createFromTemplate('manager')">
+                    <i class="bi bi-person-workspace"></i> Manager
+                </button>
+            </div>
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-primary w-100" onclick="RoleManager.createFromTemplate('user')">
+                    <i class="bi bi-person"></i> User
+                </button>
+            </div>
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-primary w-100" onclick="RoleManager.createFromTemplate('viewer')">
+                    <i class="bi bi-eye"></i> Viewer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Roles Table -->
+<div class="table-responsive">
+    <table class="table table-hover" id="rolesTable">
+        <thead>
+            <tr>
+                <th>Role Name</th>
+                <th>Role Code</th>
+                <th>Description</th>
+                <th>Users</th>
+                <th>Type</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals">
+    <!-- Role Modal -->
+    <div class="modal fade" id="roleModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="roleForm">
+                        <input type="hidden" id="role_id">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Role Name *</label>
+                                <input type="text" class="form-control" id="role_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Role Code *</label>
+                                <input type="text" class="form-control" id="role_code" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="role_description" rows="2"></textarea>
+                        </div>
+                    </form>
+
+                    <hr>
+                    <h6>Permissions</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Module</th>
+                                    <th>Create</th>
+                                    <th>Read</th>
+                                    <th>Update</th>
+                                    <th>Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody id="permissionsBody">
+                                <tr>
+                                    <td><strong>Users</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_users_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_users_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_users_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_users_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Roles</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_roles_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_roles_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_roles_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_roles_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Organization</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_organization_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_organization_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_organization_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_organization_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Strategic</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_strategic_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_strategic_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_strategic_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_strategic_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>KPI</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_kpi_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_kpi_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_kpi_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_kpi_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>OKR</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_okr_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_okr_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_okr_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_okr_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Programs</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_programs_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_programs_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_programs_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_programs_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Reports</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_reports_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_reports_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_reports_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_reports_delete"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Settings</strong></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_settings_create"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_settings_read"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_settings_update"></td>
+                                    <td><input type="checkbox" class="form-check-input" id="perm_settings_delete"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveRole()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveRole() {
+    showToast('Saving role...', 'info');
+}
+
+// Initialize roles page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof RoleManager !== 'undefined' && RoleManager.init) {
+        RoleManager.init();
+    }
+});
+</script>

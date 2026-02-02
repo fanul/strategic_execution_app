@@ -1,0 +1,163 @@
+<!-- KPI Management Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">KPI Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-sm btn-outline-primary me-2" id="org-kpi-view-btn" onclick="KPIManager.switchView('org-kpi')">
+            <i class="bi bi-building"></i> Organizational KPIs
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" id="ind-kpi-view-btn" onclick="KPIManager.switchView('ind-kpi')">
+            <i class="bi bi-person"></i> Individual KPIs
+        </button>
+    </div>
+</div>
+
+<!-- Scorecard Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 id="onTrackCount">0</h3>
+                <small>On Track</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h3 id="atRiskCount">0</h3>
+                <small>At Risk</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h3 id="offTrackCount">0</h3>
+                <small>Off Track</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 id="avgAchievement">0%</h3>
+                <small>Avg Achievement</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Organizational KPI View -->
+<div id="org-kpi-view">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Organizational KPIs</h5>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#orgKpiModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Organizational KPI
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Perspective</label>
+                    <select class="form-select" id="kpiPerspectiveFilter" onchange="KPIManager.filterKPIs()">
+                        <option value="">All Perspectives</option>
+                        <option value="financial">Financial</option>
+                        <option value="customer">Customer</option>
+                        <option value="internal_process">Internal Process</option>
+                        <option value="learning_growth">Learning & Growth</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Work Unit</label>
+                    <select class="form-select" id="kpiWorkUnitFilter" onchange="KPIManager.filterKPIs()">
+                        <option value="">All Work Units</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Year</label>
+                    <select class="form-select" id="kpiYearFilter" onchange="KPIManager.filterKPIs()">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="kpiStatusFilter" onchange="KPIManager.filterKPIs()">
+                        <option value="">All Status</option>
+                        <option value="on_track">On Track</option>
+                        <option value="at_risk">At Risk</option>
+                        <option value="off_track">Off Track</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table table-hover" id="orgKpiTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Perspective</th>
+                    <th>Work Unit</th>
+                    <th>Target</th>
+                    <th>Current</th>
+                    <th>Achievement</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Individual KPI View -->
+<div id="ind-kpi-view" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Individual KPIs</h5>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#indKpiModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Individual KPI
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table table-hover" id="indKpiTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Employee</th>
+                    <th>Position</th>
+                    <th>Target</th>
+                    <th>Current</th>
+                    <th>Achievement</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+// Initialize KPI page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof KPIManager !== 'undefined' && KPIManager.init) {
+        KPIManager.init();
+    }
+});
+</script>
