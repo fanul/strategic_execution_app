@@ -967,7 +967,7 @@ const OrgUnitManager = {
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center flex-grow-1">
                             ${hasChildren ?
-                                `<i class="bi bi-caret-right-fill text-primary me-2 tree-toggle" style="cursor: pointer; font-size: 1.2rem;" title="Click to expand/collapse (${childCount} children)"></i>` :
+                                `<i class="bi bi-caret-right-fill text-primary me-2 tree-toggle" style="cursor: pointer; font-size: 1.2rem;" title="Click to expand/collapse (${childCount} children)" data-expanded="false" onclick="OrgUnitManager.toggleTreeNode(this)"></i>` :
                                 '<span class="me-4"></span>'
                             }
                             ${icon}
@@ -987,7 +987,7 @@ const OrgUnitManager = {
                         </div>
                     </div>
                     ${hasChildren ?
-                        `<div class="org-tree-children ps-4" style="display: none; border-left: 1px dashed #ccc;">
+                        `<div class="org-tree-children ps-4" style="display: none !important; border-left: 1px dashed #ccc; padding-left: 20px; margin-top: 8px;">
                             ${this.buildTreeHtml(node.children, level + 1)}
                         </div>` :
                         ''
@@ -998,50 +998,46 @@ const OrgUnitManager = {
 
         html += '</div>';
 
-        // Add click handlers for tree toggles
-        setTimeout(() => {
-            debugLog('ORG_UNIT', 'Setting up tree toggle handlers...');
-            const toggles = document.querySelectorAll('.tree-toggle');
-            debugLog('ORG_UNIT', 'Found', toggles.length, 'toggle elements');
-
-            toggles.forEach((toggle, idx) => {
-                // Remove existing listeners to prevent duplicates
-                toggle.parentNode?.removeEventListener('click', toggle._handler);
-
-                // Create new handler
-                toggle._handler = function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-
-                    const treeNode = this.closest('.org-tree-node');
-                    const children = treeNode.querySelector('.org-tree-children');
-
-                    debugLog('ORG_UNIT', 'Toggle clicked, children container:', children ? 'found' : 'not found');
-
-                    if (children) {
-                        const isHidden = children.style.display === 'none' || !children.style.display;
-                        children.style.display = isHidden ? 'block' : 'none';
-
-                        // Update icon
-                        if (isHidden) {
-                            this.classList.remove('bi-caret-right-fill');
-                            this.classList.add('bi-caret-down-fill');
-                        } else {
-                            this.classList.remove('bi-caret-down-fill');
-                            this.classList.add('bi-caret-right-fill');
-                        }
-
-                        debugLog('ORG_UNIT', 'Children toggled:', isHidden ? 'expanded' : 'collapsed');
-                    }
-                };
-
-                toggle.addEventListener('click', toggle._handler);
-            });
-
-            debugLog('ORG_UNIT', 'Tree toggle handlers setup complete');
-        }, 100);
-
         return html;
+    },
+
+    /**
+     * Toggle tree node expand/collapse (called from onclick)
+     */
+    toggleTreeNode: function(toggleElement) {
+        debugLog('ORG_UNIT', '=== toggleTreeNode START ===');
+
+        const treeNode = toggleElement.closest('.org-tree-node');
+        const children = treeNode.querySelector('.org-tree-children');
+
+        if (!children) {
+            debugLog('ORG_UNIT', 'No children container found');
+            return;
+        }
+
+        const isExpanded = toggleElement.getAttribute('data-expanded') === 'true';
+
+        debugLog('ORG_UNIT', 'Current state:', isExpanded ? 'expanded' : 'collapsed');
+
+        if (isExpanded) {
+            // Collapse
+            debugLog('ORG_UNIT', 'Collapsing node...');
+            children.style.display = 'none';
+            toggleElement.classList.remove('bi-caret-down-fill');
+            toggleElement.classList.add('bi-caret-right-fill');
+            toggleElement.setAttribute('data-expanded', 'false');
+            debugLog('ORG_UNIT', 'Node collapsed successfully');
+        } else {
+            // Expand
+            debugLog('ORG_UNIT', 'Expanding node...');
+            children.style.display = 'block';
+            toggleElement.classList.remove('bi-caret-right-fill');
+            toggleElement.classList.add('bi-caret-down-fill');
+            toggleElement.setAttribute('data-expanded', 'true');
+            debugLog('ORG_UNIT', 'Node expanded successfully, children display:', children.style.display);
+        }
+
+        debugLog('ORG_UNIT', '=== toggleTreeNode COMPLETE ===');
     },
 
     /**
