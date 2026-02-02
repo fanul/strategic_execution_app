@@ -34,8 +34,8 @@
         <?!= pageModals ?>
     </div>
 
-    <!-- Debug Panel (Hidden by default, visibility controlled by settings) -->
-    <div id="debugPanel" class="debug-panel" style="display:none;">
+    <!-- Debug Panel (Forced visible for debugging) -->
+    <div id="debugPanel" class="debug-panel" style="display:block;">
         <div class="debug-header">
             <span>Debug Logs</span>
             <div>
@@ -90,7 +90,7 @@
 
     <?!= api_helper ?>
     <?!= ui_helpers ?>
-    <?!= modals ?>
+    <?!= modal_scripts ?>
     <?!= settings_manager ?>
     <?!= ajax_loader ?>
     <?!= router ?>

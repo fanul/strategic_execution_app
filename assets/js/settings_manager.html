@@ -1,0 +1,187 @@
+<script>
+// Settings page functionality
+
+/**
+ * Save general settings
+ */
+async function saveGeneralSettings() {
+    const settings = {
+        appName: document.getElementById('appName')?.value || 'Strategic Execution Management',
+        defaultLanguage: document.getElementById('defaultLanguage')?.value || 'en',
+        dateFormat: document.getElementById('dateFormat')?.value || 'dd/mm/yyyy',
+        timeZone: document.getElementById('timeZone')?.value || 'UTC',
+        debugMode: document.getElementById('enableDebugMode')?.checked || false
+    };
+
+    try {
+        const result = await apiCall('settings/save', settings);
+
+        if (result.success) {
+            showToast('Settings saved successfully', 'success');
+
+            // Update debug mode
+            if (typeof DEBUG_MODE !== 'undefined') {
+                DEBUG_MODE = settings.debugMode;
+            }
+
+            // Toggle debug panel visibility
+            if (window.debugPanel) {
+                if (settings.debugMode) {
+                    window.debugPanel.show();
+                } else {
+                    window.debugPanel.hide();
+                }
+            }
+        } else {
+            showToast('Failed to save settings: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showToast('Error saving settings: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Save security settings
+ */
+async function saveSecuritySettings() {
+    const settings = {
+        sessionTimeout: parseInt(document.getElementById('sessionTimeout')?.value || 60),
+        requireUppercase: document.getElementById('requireUppercase')?.checked || false,
+        requireNumbers: document.getElementById('requireNumbers')?.checked || false,
+        requireSpecialChars: document.getElementById('requireSpecialChars')?.checked || false,
+        minPasswordLength: parseInt(document.getElementById('minPasswordLength')?.value || 8),
+        enableTwoFactor: document.getElementById('enableTwoFactor')?.checked || false
+    };
+
+    try {
+        const result = await apiCall('settings/saveSecurity', settings);
+
+        if (result.success) {
+            showToast('Security settings saved successfully', 'success');
+        } else {
+            showToast('Failed to save security settings: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving security settings:', error);
+        showToast('Error saving security settings: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Save notification settings
+ */
+async function saveNotificationSettings() {
+    const settings = {
+        kpiUpdates: document.getElementById('notifKPIUpdates')?.checked || false,
+        okrReviews: document.getElementById('notifOKRReviews')?.checked || false,
+        deadlineReminders: document.getElementById('notifDeadlineReminders')?.checked || false,
+        systemUpdates: document.getElementById('notifSystemUpdates')?.checked || false,
+        mentions: document.getElementById('notifMentions')?.checked || false
+    };
+
+    try {
+        const result = await apiCall('settings/saveNotifications', settings);
+
+        if (result.success) {
+            showToast('Notification preferences saved successfully', 'success');
+        } else {
+            showToast('Failed to save notification preferences: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving notification settings:', error);
+        showToast('Error saving notification preferences: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Export data in various formats
+ */
+async function exportData(format) {
+    try {
+        showToast('Exporting data as ' + format.toUpperCase() + '...', 'info');
+
+        const result = await apiCall('settings/export', { format: format });
+
+        if (result.success) {
+            showToast('Data exported successfully', 'success');
+
+            // If result contains a download URL or data, handle it
+            if (result.downloadUrl) {
+                window.open(result.downloadUrl, '_blank');
+            } else if (result.data) {
+                // Create a blob and download
+                const blob = new Blob([result.data], { type: 'application/' + format });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'export.' + format;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+        } else {
+            showToast('Failed to export data: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showToast('Error exporting data: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Clear application cache
+ */
+async function confirmClearCache() {
+    if (confirm('Are you sure you want to clear the application cache? This action cannot be undone.')) {
+        try {
+            const result = await apiCall('settings/clearCache', {});
+
+            if (result.success) {
+                showToast('Cache cleared successfully', 'success');
+
+                // Optionally reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showToast('Failed to clear cache: ' + result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error clearing cache:', error);
+            showToast('Error clearing cache: ' + error.message, 'error');
+        }
+    }
+}
+
+/**
+ * Show support modal
+ */
+function showSupportModal() {
+    const supportContent = `
+        <div class="support-info">
+            <p><strong>Need Help?</strong></p>
+            <p>Please contact the system administrator for assistance with:</p>
+            <ul>
+                <li>Technical issues or bugs</li>
+                <li>Feature requests or suggestions</li>
+                <li>User access and permissions</li>
+                <li>Data management and exports</li>
+            </ul>
+            <p><strong>System Version:</strong> <span id="supportAppVersion">1.0.0</span></p>
+        </div>
+    `;
+
+    if (typeof showModal === 'function') {
+        showModal('Help & Support', supportContent);
+    } else {
+        alert('Please contact your system administrator for assistance.');
+    }
+}
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('settings_manager.html');
+}
+</script>

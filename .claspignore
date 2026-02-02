@@ -10,6 +10,7 @@ assets/js/**/*.js
 # Ignore backup files
 **/*.backup
 **/*_backup/**
+**/*.bak
 
 # Ignore documentation files
 docs/**/*.md

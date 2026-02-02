@@ -194,5 +194,29 @@ const DashboardController = {
       Logger.log('DashboardController.getImpactCenterData error: ' + error);
       return { success: true, data: { impactCenters: [], total: 0 } };
     }
+  },
+
+  // Get Goals progress data
+  getGoalsProgress(filters = {}) {
+    try {
+      const year = filters.year || new Date().getFullYear();
+      const goals = StrategicModel.Goal.getByYear(year);
+
+      // Transform goals data for chart
+      const goalsWithProgress = (goals || []).map(goal => ({
+        goal_id: goal.goal_id,
+        goal_name: goal.goal_name,
+        progress_percentage: goal.progress_percentage || 0,
+        perspective: goal.perspective
+      }));
+
+      return {
+        success: true,
+        data: goalsWithProgress
+      };
+    } catch (error) {
+      Logger.log('DashboardController.getGoalsProgress error: ' + error);
+      return { success: true, data: [] };
+    }
   }
 };

@@ -122,9 +122,9 @@ function doPost(e) {
       case 'page.get':
         requireAuth(sessionToken);
         const pageName = data.page || 'dashboard';
-        const validPages = ['dashboard', 'organization', 'strategic-plan', 'kpi', 'settings'];
 
-        if (!validPages.includes(pageName)) {
+        // Validate page using PagesConfig
+        if (!PagesConfig.isValidPage(pageName)) {
           response = { success: false, message: 'Invalid page: ' + pageName };
         } else {
           const dataTemplate = {
@@ -132,9 +132,9 @@ function doPost(e) {
             PAGE_NAME: pageName
           };
 
-          const content = renderTemplate(`minimal/pages/${pageName}.html`, dataTemplate);
-          const modals = getPageModals(pageName, dataTemplate);
-          const scripts = getPageScripts(pageName, dataTemplate);
+          const content = renderTemplate(`pages/${pageName}.html`, dataTemplate);
+          const modals = PagesConfig.getPageModals(pageName, dataTemplate);
+          const scripts = PagesConfig.getPageScripts(pageName, dataTemplate);
 
           response = {
             success: true,
@@ -586,7 +586,38 @@ function doPost(e) {
         requirePermission(sessionToken, 'settings', 'update');
         response = restoreRevision(data.revisionId, getCurrentUser(sessionToken).user_id, data.reason);
         break;
-      
+
+      // ===== SETTINGS =====
+      case 'settings.get':
+        requireAuth(sessionToken);
+        response = getSettings();
+        break;
+
+      case 'settings.save':
+        requirePermission(sessionToken, 'settings', 'update');
+        response = saveSettings(data, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'settings/saveSecurity':
+        requirePermission(sessionToken, 'settings', 'update');
+        response = saveSecuritySettings(data, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'settings/saveNotifications':
+        requirePermission(sessionToken, 'settings', 'update');
+        response = saveNotificationSettings(data, getCurrentUser(sessionToken).user_id);
+        break;
+
+      case 'settings/export':
+        requireAuth(sessionToken);
+        response = exportSettingsData(data.format);
+        break;
+
+      case 'settings/clearCache':
+        requirePermission(sessionToken, 'settings', 'update');
+        response = clearApplicationCache(getCurrentUser(sessionToken).user_id);
+        break;
+
       default:
         response = formatError(`Unknown action: ${action}`);
     }
@@ -742,36 +773,7 @@ function renderTemplate(filename, data) {
   }
 }
 
-/**
- * Helper function to get page-specific scripts based on page name.
- * Page-specific scripts are loaded dynamically based on the page.
- * @param {string} pageName - The name of the page to load scripts for.
- * @param {Object} dataTemplate - Data template to pass to scripts.
- * @returns {string} Combined script HTML.
- */
-function getPageScripts(pageName, dataTemplate) {
-  switch (pageName) {
-    case 'organization':
-      // Load both DataTable manager and CRUD operations for organization page
-      const datatablesScript = renderTemplate('minimal/assets/js/organization_datatables.html', dataTemplate);
-      const crudScript = renderTemplate('minimal/assets/js/organization_crud.html', dataTemplate);
-      return datatablesScript + '\n' + crudScript;
-    default:
-      return '';
-  }
-}
-
-/**
- * Helper function to get page-specific modals.
- * @param {string} pageName - The name of the page.
- * @param {Object} dataTemplate - Data template to pass to modals.
- * @returns {string} Modal HTML.
- */
-function getPageModals(pageName, dataTemplate) {
-  switch (pageName) {
-    case 'organization':
-      return renderTemplate('minimal/layout/modals/organization_modals.html', dataTemplate);
-    default:
-      return '';
-  }
-}
+// NOTE: getPageScripts() and getPageModals() functions removed
+// These are now handled by PagesConfig service for consistency
+// Use: PagesConfig.getPageScripts(pageName, dataTemplate)
+//      PagesConfig.getPageModals(pageName, dataTemplate)

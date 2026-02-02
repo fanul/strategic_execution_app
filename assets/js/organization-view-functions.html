@@ -1,0 +1,103 @@
+<script>
+// ============================================================================
+// ORGANIZATION VIEW SWITCHING FUNCTIONS
+// Functions to switch between table and diagram views
+// ============================================================================
+
+debugLog('ORG_VIEW', '╔════════════════════════════════════════════════════╗');
+debugLog('ORG_VIEW', '║  ORGANIZATION VIEW FUNCTIONS LOADING              ║');
+debugLog('ORG_VIEW', '╚════════════════════════════════════════════════════╝');
+
+/**
+ * Show Organization Diagram
+ * Switches from table view to diagram view
+ */
+function showOrgDiagram() {
+    debugLog('ORG_VIEW', '=== showOrgDiagram called ===');
+
+    const tableView = document.getElementById('table-view');
+    const diagramView = document.getElementById('diagram-view');
+    const orgHeader = document.getElementById('org-page-header');
+
+    if (!tableView || !diagramView) {
+        debugLog('ORG_VIEW', 'FAIL: Required elements not found');
+        showToast('Error: View elements not found', 'error');
+        return;
+    }
+
+    // Hide table view, show diagram view
+    tableView.style.display = 'none';
+    diagramView.style.display = 'block';
+
+    // Update header button
+    if (orgHeader) {
+        orgHeader.style.display = 'none';
+    }
+
+    // Initialize diagram after layout is complete
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            if (typeof OrgDiagram !== 'undefined') {
+                debugLog('ORG_VIEW', 'Initializing OrgDiagram...');
+                OrgDiagram.init();
+            } else {
+                debugLog('ORG_VIEW', 'FAIL: OrgDiagram not defined');
+                showToast('Diagram component not loaded. Please refresh the page.', 'error');
+            }
+        });
+    });
+
+    debugLog('ORG_VIEW', 'Switched to diagram view');
+}
+
+/**
+ * Show Table View
+ * Switches from diagram view back to table view
+ */
+function showTableView() {
+    debugLog('ORG_VIEW', '=== showTableView called ===');
+
+    const tableView = document.getElementById('table-view');
+    const diagramView = document.getElementById('diagram-view');
+    const orgHeader = document.getElementById('org-page-header');
+
+    if (!tableView || !diagramView) {
+        debugLog('ORG_VIEW', 'FAIL: Required elements not found');
+        showToast('Error: View elements not found', 'error');
+        return;
+    }
+
+    // Hide diagram view, show table view
+    diagramView.style.display = 'none';
+    tableView.style.display = 'block';
+
+    // Restore header button
+    if (orgHeader) {
+        orgHeader.style.display = 'flex';
+    }
+
+    // Destroy diagram to free resources
+    if (typeof OrgDiagram !== 'undefined' && OrgDiagram.svg) {
+        debugLog('ORG_VIEW', 'Destroying OrgDiagram...');
+        OrgDiagram.destroy();
+    }
+
+    debugLog('ORG_VIEW', 'Switched to table view');
+}
+
+// Make functions globally available
+window.showOrgDiagram = showOrgDiagram;
+window.showTableView = showTableView;
+
+debugLog('ORG_VIEW', '═══════════════════════════════════════════════════');
+debugLog('ORG_VIEW', 'ORGANIZATION VIEW FUNCTIONS LOADED');
+debugLog('ORG_VIEW', 'Verifying global functions:');
+debugLog('ORG_VIEW', '  - typeof window.showOrgDiagram: ' + typeof window.showOrgDiagram);
+debugLog('ORG_VIEW', '  - typeof window.showTableView: ' + typeof window.showTableView);
+debugLog('ORG_VIEW', '═══════════════════════════════════════════════════');
+
+// Track script loading
+if (window.scriptLoadTracker) {
+    window.scriptLoadTracker.loaded('organization-view-functions.html');
+}
+</script>

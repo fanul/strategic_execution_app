@@ -1,0 +1,162 @@
+<!-- SWOT Analysis Page -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">SWOT Analysis</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="SWOTManager.exportSWOT()">
+            <i class="bi bi-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Goal Selector -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <label class="form-label">Select Goal for SWOT Analysis</label>
+                <select class="form-select" id="swotGoalSelect">
+                    <option value="">-- Select Goal --</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button class="btn btn-primary" onclick="loadSelectedGoalSWOT()">
+                    <i class="bi bi-search"></i> Load SWOT
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SWOT Matrix -->
+<div class="row mb-4" id="swotMatrixView">
+    <div class="col-md-6 mb-3">
+        <div class="card bg-success bg-opacity-10 h-100">
+            <div class="card-header bg-success bg-opacity-25 d-flex justify-content-between">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Strengths</h6>
+                <span class="badge bg-success" id="strengthCount">0</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotStrength">
+                <div class="text-center text-muted py-3">
+                    <small>No items</small>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-outline-success w-100" onclick="SWOTManager.showAddModal('strength')">
+                    <i class="bi bi-plus-lg"></i> Add Strength
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card bg-danger bg-opacity-10 h-100">
+            <div class="card-header bg-danger bg-opacity-25 d-flex justify-content-between">
+                <h6 class="mb-0"><i class="bi bi-dash-circle me-2"></i>Weaknesses</h6>
+                <span class="badge bg-danger" id="weaknessCount">0</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotWeakness">
+                <div class="text-center text-muted py-3">
+                    <small>No items</small>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-outline-danger w-100" onclick="SWOTManager.showAddModal('weakness')">
+                    <i class="bi bi-plus-lg"></i> Add Weakness
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card bg-info bg-opacity-10 h-100">
+            <div class="card-header bg-info bg-opacity-25 d-flex justify-content-between">
+                <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Opportunities</h6>
+                <span class="badge bg-info" id="opportunityCount">0</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotOpportunity">
+                <div class="text-center text-muted py-3">
+                    <small>No items</small>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-outline-info w-100" onclick="SWOTManager.showAddModal('opportunity')">
+                    <i class="bi bi-plus-lg"></i> Add Opportunity
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card bg-warning bg-opacity-10 h-100">
+            <div class="card-header bg-warning bg-opacity-25 d-flex justify-content-between">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Threats</h6>
+                <span class="badge bg-warning" id="threatCount">0</span>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="swotThreat">
+                <div class="text-center text-muted py-3">
+                    <small>No items</small>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-outline-warning w-100" onclick="SWOTManager.showAddModal('threat')">
+                    <i class="bi bi-plus-lg"></i> Add Threat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOWS Strategies -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">TOWS Strategic Analysis</h6>
+            </div>
+            <div class="card-body" id="towsStrategiesContent">
+                <div class="text-center text-muted py-3">
+                    <small>Add items to all categories to generate TOWS strategies</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Impact Analysis -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Impact Analysis</h6>
+            </div>
+            <div class="card-body" id="swotImpactAnalysis">
+                <div class="text-center text-muted">
+                    Select a goal to view impact analysis
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Modals -->
+<div id="page-modals"></div>
+
+<script>
+function loadSelectedGoalSWOT() {
+    const goalId = document.getElementById('swotGoalSelect').value;
+    if (!goalId) {
+        showToast('Please select a goal first', 'warning');
+        return;
+    }
+    if (typeof SWOTManager !== 'undefined' && SWOTManager.init) {
+        SWOTManager.loadSWOTMatrix(goalId);
+    }
+}
+
+// Initialize SWOT page
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof SWOTManager !== 'undefined' && SWOTManager.init) {
+        SWOTManager.init();
+    }
+});
+</script>

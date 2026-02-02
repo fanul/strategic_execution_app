@@ -27,24 +27,25 @@ var PagesConfig = {
     pages: {
         login: {
             title: 'Sign In',
-            template: 'minimal/pages/login.html',
+            template: 'pages/login.html',
             scripts: ['assets/js/auth.html'],
             modals: ''
         },
 
         dashboard: {
             title: 'Dashboard',
-            template: 'minimal/pages/dashboard.html',
+            template: 'pages/dashboard.html',
             scripts: ['assets/js/dashboard_widgets.html'],
             modals: ''
         },
 
         organization: {
             title: 'Organization',
-            template: 'minimal/pages/organization.html',
+            template: 'pages/organization.html',
             scripts: [
                 'assets/js/organization_datatables.html',
                 'assets/js/organization_crud.html',
+                'assets/js/organization-view-functions.html',
                 'assets/js/view-toggle.html',
                 'assets/js/org-diagram-controls.html',
                 'assets/js/org-diagram-tooltip.html',
@@ -56,77 +57,77 @@ var PagesConfig = {
 
         'strategic-plan': {
             title: 'Strategic Planning',
-            template: 'minimal/pages/strategic-plan.html',
+            template: 'pages/strategic-plan.html',
             scripts: ['assets/js/strategic_crud.html'],
             modals: ''
         },
 
         kpi: {
             title: 'KPI Management',
-            template: 'minimal/pages/kpi.html',
+            template: 'pages/kpi.html',
             scripts: ['assets/js/kpi_crud.html'],
             modals: ''
         },
 
         okrs: {
             title: 'OKR Management',
-            template: 'minimal/pages/okrs.html',
+            template: 'pages/okrs.html',
             scripts: ['assets/js/okr_crud.html'],
             modals: 'layout/modals/okr_modals.html'
         },
 
         users: {
             title: 'User Management',
-            template: 'minimal/pages/users.html',
+            template: 'pages/users.html',
             scripts: ['assets/js/users_crud.html'],
             modals: ''
         },
 
         roles: {
             title: 'Role Management',
-            template: 'minimal/pages/roles.html',
+            template: 'pages/roles.html',
             scripts: ['assets/js/roles_crud.html'],
             modals: ''
         },
 
         programs: {
             title: 'Program Management',
-            template: 'minimal/pages/programs.html',
+            template: 'pages/programs.html',
             scripts: ['assets/js/programs_crud.html'],
             modals: 'layout/modals/program_modals.html'
         },
 
         reports: {
             title: 'Reports & Analytics',
-            template: 'minimal/pages/reports.html',
+            template: 'pages/reports.html',
             scripts: ['assets/js/reports_crud.html'],
             modals: ''
         },
 
         'audit-trail': {
             title: 'Audit Trail',
-            template: 'minimal/pages/audit-trail.html',
+            template: 'pages/audit-trail.html',
             scripts: ['assets/js/audit_crud.html'],
             modals: ''
         },
 
         swot: {
             title: 'SWOT Analysis',
-            template: 'minimal/pages/swot.html',
+            template: 'pages/swot.html',
             scripts: ['assets/js/swot_crud.html'],
             modals: 'layout/modals/swot_modals.html'
         },
 
         notifications: {
             title: 'Notifications',
-            template: 'minimal/pages/notifications.html',
-            scripts: ['assets/notifications_crud.html'],
+            template: 'pages/notifications.html',
+            scripts: ['assets/js/notifications_crud.html'],
             modals: ''
         },
 
         settings: {
             title: 'Settings',
-            template: 'minimal/pages/settings.html',
+            template: 'pages/settings.html',
             scripts: ['assets/js/settings_manager.html'],
             modals: ''
         }

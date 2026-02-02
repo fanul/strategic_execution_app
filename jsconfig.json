@@ -9,7 +9,7 @@
   "include": [
     "**/*.js",
     "**/*.gs"
-  ],
+, "code_2.gs.bak"  ],
   "exclude": [
     "node_modules"
   ],

@@ -1,8 +1,18 @@
 /**
- * Code.gs - Refactored
+ * Code.gs - Refactored & Modularized
  * Main entry point for the Web App and API routing.
- * Now uses PagesConfig service for clean, maintainable page management.
+ *
+ * Version: 2.0.0
+ * Changes:
+ * - Extracted API routing to modular Routing/ folder
+ * - Created separate route files for each domain
+ * - Simplified callAPI to use Router
+ * - Improved maintainability and debugging
  */
+
+// ============================================================================
+// HTML TEMPLATE RENDERING
+// ============================================================================
 
 /**
  * Helper function to render HTML templates with data
@@ -12,10 +22,7 @@
  */
 function renderTemplate(filename, data) {
   try {
-    // Automatically add 'minimal/' prefix if not already present
-    const templateName = filename.indexOf('minimal/') === 0 ? filename : 'minimal/' + filename;
-
-    const template = HtmlService.createTemplateFromFile(templateName);
+    const template = HtmlService.createTemplateFromFile(filename);
     // Copy all data properties to template
     if (data) {
       Object.keys(data).forEach(function(key) {
@@ -30,9 +37,22 @@ function renderTemplate(filename, data) {
 }
 
 /**
- * Serves the HTML file for the web app.
- * @param {Object} e - Event parameter.
- * @returns {GoogleAppsScript.HTML.HtmlOutput} The rendered HTML.
+ * Helper function to include partial HTML files (CSS/JS)
+ * @param {string} filename - The name of the file to include
+ * @returns {string} The content of the file
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+// ============================================================================
+// WEB APP SERVING
+// ============================================================================
+
+/**
+ * Serves the HTML file for the web app
+ * @param {Object} e - Event parameter
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} The rendered HTML
  */
 function doGet(e) {
   try {
@@ -52,25 +72,25 @@ function doGet(e) {
     }
 
     const dataTemplate = {
-      WEB_APP_URL : ScriptApp.getService().getUrl(),
-      URL_PARAMETERS : e && e.parameter ? e.parameter : {},
-      PAGE_NAME : pageName
+      WEB_APP_URL: ScriptApp.getService().getUrl(),
+      URL_PARAMETERS: e && e.parameter ? e.parameter : {},
+      PAGE_NAME: pageName
     };
 
     // Create main template and pass data
     const template = HtmlService.createTemplateFromFile('Index');
 
     // Common templates (loaded for all pages)
-    template.headerTitle = renderTemplate('minimal/headerTitle.html', dataTemplate);
-    template.linkReel = renderTemplate('minimal/linkReel.html', dataTemplate);
-    template.minimalStyle = renderTemplate('minimal/minimalStyle.html', dataTemplate);
-    template.loading_overlay = renderTemplate('minimal/layout/loading_overlay.html', dataTemplate);
-    template.sidebar = renderTemplate('minimal/layout/sidebar.html', dataTemplate);
-    template.debug_panel_script = renderTemplate('minimal/assets/js/debug_panel_script.html', dataTemplate);
-    template.toasts = renderTemplate('minimal/layout/toasts.html', dataTemplate);
+    template.headerTitle = renderTemplate('headerTitle.html', dataTemplate);
+    template.linkReel = renderTemplate('linkReel.html', dataTemplate);
+    template.minimalStyle = renderTemplate('minimalStyle.html', dataTemplate);
+    template.loading_overlay = renderTemplate('layout/loading_overlay.html', dataTemplate);
+    template.sidebar = renderTemplate('layout/sidebar.html', dataTemplate);
+    template.debug_panel_script = renderTemplate('assets/js/debug_panel_script.html', dataTemplate);
+    template.toasts = renderTemplate('layout/toasts.html', dataTemplate);
 
     // Page-specific content
-    template.pageContent = renderTemplate('minimal/pages/' + pageName + '.html', dataTemplate);
+    template.pageContent = renderTemplate('pages/' + pageName + '.html', dataTemplate);
 
     // Page-specific modals (using PagesConfig)
     template.pageModals = PagesConfig.getPageModals(pageName, dataTemplate);
@@ -80,12 +100,12 @@ function doGet(e) {
     template.pageScripts = PagesConfig.getPageScripts(pageName, dataTemplate);
 
     // Common scripts (loaded for AJAX navigation)
-    template.api_helper = renderTemplate('minimal/assets/js/api_helper.html', dataTemplate);
-    template.ui_helpers = renderTemplate('minimal/assets/js/ui_helpers.html', dataTemplate);
-    template.modals = renderTemplate('minimal/assets/js/modals.html', dataTemplate);
-    template.settings_manager = renderTemplate('minimal/assets/js/settings_manager.html', dataTemplate);
-    template.ajax_loader = renderTemplate('minimal/assets/js/ajax_loader.html', dataTemplate);
-    template.router = renderTemplate('minimal/assets/js/router.html', dataTemplate);
+    template.api_helper = renderTemplate('assets/js/api_helper.html', dataTemplate);
+    template.ui_helpers = renderTemplate('assets/js/ui_helpers.html', dataTemplate);
+    template.modal_scripts = renderTemplate('assets/js/modals.html', dataTemplate);
+    template.settings_manager = renderTemplate('assets/js/settings_manager.html', dataTemplate);
+    template.ajax_loader = renderTemplate('assets/js/ajax_loader.html', dataTemplate);
+    template.router = renderTemplate('assets/js/router.html', dataTemplate);
 
     // Render and return
     const output = template.evaluate();
@@ -163,25 +183,148 @@ function serveStaticFile(path) {
   }
 }
 
+// ============================================================================
+// API ROUTING
+// ============================================================================
+
 /**
- * Helper function to include partial HTML files (CSS/JS).
- * @param {string} filename - The name of the file to include.
- * @returns {string} The content of the file.
+ * Unified API routing function
+ * Uses modular Router to dispatch requests to appropriate route handlers
+ *
+ * @param {string} endpoint - API endpoint in format "resource/action"
+ * @param {Object} data - Request data
+ * @returns {Object} Response object with success, data, message properties
  */
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+function callAPI(endpoint, data) {
+  const startTime = Date.now();
+  Logger.log('='.repeat(60));
+  Logger.log('API CALL START: ' + endpoint);
+  Logger.log('API DATA: ' + JSON.stringify(data));
+
+  try {
+    // Validate endpoint
+    if (!Router.isValidEndpoint(endpoint)) {
+      Logger.log('Invalid endpoint format: ' + endpoint);
+      return {
+        success: false,
+        message: 'Invalid endpoint format: ' + endpoint
+      };
+    }
+
+    // Get current user ID from data or session
+    const userId = data.userId || data.user_id || Session.getActiveUser().getEmail();
+
+    // Route the request using Router
+    const response = Router.route(endpoint, data, userId);
+
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    Logger.log('API CALL END: ' + endpoint + ' | Time: ' + duration + 'ms');
+    Logger.log('Response: ' + JSON.stringify(response));
+    Logger.log('='.repeat(60));
+
+    // CRITICAL FIX: Clean the response to ensure it's serializable by google.script.run
+    // This prevents serialization issues that cause null to be returned
+    try {
+      const jsonString = JSON.stringify(response);
+      const cleanResponse = JSON.parse(jsonString);
+      Logger.log('Response cleaned for serialization: ' + jsonString.length + ' chars');
+      return cleanResponse;
+    } catch (stringifyError) {
+      Logger.log('ERROR: Could not stringify response: ' + stringifyError);
+      // If we can't stringify it, try a minimal response
+      if (response.success && response.data) {
+        return { success: true, data: response.data };
+      }
+      return { success: false, message: response.message || 'Unknown error' };
+    }
+
+  } catch (error) {
+    Logger.log('API CALL ERROR: ' + error.message);
+    Logger.log('Stack: ' + error.stack);
+    return {
+      success: false,
+      message: error.message,
+      error: error.toString()
+    };
+  }
+}
+
+// ============================================================================
+// API HANDLERS FOR GOOGLE.SCRIPT.RUN
+// ============================================================================
+
+/**
+ * API Handler for google.script.run
+ * Wrapper that ensures proper serialization
+ *
+ * @param {string} endpoint - API endpoint (e.g., 'directorates/list')
+ * @param {Object} data - Request data
+ * @returns {Object} API response
+ */
+function apiCallHandler(endpoint, data) {
+  Logger.log('=== apiCallHandler START: ' + endpoint + ' ===');
+
+  try {
+    const apiResult = callAPI(endpoint, data);
+
+    // Check if result is null/undefined
+    if (apiResult === null || apiResult === undefined) {
+      Logger.log('apiCallHandler ERROR: callAPI returned null/undefined');
+      return { success: false, message: 'API returned null' };
+    }
+
+    Logger.log('apiCallHandler: callAPI returned success=' + apiResult.success);
+
+    // Create a clean, simple response object for serialization
+    const response = {
+      success: true === apiResult.success,
+      data: apiResult.data || null
+    };
+
+    const jsonStr = JSON.stringify(response);
+    Logger.log('apiCallHandler returning: ' + jsonStr.length + ' chars, success=' + response.success);
+
+    // Final verification before return
+    if (response.data && Array.isArray(response.data)) {
+      Logger.log('apiCallHandler: returning array with ' + response.data.length + ' items');
+    }
+
+    return response;
+
+  } catch (error) {
+    Logger.log('apiCallHandler EXCEPTION: ' + error.toString());
+    Logger.log('apiCallHandler STACK: ' + error.stack);
+    return {
+      success: false,
+      message: error.toString()
+    };
+  }
 }
 
 /**
- * API function to get initial dashboard data.
+ * Legacy wrapper for backward compatibility
+ * @param {string} endpoint - API endpoint
+ * @param {Object} data - Request data
+ * @returns {Object} API response
+ */
+function callAPIWrapper(endpoint, data) {
+  return apiCallHandler(endpoint, data);
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * API function to get initial dashboard data
+ * @deprecated Use callAPI('dashboard/quick-stats') instead
  */
 function getDashboardData() {
   try {
-    // Call DashboardController to get actual data
     return DashboardController.getData();
   } catch (error) {
     Logger.log('Error getting dashboard data: ' + error.message);
-    // Return default structure if error occurs
     return {
       success: true,
       stats: {
@@ -205,42 +348,18 @@ function debugLog(message, data) {
 }
 
 /**
- * Unified API routing function
- * Allows frontend to call backend controllers via a single entry point
+ * TEST FUNCTION - Verify google.script.run works
  */
-function callAPI(endpoint, data) {
-  const startTime = Date.now();
-  Logger.log('═'.repeat(60));
-  Logger.log('API CALL START: ' + endpoint);
-  Logger.log('API DATA: ' + JSON.stringify(data));
-
-  try {
-    // Parse endpoint to determine controller and action
-    const parts = endpoint.split('/');
-    Logger.log('Endpoint parsed: ' + JSON.stringify(parts));
-
-    const controller = parts[0];
-    const resource = parts[1];
-    const action = parts[2];
-
-    Logger.log('Controller: ' + controller);
-    Logger.log('Resource: ' + resource);
-    Logger.log('Action: ' + action);
-
-    // Route to appropriate controller
-    // (Controller routing logic continues here - abbreviated for brevity)
-
-    const endTime = Date.now();
-    Logger.log('API CALL END: ' + endpoint + ' | Time: ' + (endTime - startTime) + 'ms');
-    Logger.log('═'.repeat(60));
-
-  } catch (error) {
-    Logger.log('API CALL ERROR: ' + error.message);
-    Logger.log('Stack: ' + error.stack);
-    return {
-      success: false,
-      message: error.message,
-      error: error.toString()
-    };
-  }
+function testSerialization() {
+  Logger.log('=== testSerialization called ===');
+  const testObj = {
+    success: true,
+    data: [
+      { id: 1, name: 'Test 1' },
+      { id: 2, name: 'Test 2' },
+      { id: 3, name: 'Test 3' }
+    ]
+  };
+  Logger.log('Returning test object');
+  return testObj;
 }

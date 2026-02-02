@@ -106,12 +106,16 @@ function logMultipleRevisions(entityType, entityId, changes, changeType, userId,
 function getRevisionHistory(entityType, entityId, limit = 50) {
   try {
     const revisions = getTableData(DB_CONFIG.SHEET_NAMES.REVISIONS);
-    
+
+    if (!revisions || !Array.isArray(revisions)) {
+      return formatSuccess([], 'No revisions found');
+    }
+
     const filtered = revisions
       .filter(r => r.entity_type === entityType && r.entity_id === entityId)
       .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
       .slice(0, limit);
-    
+
     return formatSuccess(filtered, `Found ${filtered.length} revisions`);
   } catch (e) {
     Logger.log(`Error getting revision history: ${e}`);
@@ -128,15 +132,21 @@ function getRevisionHistory(entityType, entityId, limit = 50) {
 function getRecentRevisions(limit = 100, userId = null) {
   try {
     let revisions = getTableData(DB_CONFIG.SHEET_NAMES.REVISIONS);
-    
+
+    // Handle case where sheet doesn't exist or has no data
+    if (!revisions || !Array.isArray(revisions)) {
+      Logger.log('Revisions sheet not found or empty, returning empty array');
+      return formatSuccess([], 'No revisions found');
+    }
+
     if (userId) {
       revisions = revisions.filter(r => r.changed_by === userId);
     }
-    
+
     const sorted = revisions
       .sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
       .slice(0, limit);
-    
+
     return formatSuccess(sorted, `Found ${sorted.length} revisions`);
   } catch (e) {
     Logger.log(`Error getting recent revisions: ${e}`);
@@ -153,14 +163,18 @@ function getRecentRevisions(limit = 100, userId = null) {
 function compareRevisions(revisionId1, revisionId2) {
   try {
     const revisions = getTableData(DB_CONFIG.SHEET_NAMES.REVISIONS);
-    
+
+    if (!revisions || !Array.isArray(revisions)) {
+      return formatError('Revisions data not available');
+    }
+
     const rev1 = revisions.find(r => r.revision_id === revisionId1);
     const rev2 = revisions.find(r => r.revision_id === revisionId2);
-    
+
     if (!rev1 || !rev2) {
       return formatError('One or both revisions not found');
     }
-    
+
     return formatSuccess({
       revision1: rev1,
       revision2: rev2,
@@ -183,8 +197,13 @@ function compareRevisions(revisionId1, revisionId2) {
 function restoreRevision(revisionId, userId, reason) {
   try {
     const revisions = getTableData(DB_CONFIG.SHEET_NAMES.REVISIONS);
+
+    if (!revisions || !Array.isArray(revisions)) {
+      return formatError('Revisions data not available');
+    }
+
     const revision = revisions.find(r => r.revision_id === revisionId);
-    
+
     if (!revision) {
       return formatError('Revision not found');
     }
@@ -237,7 +256,16 @@ function restoreRevision(revisionId, userId, reason) {
 function getRevisionStatistics(filters = {}) {
   try {
     let revisions = getTableData(DB_CONFIG.SHEET_NAMES.REVISIONS);
-    
+
+    if (!revisions || !Array.isArray(revisions)) {
+      return formatSuccess({
+        total: 0,
+        byType: {},
+        byUser: {},
+        byEntity: {}
+      }, 'No revisions data available');
+    }
+
     // Apply filters
     if (filters.entityType) {
       revisions = revisions.filter(r => r.entity_type === filters.entityType);
@@ -251,7 +279,7 @@ function getRevisionStatistics(filters = {}) {
     if (filters.endDate) {
       revisions = revisions.filter(r => new Date(r.changed_at) <= new Date(filters.endDate));
     }
-    
+
     // Calculate statistics
     const stats = {
       total: revisions.length,
@@ -259,7 +287,7 @@ function getRevisionStatistics(filters = {}) {
       byUser: {},
       byEntity: {}
     };
-    
+
     revisions.forEach(rev => {
       // By change type
       stats.byType[rev.change_type] = (stats.byType[rev.change_type] || 0) + 1;

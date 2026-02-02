@@ -1,421 +1,99 @@
-<!-- programs.html -->
+<!-- Program Management Page -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-diagram-3-fill"></i> Programs & Activities</h1>
+    <h1 class="h2">Program Management</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-sm btn-primary" onclick="createProgram()">
-            <i class="bi bi-plus-circle"></i> New Program
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#programModal">
+            <i class="bi bi-plus-lg me-1"></i>New Program
         </button>
     </div>
 </div>
 
-<div class="row">
-    <!-- Programs List -->
-    <div class="col-lg-12">
-        <div class="card shadow mb-4">
-            <div class="card-header">
-                <h6 class="m-0 font-weight-bold text-primary">Programs</h6>
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 id="totalPrograms">0</h3>
+                <small>Total Programs</small>
             </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="programsTable" class="table table-bordered table-hover table-striped datatable" width="100%">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th class="text-end">Budget</th>
-                                <th class="text-end">Total Cost</th>
-                                <th class="text-end">Variance</th>
-                                <th class="text-center">Activities</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="programsBody">
-                            <!-- Data populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 id="activePrograms">0</h3>
+                <small>Active</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3 id="totalBudget">0</h3>
+                <small>Total Budget</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h3 id="budgetUsed">0%</h3>
+                <small>Budget Used</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Activities Modal -->
-<div class="modal fade" id="activitiesModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-list-task"></i> Program Activities</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Period</label>
+                <select class="form-select" id="programPeriodFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Periods</option>
+                </select>
             </div>
-            <div class="modal-body">
-                <div class="mb-3 d-flex justify-content-between align-items-center">
-                    <button class="btn btn-sm btn-success" onclick="addActivity()">
-                        <i class="bi bi-plus"></i> Add Activity
-                    </button>
-                    <div id="programHeaderInfo" class="text-primary font-weight-bold"></div>
-                </div>
-                <div class="table-responsive">
-                    <table id="activitiesTable" class="table table-bordered table-hover table-striped datatable" width="100%">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th>Output</th>
-                                <th class="text-end">Cost</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="activitiesBody">
-                            <!-- Data populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
+            <div class="col-md-3">
+                <label class="form-label">Work Unit</label>
+                <select class="form-select" id="programWorkUnitFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Work Units</option>
+                </select>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="programStatusFilter" onchange="ProgramManager.filterPrograms()">
+                    <option value="">All Status</option>
+                    <option value="not_started">Not Started</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" class="form-control" id="programSearchFilter" placeholder="Search programs..." oninput="ProgramManager.filterPrograms()">
             </div>
         </div>
     </div>
 </div>
 
-<!-- Program Modal -->
-<div class="modal fade" id="programModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="programModalTitle">New Program</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="programForm">
-                    <input type="hidden" id="programId" name="program_id">
-                    <div class="mb-3">
-                        <label class="form-label">Program Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="program_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Program Code <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="program_code" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Budget Amount <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control" name="budget_amount" required>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveProgram()">Save</button>
-            </div>
-        </div>
+<!-- Programs List -->
+<div id="programsContent">
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-diagram-3 fs-1"></i>
+        <p class="mt-3">Loading programs...</p>
     </div>
 </div>
 
-<!-- Activity Modal -->
-<div class="modal fade" id="activityModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="activityModalTitle">New Activity</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="activityForm">
-                    <input type="hidden" id="activityId" name="activity_id">
-                    <div class="mb-3">
-                        <label class="form-label">Activity Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="activity_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Activity Code</label>
-                        <input type="text" class="form-control" name="activity_code" placeholder="Auto-generated if empty">
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Unit Price</label>
-                            <input type="number" class="form-control" name="unit_price" value="0">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Quantity</label>
-                            <input type="number" class="form-control" name="quantity" value="1">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Output Target</label>
-                        <input type="text" class="form-control" name="output_target">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveActivity()">Save Activity</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
-        color: #0d6efd !important;
-        background-color: #fff !important;
-        border: 1px solid #0d6efd;
-        font-weight: bold;
-    }
-    .select2-container { z-index: 9999; }
-</style>
+<!-- Page Modals -->
+<div id="page-modals"></div>
 
 <script>
-let programsTable, activitiesTable;
-let allPrograms = [];
-let currentProgramId = null;
-
+// Initialize programs page
 document.addEventListener('DOMContentLoaded', function() {
-    // Init DataTables
-    programsTable = $('#programsTable').DataTable({
-        responsive: true,
-        ordering: true,
-        pageLength: 10,
-        columnDefs: [{ defaultContent: "", targets: "_all" }]
-    });
-    
-    activitiesTable = $('#activitiesTable').DataTable({
-        responsive: true,
-        ordering: true,
-        pageLength: 10,
-        columnDefs: [{ defaultContent: "", targets: "_all" }]
-    });
-    
-    // Init Select2 - Exclude DataTables length menus
-    $('.select2:not(.dataTables_length select)').each(function() {
-        $(this).select2({ 
-            theme: 'bootstrap-5',
-            dropdownParent: $(this).closest('.modal').length ? $(this).closest('.modal') : $('body'),
-            width: '100%'
-        });
-    });
-    
-    loadPrograms();
+    if (typeof ProgramManager !== 'undefined' && ProgramManager.init) {
+        ProgramManager.init();
+    }
 });
-
-function loadPrograms() {
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                allPrograms = response.data || [];
-                renderPrograms(allPrograms);
-            }
-        })
-        .withFailureHandler(showError)
-        .callAPI('programs/list', {});
-}
-
-function renderPrograms(data) {
-    if (programsTable) programsTable.clear();
-    
-    data.forEach(program => {
-        const variance = program.budget_amount - (program.total_cost || 0);
-        const varianceClass = variance >= 0 ? 'success' : 'danger';
-        
-        programsTable.row.add([
-            program.program_code,
-            program.program_name,
-            `<div class="text-end">Rp ${formatNumber(program.budget_amount)}</div>`,
-            `<div class="text-end">Rp ${formatNumber(program.total_cost || 0)}</div>`,
-            `<div class="text-end text-${varianceClass}">Rp ${formatNumber(variance)}</div>`,
-            `<div class="text-center"><span class="badge bg-info">${program.activity_count || 0}</span></div>`,
-            `
-                <button class="btn btn-sm btn-outline-primary" onclick="viewActivities('${program.program_id}')">
-                    <i class="bi bi-list-task"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" onclick="editProgram('${program.program_id}')">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteProgram('${program.program_id}')">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `
-        ]);
-    });
-    
-    programsTable.draw();
-}
-
-function formatNumber(num) {
-    return new Intl.NumberFormat('id-ID').format(num || 0);
-}
-
-function viewActivities(programId) {
-    currentProgramId = programId;
-    const program = allPrograms.find(p => p.program_id === programId);
-    if (program) {
-        document.getElementById('programHeaderInfo').innerText = `${program.program_code} - ${program.program_name}`;
-    }
-    
-    const modal = new bootstrap.Modal(document.getElementById('activitiesModal'));
-    modal.show();
-    
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                renderActivities(response.data);
-            }
-        })
-        .callAPI('programs/activities', {programId: programId});
-}
-
-function renderActivities(data) {
-    if (activitiesTable) activitiesTable.clear();
-    
-    (data || []).forEach(activity => {
-        activitiesTable.row.add([
-            activity.activity_code,
-            activity.activity_name,
-            activity.output_target || '-',
-            `<div class="text-end">Rp ${formatNumber(activity.budget_amount)}</div>`,
-            `
-                <button class="btn btn-sm btn-outline-primary" onclick="editActivity('${activity.activity_id}')">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteActivity('${activity.activity_id}')">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `
-        ]);
-    });
-    
-    activitiesTable.draw();
-}
-
-function createProgram() {
-    document.getElementById('programForm').reset();
-    document.getElementById('programId').value = '';
-    document.getElementById('programModalTitle').innerText = 'New Program';
-    new bootstrap.Modal(document.getElementById('programModal')).show();
-}
-
-function editProgram(id) {
-    const program = allPrograms.find(p => p.program_id === id);
-    if (!program) return;
-    
-    const form = document.getElementById('programForm');
-    form.program_id.value = program.program_id;
-    form.program_name.value = program.program_name;
-    form.program_code.value = program.program_code;
-    form.budget_amount.value = program.budget_amount;
-    
-    document.getElementById('programModalTitle').innerText = 'Edit Program';
-    new bootstrap.Modal(document.getElementById('programModal')).show();
-}
-
-function saveProgram() {
-    const form = document.getElementById('programForm');
-    const data = Object.fromEntries(new FormData(form).entries());
-    
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                bootstrap.Modal.getInstance(document.getElementById('programModal')).hide();
-                loadPrograms();
-                showToast('Program saved successfully', 'Success');
-            } else {
-                showError(response.message);
-            }
-        })
-        .callAPI('programs/saveProgram', data);
-}
-
-function deleteProgram(id) {
-    if (!confirm('Are you sure you want to delete this program? All related activities must be deleted first.')) return;
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                loadPrograms();
-                showToast('Program deleted', 'Success');
-            } else {
-                showError(response.message);
-            }
-        })
-        .callAPI('programs/deleteProgram', {program_id: id});
-}
-
-let currentActivities = [];
-function addActivity() {
-    document.getElementById('activityForm').reset();
-    document.getElementById('activityId').value = '';
-    document.getElementById('activityModalTitle').innerText = 'New Activity';
-    // Ensure we have currentProgramId
-    if (!currentProgramId) {
-        alert("Please select a program first.");
-        return;
-    }
-    new bootstrap.Modal(document.getElementById('activityModal')).show();
-}
-
-function editActivity(id) {
-    // Current activities are those loaded for the current program
-    // We need to store them or fetch them. Let's assume they are available from the last fetch
-    google.script.run.withSuccessHandler(res => {
-        if(res.success && res.data) {
-            const act = res.data.find(a => a.activity_id === id);
-            if (!act) return;
-            
-            const form = document.getElementById('activityForm');
-            form.activity_id.value = act.activity_id;
-            form.activity_name.value = act.activity_name;
-            form.activity_code.value = act.activity_code;
-            form.unit_price.value = act.unit_price || 0;
-            form.quantity.value = act.quantity || 1;
-            form.output_target.value = act.output_target || '';
-            
-            document.getElementById('activityModalTitle').innerText = 'Edit Activity';
-            new bootstrap.Modal(document.getElementById('activityModal')).show();
-        }
-    }).callAPI('programs/getActivities', {programId: currentProgramId});
-}
-
-function saveActivity() {
-    const form = document.getElementById('activityForm');
-    const data = Object.fromEntries(new FormData(form).entries());
-    data.program_id = currentProgramId;
-    
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                bootstrap.Modal.getInstance(document.getElementById('activityModal')).hide();
-                viewActivities(currentProgramId); // Reload activities list
-                loadPrograms(); // Reload programs to update budget
-                showToast('Activity saved successfully', 'Success');
-            } else {
-                showError(response.message);
-            }
-        })
-        .callAPI('programs/saveActivity', data);
-}
-
-function deleteActivity(id) {
-    if (!confirm('Are you sure you want to delete this activity?')) return;
-    google.script.run
-        .withSuccessHandler(function(response) {
-            if (response.success) {
-                viewActivities(currentProgramId);
-                loadPrograms();
-                showToast('Activity deleted', 'Success');
-            } else {
-                showError(response.message);
-            }
-        })
-        .callAPI('programs/deleteActivity', {activity_id: id});
-}
-
-function showError(error) {
-    console.error(error);
-    alert('Error: ' + error);
-}
-
-function showToast(msg, title) {
-    alert(title + ': ' + msg);
-}
 </script>
